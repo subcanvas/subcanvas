@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import { cache } from "react"
 
 import { requireUser } from "@/lib/auth"
-import type { Role } from "@/lib/roles"
+import { hasRole, type Role } from "@/lib/roles"
 
 // Loads the org for a route, or 404s. RLS hides orgs the user is not in,
 // so "not a member" and "does not exist" look the same.
@@ -24,5 +24,11 @@ export const getOrgContext = cache(async (slug: string) => {
     .single()
   if (!membership) notFound()
 
-  return { supabase, user, org, role: membership.role as Role }
+  const role = membership.role as Role
+  const { data: usage } = await supabase.rpc("org_usage", { p_org_id: org.id })
+  const plan = usage?.[0] ?? null
+  // A lapsed org over its editor limit is read-only for everyone but owners.
+  const canEdit = hasRole(role, "editor") && !(plan?.locked && role !== "owner")
+
+  return { supabase, user, org, role, plan, canEdit }
 })

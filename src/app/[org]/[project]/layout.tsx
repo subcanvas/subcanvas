@@ -3,10 +3,12 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { ProjectTree } from "@/components/tree/project-tree"
+import { ProjectVisibility } from "@/components/tree/project-visibility"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -22,17 +24,17 @@ export default async function ProjectLayout({
   params,
 }: LayoutProps<"/[org]/[project]">) {
   const { org: slug, project: projectId } = await params
-  const { supabase, org, role } = await getOrgContext(slug)
+  const { supabase, org, role, plan, canEdit } = await getOrgContext(slug)
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name")
+    .select("id, name, visibility")
     .eq("id", projectId)
     .eq("org_id", org.id)
     .maybeSingle()
   if (!project) notFound()
 
-  const [{ data: folders }, { data: documents }, { data: usageRows }] = await Promise.all([
+  const [{ data: folders }, { data: documents }] = await Promise.all([
     supabase
       .from("folders")
       .select("id, name, parent_folder_id, position")
@@ -43,31 +45,40 @@ export default async function ProjectLayout({
       .eq("project_id", project.id)
       .eq("kind", "standard")
       .is("deleted_at", null),
-    supabase.rpc("org_usage", { p_org_id: org.id }),
   ])
-  const usage = usageRows?.[0]
 
   return (
     <SidebarProvider className="min-h-0 flex-1">
       <Sidebar collapsible="none" className="sticky top-0 h-[calc(100svh-3rem)] border-r">
+        <SidebarHeader>
+          <ProjectVisibility
+            project={{ slug: org.slug, orgId: org.id, projectId: project.id }}
+            visibility={project.visibility}
+            canChange={hasRole(role, "admin") && canEdit}
+          />
+        </SidebarHeader>
         <SidebarContent>
           <ProjectTree
             project={{ slug: org.slug, orgId: org.id, projectId: project.id }}
             projectName={project.name}
             nodes={buildTree(folders ?? [], documents ?? [])}
-            canEdit={hasRole(role, "editor")}
+            canEdit={canEdit}
             canUpgrade={billingConfigured()}
           />
         </SidebarContent>
         <SidebarFooter>
-          {usage && !usage.paid && usage.document_limit != null && billingConfigured() && (
-            <Link
-              href={`/${org.slug}/settings/billing`}
-              className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"
-            >
-              {usage.documents} of {usage.document_limit} free documents used
-            </Link>
-          )}
+          {project.visibility === "private" &&
+            plan &&
+            !plan.paid &&
+            plan.private_document_limit != null &&
+            billingConfigured() && (
+              <Link
+                href={`/${org.slug}/settings/billing`}
+                className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"
+              >
+                {plan.private_documents} of {plan.private_document_limit} free private documents used
+              </Link>
+            )}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton render={<Link href={`/${org.slug}/${project.id}/trash`} />}>

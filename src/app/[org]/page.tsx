@@ -1,13 +1,12 @@
 import Link from "next/link"
 
 import { getOrgContext } from "@/lib/orgs"
-import { hasRole } from "@/lib/roles"
 
 import { NewProjectForm } from "./new-project-form"
 
 export default async function OrgPage({ params }: PageProps<"/[org]">) {
   const { org: slug } = await params
-  const { supabase, org, role } = await getOrgContext(slug)
+  const { supabase, org, canEdit } = await getOrgContext(slug)
 
   const { data: projects } = await supabase
     .from("projects")
@@ -36,7 +35,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
         <p className="text-muted-foreground">No projects yet.</p>
       )}
 
-      {hasRole(role, "editor") && <NewProjectForm slug={org.slug} orgId={org.id} />}
+      {canEdit && <NewProjectForm slug={org.slug} orgId={org.id} />}
     </main>
   )
 }

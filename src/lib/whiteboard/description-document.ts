@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { LIMIT_ERROR_CODE, LIMIT_MESSAGE } from "@/lib/billing/limit"
+import { limitMessage } from "@/lib/billing/limit"
 import type { Database } from "@/lib/supabase/database.types"
 
 // Where a whiteboard lives, which is what a new document inside it needs.
@@ -88,11 +88,10 @@ export async function createChildWhiteboard(
   if (error)
     return {
       error:
-        error.code === LIMIT_ERROR_CODE
-          ? LIMIT_MESSAGE
-          : error.code === "42501"
+        limitMessage(error.code) ??
+          (error.code === "42501"
             ? "You do not have permission to create documents."
-            : error.message,
+            : error.message),
     }
   return { id: data.id }
 }

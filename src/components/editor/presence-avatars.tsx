@@ -1,5 +1,6 @@
 "use client"
 
+import { Eye } from "lucide-react"
 import { useEffect } from "react"
 
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
@@ -19,34 +20,47 @@ export function PresenceAvatars({
   provider: SupabaseProvider
   user: EditorUser
 }) {
-  const { peers } = useSyncStatus(provider)
+  const { peers, viewers } = useSyncStatus(provider)
 
   useEffect(() => {
     provider.setUser({ id: user.id, name: user.name, color: user.color })
   }, [provider, user.id, user.name, user.color])
 
-  if (!peers.length) return null
+  const watching = viewers > 0 && (
+    <span
+      className="flex items-center gap-1 text-xs text-muted-foreground"
+      title="People viewing without editing. Updates every few seconds."
+    >
+      <Eye className="size-3.5" aria-hidden />
+      {viewers} watching
+    </span>
+  )
+
+  if (!peers.length) return watching || null
 
   return (
-    <AvatarGroup aria-label={`${peers.length} other ${peers.length === 1 ? "person" : "people"} here`}>
-      {peers.slice(0, MAX_SHOWN).map((peer) => (
-        <Tooltip key={peer.id}>
-          <TooltipTrigger
-            render={
-              <Avatar className="size-6 ring-2 ring-background">
-                <AvatarFallback
-                  className="text-xs font-medium text-white"
-                  style={{ backgroundColor: peer.color }}
-                >
-                  {peer.name.charAt(0).toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-            }
-          />
-          <TooltipContent>{peer.name}</TooltipContent>
-        </Tooltip>
-      ))}
-      {peers.length > MAX_SHOWN && <AvatarGroupCount>+{peers.length - MAX_SHOWN}</AvatarGroupCount>}
-    </AvatarGroup>
+    <>
+      <AvatarGroup aria-label={`${peers.length} other ${peers.length === 1 ? "person" : "people"} here`}>
+        {peers.slice(0, MAX_SHOWN).map((peer) => (
+          <Tooltip key={peer.id}>
+            <TooltipTrigger
+              render={
+                <Avatar className="size-6 ring-2 ring-background">
+                  <AvatarFallback
+                    className="text-xs font-medium text-white"
+                    style={{ backgroundColor: peer.color }}
+                  >
+                    {peer.name.charAt(0).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+              }
+            />
+            <TooltipContent>{peer.name}</TooltipContent>
+          </Tooltip>
+        ))}
+        {peers.length > MAX_SHOWN && <AvatarGroupCount>+{peers.length - MAX_SHOWN}</AvatarGroupCount>}
+      </AvatarGroup>
+      {watching}
+    </>
   )
 }

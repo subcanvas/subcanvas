@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { LIMIT_ERROR_CODE, LIMIT_MESSAGE } from "@/lib/billing/limit"
+import { limitMessage } from "@/lib/billing/limit"
 import { createClient } from "@/lib/supabase/server"
 import type { Container, DocumentType } from "@/lib/tree"
 
@@ -17,7 +17,8 @@ export type ActionResult = { error: string; limit?: true } | { ok: true }
 const NOT_ALLOWED = { error: "You do not have permission to do that." }
 
 function fail(error: { code?: string; message: string }): ActionResult {
-  if (error.code === LIMIT_ERROR_CODE) return { error: LIMIT_MESSAGE, limit: true }
+  const limit = limitMessage(error.code)
+  if (limit) return { error: limit, limit: true }
   return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
 }
 
@@ -223,6 +224,23 @@ export async function deleteFolder(project: ProjectRef, id: string): Promise<Act
   const supabase = await createClient()
   const { error } = await supabase.rpc("delete_folder", { p_folder_id: id })
   if (error) return fail(error)
+
+  refresh(project)
+  return { ok: true }
+}
+
+export async function setProjectVisibility(
+  project: ProjectRef,
+  visibility: "private" | "public"
+): Promise<ActionResult> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("projects")
+    .update({ visibility })
+    .eq("id", project.projectId)
+    .select("id")
+  if (error) return fail(error)
+  if (!data.length) return NOT_ALLOWED
 
   refresh(project)
   return { ok: true }

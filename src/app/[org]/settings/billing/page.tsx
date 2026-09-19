@@ -7,30 +7,28 @@ import { BillingButton } from "./billing-buttons"
 
 const PRICE_PER_SEAT = 5
 
+const longDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-US", { dateStyle: "long" })
+
 export default async function BillingPage({
   params,
   searchParams,
 }: PageProps<"/[org]/settings/billing">) {
   const { org: slug } = await params
   const justPaid = (await searchParams).checkout === "success"
-  const { supabase, org, role } = await getOrgContext(slug)
+  const { supabase, org, role, plan } = await getOrgContext(slug)
 
-  const [{ data: usageRows }, { data: subscription }] = await Promise.all([
-    supabase.rpc("org_usage", { p_org_id: org.id }),
-    supabase
-      .from("subscriptions")
-      .select("status, seats, current_period_end, cancel_at_period_end")
-      .eq("org_id", org.id)
-      .maybeSingle(),
-  ])
-  const usage = usageRows?.[0]
-  const paid = usage?.paid ?? false
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("status, current_period_end, cancel_at_period_end")
+    .eq("org_id", org.id)
+    .maybeSingle()
+
+  const paid = plan?.paid ?? false
   const isOwner = role === "owner"
   const configured = billingConfigured()
-  const seats = usage?.billed_seats ?? 1
-  const renews =
-    subscription?.current_period_end &&
-    new Date(subscription.current_period_end).toLocaleDateString("en-US", { dateStyle: "long" })
+  const editors = plan?.editors ?? 1
+  const hasLimits = plan?.private_document_limit != null || plan?.editor_limit != null
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -51,29 +49,31 @@ export default async function BillingPage({
           </CardTitle>
           <CardDescription>
             {paid
-              ? `$${PRICE_PER_SEAT} per seat each month. Unlimited documents.`
-              : usage?.document_limit == null
-                ? "This server has no document limit."
-                : `Up to ${usage.document_limit} documents. Unlimited members and viewers.`}
+              ? `$${PRICE_PER_SEAT} per editor each month. Unlimited private documents and editors.`
+              : hasLimits
+                ? "Public projects are unlimited. Private documents and editors are limited. Viewers are always free."
+                : "This server has no plan limits."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
-            <dt className="text-muted-foreground">Documents</dt>
+            <dt className="text-muted-foreground">Private documents</dt>
             <dd>
-              {usage?.documents ?? 0}
-              {!paid && usage?.document_limit != null && ` of ${usage.document_limit}`}
+              {plan?.private_documents ?? 0}
+              {!paid && plan?.private_document_limit != null && ` of ${plan.private_document_limit}`}
             </dd>
-            <dt className="text-muted-foreground">Billed seats</dt>
+            <dt className="text-muted-foreground">Editors</dt>
             <dd>
-              {seats} (owners, admins, and editors; viewers are free)
+              {editors}
+              {!paid && plan?.editor_limit != null && ` of ${plan.editor_limit}`} (owners, admins, and
+              editors; viewers are free)
             </dd>
-            {paid && renews && (
+            {paid && subscription?.current_period_end && (
               <>
                 <dt className="text-muted-foreground">
-                  {subscription?.cancel_at_period_end ? "Ends" : "Renews"}
+                  {subscription.cancel_at_period_end ? "Ends" : "Renews"}
                 </dt>
-                <dd>{renews}</dd>
+                <dd>{longDate(subscription.current_period_end)}</dd>
               </>
             )}
           </dl>
@@ -88,7 +88,7 @@ export default async function BillingPage({
             <BillingButton
               orgId={org.id}
               kind="checkout"
-              label={`Upgrade for $${PRICE_PER_SEAT * seats} a month`}
+              label={`Upgrade for $${PRICE_PER_SEAT * editors} a month`}
             />
           )}
         </CardContent>

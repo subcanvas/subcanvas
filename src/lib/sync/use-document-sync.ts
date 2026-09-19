@@ -94,5 +94,10 @@ export function useSyncStatus(provider: SupabaseProvider) {
     () => provider.peers,
     () => EMPTY_PEERS
   )
-  return { status, saveStatus, loaded, peers }
+  const viewers = useSyncExternalStore(
+    provider.subscribe,
+    () => provider.viewers,
+    () => 0
+  )
+  return { status, saveStatus, loaded, peers, viewers }
 }

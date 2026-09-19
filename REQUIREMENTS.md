@@ -88,10 +88,11 @@ An **object** is a node or an edge. Groups contain objects.
 |---|---|
 | R5.1 | Multiple users can edit the same whiteboard or text doc at the same time, with changes merged without conflicts (Yjs CRDTs). |
 | R5.1a | Yjs updates travel over **Supabase Realtime** broadcast channels. No separate WebSocket server. |
-| R5.2 | Presence: live cursors on whiteboards, carets and selections in text docs, and avatars of who is in the document. |
+| R5.2 | Presence among editors: live cursors on whiteboards, carets and selections in text docs, and avatars of who is editing. |
 | R5.3 | Document state persists to Postgres. A user who opens a document alone gets the latest state. |
 | R5.4 | Edits made in the side panel and on the standalone page of the same document stay in sync. |
-| R5.5 | Viewers receive live updates but cannot edit. |
+| R5.5 | Viewers cannot edit. They hold no real-time connection: the document refreshes itself every 20 seconds or so, which keeps free and anonymous viewing nearly free to serve. |
+| R5.6 | Everyone sees how many people are watching a document without editing, including anonymous viewers of a public project. The count may lag by a few seconds. |
 
 ## 6. Orgs, roles, and sharing
 
@@ -102,20 +103,22 @@ An **object** is a node or an edge. Groups contain objects.
 | R6.3 | Roles per org: **Owner** (billing, delete org, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
 | R6.4 | Members are invited by email with a role. |
 | R6.5 | All data access is enforced by Postgres row-level security scoped to org membership and role. |
-| R6.6 | Public read-only share links **(later)**. |
+| R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the org can edit). Admins change it, behind a confirmation that says plainly what public means. Public pages are not indexed by search engines unless the org opts in **(opt-in later)**. |
+| R6.7 | Public pages carry a way to report abuse, and the operator can take a project down. |
 
-## 7. Billing
+## 7. Plans and billing
 
 | ID | Requirement |
 |---|---|
-| R7.1 | **Free tier:** up to **25 documents** per org. Members and viewers are unlimited, so free orgs can spread by invitation. |
-| R7.1a | Node description documents (R4.2) **do not count** toward the limit. Only documents a user creates explicitly count. |
-| R7.2 | **Paid tier:** $5 per seat per month through Stripe, billed at the org level. Unlimited documents. |
-| R7.2a | Billed seats are **Owners, Admins, and Editors**. Viewers are always free. |
+| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and up to **3 editors**. Viewers are unlimited. |
+| R7.1a | Node description documents (R4.2) and documents in the trash do not count toward the private document limit. |
+| R7.2 | **Paid plan:** $5 per editor per month through Stripe, billed at the org level. Unlimited private documents and editors. |
+| R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
-| R7.4 | Seat count updates when billed members are added, removed, or change to or from Viewer. |
-| R7.5 | When a free org hits the limit, creating documents is blocked with an upgrade prompt. Existing documents stay editable. |
-| R7.6 | When a subscription lapses, content stays readable and exportable. Nothing is deleted. |
+| R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |
+| R7.5 | At a limit, the blocked action (a new private document, a fourth editor) shows why and offers the upgrade. Everything that exists stays editable. Making a project public is always allowed; making it private is checked against the limit. |
+| R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. An org left with more editors than the free plan includes has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
+| R7.7 | Limits are a deployment setting and are **off by default**, so a self-hosted server has no limits and needs no billing setup. With Stripe unconfigured, billing navigation and upgrade prompts are hidden. |
 
 ## 8. Platform
 

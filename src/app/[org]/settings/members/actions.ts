@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { EDITOR_LIMIT_MESSAGE, limitMessage } from "@/lib/billing/limit"
 import { syncSeats } from "@/lib/billing/stripe"
 import { ROLES, type Role } from "@/lib/roles"
 import { createClient } from "@/lib/supabase/server"
@@ -33,7 +34,10 @@ export async function changeRole(
     .eq("user_id", userId)
     .select("user_id")
 
-  if (error) return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
+  if (error)
+    return error.code === "42501"
+      ? NOT_ALLOWED
+      : { error: limitMessage(error.code) ?? error.message }
   if (!data.length) return NOT_ALLOWED
 
   await syncSeats(orgId)
@@ -79,6 +83,14 @@ export async function createInvite(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NOT_ALLOWED
+
+  // Say so now rather than when the invited person tries to accept.
+  if (role !== "viewer") {
+    const { data: usage } = await supabase.rpc("org_usage", { p_org_id: orgId })
+    const plan = usage?.[0]
+    if (plan && !plan.paid && plan.editor_limit != null && plan.editors >= plan.editor_limit)
+      return { error: EDITOR_LIMIT_MESSAGE }
+  }
 
   const { error } = await supabase
     .from("org_invites")

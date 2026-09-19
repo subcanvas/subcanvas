@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { DocumentPicker } from "@/components/document-picker"
-import { LIMIT_ERROR_CODE, LIMIT_MESSAGE } from "@/lib/billing/limit"
+import { limitMessage } from "@/lib/billing/limit"
 import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
 import { createClient } from "@/lib/supabase/client"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
@@ -134,11 +134,10 @@ export default function TextEditor({
       .single()
     if (error)
       return void toast.error(
-        error.code === LIMIT_ERROR_CODE
-          ? LIMIT_MESSAGE
-          : error.code === "42501"
+        limitMessage(error.code) ??
+          (error.code === "42501"
             ? "You do not have permission to create documents."
-            : error.message
+            : error.message)
       )
     insertLink(data.id)
     router.refresh()

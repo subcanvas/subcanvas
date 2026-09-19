@@ -6,7 +6,9 @@ import type { Awareness } from "y-protocols/awareness"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 
-const SEND_INTERVAL_MS = 66 // about 15 updates a second
+// Each update is billed once per person in the room, so this is kept modest;
+// the CSS transition on the cursor smooths over the gaps.
+const SEND_INTERVAL_MS = 125 // 8 updates a second
 
 type RemoteCursor = { clientId: number; name: string; color: string; x: number; y: number }
 
@@ -88,7 +90,7 @@ export function Cursors({
         <div
           key={cursor.clientId}
           aria-hidden
-          className="pointer-events-none absolute top-0 left-0 z-50 transition-transform duration-75 ease-linear"
+          className="pointer-events-none absolute top-0 left-0 z-50 transition-transform duration-150 ease-linear"
           style={{
             // Counter-scale so the cursor stays one size at any zoom.
             transform: `translate(${cursor.x}px, ${cursor.y}px) scale(${1 / zoom})`,

@@ -7,7 +7,6 @@ import { ReferencedBy } from "@/components/referenced-by"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
-import { hasRole } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
 
 export default async function DocumentPage({
@@ -16,7 +15,7 @@ export default async function DocumentPage({
 }: PageProps<"/[org]/[project]/d/[docId]">) {
   const { org: slug, project: projectId, docId } = await params
   const via = parseVia((await searchParams).via).filter((id) => id !== docId)
-  const { supabase, user, org, role } = await getOrgContext(slug)
+  const { supabase, user, org, canEdit } = await getOrgContext(slug)
 
   const [{ data: document }, { data: profile }, { data: project }] = await Promise.all([
     supabase
@@ -68,7 +67,7 @@ export default async function DocumentPage({
   )
   const linkedFrom = <ReferencedBy slug={org.slug} references={references} />
 
-  const editable = hasRole(role, "editor")
+  const editable = canEdit
   const editorUser = {
     id: user.id,
     name: profile?.display_name ?? user.email ?? "Someone",

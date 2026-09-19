@@ -23,13 +23,17 @@ import { fromBase64, fromBytea, toBase64, toBytea } from "./encoding"
 //    and on a slow timer while the tab is visible. Viewers cannot broadcast,
 //    so this is their only catch-up path.
 
-const BROADCAST_DELAY_MS = 50
+// Realtime bills every message sent and every copy delivered, so edits are
+// batched. 100 ms is below what anyone notices.
+const BROADCAST_DELAY_MS = 100
 const PERSIST_DELAY_MS = 1000
 const PERSIST_RETRY_MS = 5000
 // Covers a peer's persist delay: edits broadcast just before we joined are
 // in the database by the time we look again.
 const SECOND_LOAD_DELAY_MS = PERSIST_DELAY_MS + 1500
 const BACKSTOP_LOAD_MS = 30_000
+// Viewers hold no Realtime connection. They re-read the document this often.
+const VIEWER_POLL_MS = 20_000
 const COMPACT_AFTER_ROWS = 200
 // Base64 characters per Realtime message. Larger updates are split.
 const CHUNK_SIZE = 100_000
@@ -56,8 +60,14 @@ export class SupabaseProvider {
   // Other people in the document, one entry per person however many tabs
   // they have open. A new array on every change, for useSyncExternalStore.
   peers: Peer[] = []
+  // People watching without editing, from heartbeats. Approximate.
+  viewers = 0
 
   private me: Peer | null = null
+  // Other connections on the channel, counting a second tab of the same
+  // person. Zero means nobody would receive a broadcast.
+  private otherConnections = 0
+  private readonly sessionId = crypto.randomUUID()
 
   private channel: RealtimeChannel
   private listeners = new Set<Listener>()
@@ -111,10 +121,13 @@ export class SupabaseProvider {
       )
       .on("presence", { event: "sync" }, this.onPresenceSync)
 
-    this.backstopTimer = setInterval(() => {
-      if (this.status === "connected" && document.visibilityState === "visible")
-        void this.load()
-    }, BACKSTOP_LOAD_MS)
+    this.backstopTimer = setInterval(
+      () => {
+        if (document.visibilityState !== "visible") return
+        if (this.readOnly || this.status === "connected") void this.load()
+      },
+      this.readOnly ? VIEWER_POLL_MS : BACKSTOP_LOAD_MS
+    )
 
     void this.connect()
   }
@@ -131,15 +144,26 @@ export class SupabaseProvider {
     const changed =
       this.me?.id !== user.id || this.me.name !== user.name || this.me.color !== user.color
     this.me = user
-    if (changed && this.status === "connected") void this.channel.track(user)
+    if (changed && this.status === "connected") this.track()
+  }
+
+  // Every connection announces itself, named or not, so others know a
+  // broadcast has somewhere to go.
+  private track() {
+    if (this.readOnly) return
+    void this.channel.track({ ...(this.me ?? {}), session: this.sessionId })
   }
 
   private onPresenceSync = () => {
     const seen = new Map<string, Peer>()
-    for (const entries of Object.values(this.channel.presenceState<Peer>()))
-      for (const { id, name, color } of entries)
+    let connections = 0
+    for (const entries of Object.values(this.channel.presenceState<Peer & { session?: string }>()))
+      for (const { id, name, color, session } of entries) {
+        if (session !== this.sessionId) connections++
         if (typeof id === "string" && id !== this.me?.id && !seen.has(id))
           seen.set(id, { id, name: String(name ?? ""), color: String(color ?? "") })
+      }
+    this.otherConnections = connections
 
     const next = [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))
     const same =
@@ -181,6 +205,9 @@ export class SupabaseProvider {
     // opens even when Realtime is unreachable.
     void this.load()
 
+    // Viewers stop here: no socket, no messages. They poll instead.
+    if (this.readOnly) return
+
     await this.supabase.realtime.setAuth()
     if (this.destroyed) return
 
@@ -197,7 +224,7 @@ export class SupabaseProvider {
     await this.load()
     if (this.destroyed) return
     this.setStatus("connected")
-    if (this.me) void this.channel.track(this.me)
+    this.track()
 
     if (!this.readOnly) {
       void this.send("sync-request", {
@@ -255,8 +282,23 @@ export class SupabaseProvider {
       this.loaded = true
       this.emit()
     }
+    if (this.readOnly) this.setStatus("connected")
+    void this.refreshViewers()
 
     if (!this.readOnly && rows.length > COMPACT_AFTER_ROWS) void this.compact()
+  }
+
+  // A viewer's refresh doubles as its heartbeat. Editors only ask for the count.
+  private async refreshViewers() {
+    const { data } = this.readOnly
+      ? await this.supabase.rpc("viewer_heartbeat", {
+          p_document_id: this.documentId,
+          p_session_id: this.sessionId,
+        })
+      : await this.supabase.rpc("viewer_count", { p_document_id: this.documentId })
+    if (this.destroyed || typeof data !== "number" || data === this.viewers) return
+    this.viewers = data
+    this.emit()
   }
 
   private async compact() {
@@ -274,8 +316,13 @@ export class SupabaseProvider {
   private onDocUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin === this || this.readOnly) return
 
-    this.toBroadcast.push(update)
-    this.broadcastTimer ??= setTimeout(this.flushBroadcast, BROADCAST_DELAY_MS)
+    // Alone in the document, a broadcast reaches nobody and still costs a
+    // message. Whoever joins next catches up from the database and from the
+    // state-vector exchange.
+    if (this.otherConnections > 0) {
+      this.toBroadcast.push(update)
+      this.broadcastTimer ??= setTimeout(this.flushBroadcast, BROADCAST_DELAY_MS)
+    }
 
     this.toPersist.push(update)
     this.setSaveStatus("saving")
@@ -348,7 +395,7 @@ export class SupabaseProvider {
 
   private onOnline = () => {
     if (this.destroyed) return
-    if (this.channel.state === "joined") this.setStatus("connected")
+    if (this.readOnly || this.channel.state === "joined") this.setStatus("connected")
     void this.persist()
     void this.load()
   }
@@ -357,8 +404,8 @@ export class SupabaseProvider {
   // cursor now instead of when the socket times out.
   private onPageHide = () => {
     this.flush()
-    if (this.destroyed || this.status !== "connected") return
-    if (!this.readOnly) removeAwarenessStates(this.awareness, [this.doc.clientID], "pagehide")
+    if (this.destroyed || this.readOnly || this.status !== "connected") return
+    removeAwarenessStates(this.awareness, [this.doc.clientID], "pagehide")
     void this.channel.untrack()
   }
 
@@ -424,7 +471,7 @@ export class SupabaseProvider {
     { added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
     origin: unknown
   ) => {
-    if (origin === this || this.readOnly) return
+    if (origin === this || this.readOnly || this.otherConnections === 0) return
     this.broadcastAwareness([...added, ...updated, ...removed])
   }
 

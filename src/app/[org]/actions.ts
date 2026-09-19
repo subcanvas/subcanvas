@@ -14,6 +14,7 @@ export async function createProject(
 ): Promise<FormState> {
   const name = String(formData.get("name") ?? "").trim()
   if (!name) return { error: "Enter a project name." }
+  const visibility = formData.get("visibility") === "public" ? "public" : "private"
 
   const supabase = await createClient()
   const {
@@ -22,7 +23,7 @@ export async function createProject(
 
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ org_id: orgId, name, created_by: user?.id })
+    .insert({ org_id: orgId, name, visibility, created_by: user?.id })
     .select("id")
     .single()
 

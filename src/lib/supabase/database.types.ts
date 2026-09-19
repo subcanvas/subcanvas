@@ -148,6 +148,32 @@ export type Database = {
           },
         ]
       }
+      document_viewers: {
+        Row: {
+          document_id: string
+          last_seen: string
+          session_id: string
+        }
+        Insert: {
+          document_id: string
+          last_seen?: string
+          session_id: string
+        }
+        Update: {
+          document_id?: string
+          last_seen?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_viewers_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string
@@ -437,6 +463,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          visibility: Database["public"]["Enums"]["project_visibility"]
         }
         Insert: {
           created_at?: string
@@ -444,6 +471,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          visibility?: Database["public"]["Enums"]["project_visibility"]
         }
         Update: {
           created_at?: string
@@ -451,6 +479,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          visibility?: Database["public"]["Enums"]["project_visibility"]
         }
         Relationships: [
           {
@@ -473,6 +502,7 @@ export type Database = {
         Row: {
           cancel_at_period_end: boolean
           current_period_end: string | null
+          lapsed_at: string | null
           org_id: string
           seats: number
           status: string
@@ -483,6 +513,7 @@ export type Database = {
         Insert: {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
+          lapsed_at?: string | null
           org_id: string
           seats?: number
           status?: string
@@ -493,6 +524,7 @@ export type Database = {
         Update: {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
+          lapsed_at?: string | null
           org_id?: string
           seats?: number
           status?: string
@@ -583,17 +615,26 @@ export type Database = {
       org_usage: {
         Args: { p_org_id: string }
         Returns: {
-          billed_seats: number
-          document_limit: number
-          documents: number
+          editor_limit: number
+          editors: number
+          grace_ends_at: string
+          locked: boolean
           paid: boolean
+          private_document_limit: number
+          private_documents: number
         }[]
+      }
+      viewer_count: { Args: { p_document_id: string }; Returns: number }
+      viewer_heartbeat: {
+        Args: { p_document_id: string; p_session_id: string }
+        Returns: number
       }
     }
     Enums: {
       document_kind: "standard" | "description"
       document_type: "whiteboard" | "text"
       org_role: "viewer" | "editor" | "admin" | "owner"
+      project_visibility: "private" | "public"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -727,6 +768,7 @@ export const Constants = {
       document_kind: ["standard", "description"],
       document_type: ["whiteboard", "text"],
       org_role: ["viewer", "editor", "admin", "owner"],
+      project_visibility: ["private", "public"],
     },
   },
 } as const

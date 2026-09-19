@@ -33,14 +33,18 @@ Sign-in uses email magic links. Locally, emails are caught by Mailpit at http://
 
 After changing `supabase/config.toml`, restart the stack with `supabase stop && supabase start`.
 
-## Billing
+## Plans and billing
 
-Billing is off by default, and a self-hosted server needs none of it: with no Stripe variables set there is no document limit, no Billing page in the navigation, and the Stripe code never runs.
+Billing is off by default, and a self-hosted server needs none of it: with nothing configured there are no limits, no Billing page, and the Stripe code never runs.
 
 A deployment that sells subscriptions turns on two things:
 
-1. **The free tier.** `update private.config set free_document_limit = 25;` Free orgs can then hold 25 documents (node descriptions and trashed documents do not count); a paid org has no limit. The limit is enforced in the database.
-2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-seat price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `stripe listen --forward-to localhost:3000/api/stripe/webhook` instead.
+1. **The free plan's limits**, enforced in the database:
+   ```sql
+   update private.config set free_private_document_limit = 100, free_editor_limit = 3;
+   ```
+   Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
+2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `stripe listen --forward-to localhost:3000/api/stripe/webhook` instead.
 
 ## License
 

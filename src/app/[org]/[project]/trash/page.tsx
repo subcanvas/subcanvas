@@ -1,11 +1,10 @@
 import { getOrgContext } from "@/lib/orgs"
-import { hasRole } from "@/lib/roles"
 
 import { TrashRow } from "./trash-row"
 
 export default async function TrashPage({ params }: PageProps<"/[org]/[project]/trash">) {
   const { org: slug, project: projectId } = await params
-  const { supabase, org, role } = await getOrgContext(slug)
+  const { supabase, org, canEdit } = await getOrgContext(slug)
 
   const { data: documents } = await supabase
     .from("documents")
@@ -33,7 +32,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
               project={{ slug: org.slug, orgId: org.id, projectId }}
               id={document.id}
               title={document.title}
-              canEdit={hasRole(role, "editor")}
+              canEdit={canEdit}
             />
           ))}
         </ul>
