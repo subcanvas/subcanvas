@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronsUpDown, CreditCard, LayoutGrid, LogOut, Monitor, Moon, Plus, Sun, Users } from "lucide-react"
+import { ChevronsUpDown, CreditCard, KeyRound, LayoutGrid, LogOut, Monitor, Moon, Plus, Sun, Users } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -158,6 +158,10 @@ export function AppSidebar({
                   ))}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem render={<Link href={`/auth/password?next=${encodeURIComponent(pathname)}`} />}>
+                  <KeyRound />
+                  Set a password
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut />
                   Sign out

@@ -98,7 +98,7 @@ An **object** is a node or an edge. Groups contain objects.
 
 | ID | Requirement |
 |---|---|
-| R6.1 | Auth through Supabase: **email magic link**, **Google**, and **GitHub**. |
+| R6.1 | Auth through Supabase: **email and password** (with reset by email), **email magic link**, **Google**, and **GitHub**. Anyone signed in can set a password later, whichever way they signed up. |
 | R6.2 | A user can belong to several orgs and switch between them. |
 | R6.3 | Roles per org: **Owner** (billing, delete org, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
 | R6.4 | Members are invited by email with a role. |
