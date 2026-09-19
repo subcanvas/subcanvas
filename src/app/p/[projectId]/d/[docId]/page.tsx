@@ -63,6 +63,7 @@ export default async function PublicDocumentPage({
       project={{ slug: PUBLIC_SLUG, projectId }}
       projectName={project.name}
       trail={trail}
+      current={document.type === "text" ? document.title : undefined}
     />
   )
   const linkedFrom = <ReferencedBy slug={PUBLIC_SLUG} references={references} />
@@ -99,18 +100,22 @@ export default async function PublicDocumentPage({
     )
 
   return (
-    <main id="main" className="mx-auto my-6 flex w-full max-w-3xl flex-1 flex-col gap-4 rounded-xl border border-rule bg-sheet py-8 shadow-xs">
-      <div className="flex items-center justify-between gap-3 px-13">
-        {breadcrumb}
-        {linkedFrom}
-      </div>
-      <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>
+    <main id="main" className="flex flex-1 flex-col bg-sheet">
       <TextDocument
         key={document.id}
         documentId={document.id}
         editable={false}
         user={guest}
         context={{ orgId: document.org_id, projectId, slug: PUBLIC_SLUG, via: trailIds }}
+        page={{
+          header: (
+            <div className="flex items-center justify-between gap-3">
+              {breadcrumb}
+              {linkedFrom}
+            </div>
+          ),
+          title: <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>,
+        }}
       />
     </main>
   )

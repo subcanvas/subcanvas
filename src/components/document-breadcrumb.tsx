@@ -9,6 +9,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import {
@@ -26,16 +27,19 @@ export type Crumb = { id: string; title: string }
 const VISIBLE = 4
 
 // The way back out (R2.1): the project, then each sheet you came through.
-// Each one links back along the same trail. The open document's own title
-// sits right below, so it is not repeated here.
+// Each one links back along the same trail. A whiteboard's title sits right
+// below the trail, so the trail leads into it; a page of text has its title
+// further down, so the trail ends with `current`.
 export function DocumentBreadcrumb({
   project,
   projectName,
   trail,
+  current,
 }: {
   project: ProjectPath
   projectName: string
   trail: Crumb[]
+  current?: string
 }) {
   const crumbs = [
     { key: "project", title: projectName, href: `/${project.slug}/${project.projectId}` },
@@ -90,8 +94,12 @@ export function DocumentBreadcrumb({
             </BreadcrumbItem>
           </Fragment>
         ))}
-        {/* Leads into the title below. */}
         <BreadcrumbSeparator />
+        {current !== undefined && (
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="max-w-40 truncate">{current || "Untitled"}</BreadcrumbPage>
+          </BreadcrumbItem>
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   )

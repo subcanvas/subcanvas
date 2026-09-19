@@ -75,6 +75,7 @@ export default async function DocumentPage({
       project={projectPath}
       projectName={project.name}
       trail={trail}
+      current={document.type === "text" ? document.title : undefined}
     />
   )
   const actions = (
@@ -134,17 +135,7 @@ export default async function DocumentPage({
     )
 
   return (
-    <main id="main"
-      className={cn(
-        "mx-auto my-6 flex w-full max-w-3xl flex-1 flex-col gap-4 rounded-xl border border-rule bg-sheet py-8 shadow-xs",
-        trail.length > 0 && "animate-sheet-enter"
-      )}
-    >
-      <div className="flex items-center justify-between gap-3 px-13">
-        {breadcrumb}
-        {actions}
-      </div>
-      {title(false)}
+    <main id="main" className={cn("flex flex-1 flex-col bg-sheet", trail.length > 0 && "animate-sheet-enter")}>
       <TextDocument
         key={document.id}
         documentId={document.id}
@@ -155,6 +146,15 @@ export default async function DocumentPage({
           projectId,
           slug: org.slug,
           via: trail.map((crumb) => crumb.id),
+        }}
+        page={{
+          header: (
+            <div className="flex items-center justify-between gap-3">
+              {breadcrumb}
+              {actions}
+            </div>
+          ),
+          title: title(false),
         }}
       />
     </main>
