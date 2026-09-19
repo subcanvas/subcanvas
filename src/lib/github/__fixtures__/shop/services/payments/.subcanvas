@@ -1,0 +1,15 @@
+title: Payments
+description: Charges cards and reconciles payouts.
+connects:
+  - to: services/ledger          # a path from the repository root
+    label: gRPC
+    description: |
+      Posts a journal entry for every settled charge.
+
+      The call is `Ledger.Post`, and it is idempotent on the charge id, so a retry never books a charge twice.
+  - to: services/notifications
+    label: events
+  - to: services/nowhere
+    label: lost
+ignore:
+  - fixtures

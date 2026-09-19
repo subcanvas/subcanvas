@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { createClient } from "@/lib/supabase/client"
+import { readDocumentSource, type DocumentSource } from "@/lib/github/source"
 import type { DocumentType } from "@/lib/tree"
 
 export type DocumentMeta = {
@@ -11,6 +12,8 @@ export type DocumentMeta = {
   type: DocumentType
   kind: "standard" | "description"
   trashed: boolean
+  // Where it was imported from, which also makes it read-only.
+  source: DocumentSource | null
 }
 
 type State = { id: string; meta: DocumentMeta | null } | null
@@ -25,7 +28,7 @@ export function useDocumentMeta(documentId: string | null): DocumentMeta | null 
     let cancelled = false
     createClient()
       .from("documents")
-      .select("id, title, type, kind, deleted_at")
+      .select("id, title, type, kind, deleted_at, source")
       .eq("id", documentId)
       .maybeSingle()
       .then(({ data }) => {
@@ -38,6 +41,7 @@ export function useDocumentMeta(documentId: string | null): DocumentMeta | null 
             type: data.type,
             kind: data.kind,
             trashed: data.deleted_at !== null,
+            source: readDocumentSource(data.source),
           },
         })
       })

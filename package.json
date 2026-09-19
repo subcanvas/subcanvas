@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
     "db:test": "supabase test db",
     "test": "vitest run",
@@ -17,7 +18,9 @@
     "@base-ui/react": "^1.8.0",
     "@blocknote/core": "^0.54.2",
     "@blocknote/react": "^0.54.2",
+    "@blocknote/server-util": "^0.54.2",
     "@blocknote/shadcn": "^0.54.2",
+    "@dagrejs/dagre": "^3.1.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@xyflow/react": "^12.11.6",
@@ -35,6 +38,7 @@
     "tw-animate-css": "^1.4.0",
     "y-prosemirror": "^1.3.7",
     "y-protocols": "^1.0.7",
+    "yaml": "^2.9.1",
     "yjs": "^13.6.32"
   },
   "devDependencies": {

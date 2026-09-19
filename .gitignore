@@ -43,3 +43,7 @@ next-env.d.ts
 
 # The self-recording demo writes its takes here.
 scripts/demo/out/
+
+# development
+/.shots/
+/.cache/

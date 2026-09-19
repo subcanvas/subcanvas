@@ -1,0 +1,10 @@
+title: Storefront
+connects:
+  - to: services/payments
+    label: REST
+    description: Creates a charge when the customer presses Pay.
+  - to: services/payments/internal/gateway
+    label: tokenize
+  - to: packages/ui
+unknown_key: true
+title_again: 12

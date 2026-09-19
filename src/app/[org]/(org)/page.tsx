@@ -5,7 +5,11 @@ import { PageHeader } from "@/components/page-header"
 import { getOrgContext } from "@/lib/orgs"
 import { cn } from "@/lib/utils"
 
+import { ImportProject } from "./import-project-form"
 import { NewProject } from "./new-project-form"
+
+// An import reads a whole repository before it answers.
+export const maxDuration = 60
 
 export default async function OrgPage({ params }: PageProps<"/[org]">) {
   const { org: slug } = await params
@@ -24,7 +28,14 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
       <PageHeader
         eyebrow={org.name}
         title="Projects"
-        action={canEdit && <NewProject slug={org.slug} orgId={org.id} />}
+        action={
+          canEdit && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <ImportProject slug={org.slug} />
+              <NewProject slug={org.slug} orgId={org.id} />
+            </div>
+          )
+        }
       />
 
       {projects?.length ? (
