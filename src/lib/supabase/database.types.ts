@@ -34,6 +34,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      abuse_reports: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          id: string
+          project_id: string
+          reason: string
+          reporter_email: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          project_id: string
+          reason: string
+          reporter_email?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          project_id?: string
+          reason?: string
+          reporter_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abuse_reports_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abuse_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_links: {
         Row: {
           created_at: string
@@ -463,6 +505,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          taken_down_at: string | null
           visibility: Database["public"]["Enums"]["project_visibility"]
         }
         Insert: {
@@ -471,6 +514,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
         }
         Update: {
@@ -479,6 +523,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
         }
         Relationships: [
@@ -623,6 +668,15 @@ export type Database = {
           private_document_limit: number
           private_documents: number
         }[]
+      }
+      report_abuse: {
+        Args: {
+          p_document_id: string
+          p_project_id: string
+          p_reason: string
+          p_reporter_email?: string
+        }
+        Returns: undefined
       }
       viewer_count: { Args: { p_document_id: string }; Returns: number }
       viewer_heartbeat: {

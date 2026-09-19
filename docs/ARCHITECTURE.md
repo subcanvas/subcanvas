@@ -116,9 +116,13 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
 /[org]/settings/{members,billing}
 /[org]/[project]                         tree, empty state
 /[org]/[project]/d/[docId]?via=a.b.c     document page
+/p/[projectId]                           public project (anyone with the link)
+/p/[projectId]/d/[docId]?via=a.b.c       public document, read-only
 ```
 
 `via` is the list of document ids navigated through to get here (R2.3). Returning to a document already on the trail truncates it, so reference loops cannot grow the URL. The breadcrumb is `via` plus the current document. Navigating into a child appends the current id; clicking a crumb truncates. With no `via`, the breadcrumb falls back to the canonical chain from `parent_document_id` (R2.2). One query resolves all ids to titles.
+
+**Public projects (R6.6, R6.7).** A public page renders the same components as the app with editing off. What lets an anonymous visitor read is row-level security: `select` policies for the `anon` role on projects, folders, documents, snapshots, updates, and links, all conditioned on the project being public and not taken down, with column grants that keep internal fields out. There is no privileged server code on the read path, so a bug in a page cannot leak a private project; the database would refuse. Links inside the app are built as `/<org slug>/<project id>/...`; a public page passes the reserved slug `p` instead, so every existing link lands on the public route with no second set of link builders. Visitors hold no Realtime connection (section 4, step 6). Pages are `noindex`. Reports go to `abuse_reports`, readable only by the operator, who can set `projects.taken_down_at` to override an org's own visibility setting.
 
 ## 6. Build order
 

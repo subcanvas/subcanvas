@@ -1,11 +1,12 @@
 "use client"
 
-import { Globe, Lock } from "lucide-react"
+import { Globe, Link2, Lock } from "lucide-react"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { setProjectVisibility, type ProjectRef } from "@/app/[org]/[project]/tree-actions"
 import { Button } from "@/components/ui/button"
+import { publicProjectPath } from "@/lib/public-route"
 import {
   Dialog,
   DialogClose,
@@ -61,6 +62,23 @@ export function ProjectVisibility({
         </Button>
       ) : (
         <p className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground">{label}</p>
+      )}
+
+      {isPublic && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="justify-start text-xs text-muted-foreground"
+          onClick={async () => {
+            await navigator.clipboard.writeText(
+              `${window.location.origin}${publicProjectPath(project.projectId)}`
+            )
+            toast.success("Public link copied.")
+          }}
+        >
+          <Link2 className="size-3.5" />
+          Copy public link
+        </Button>
       )}
 
       <Dialog open={confirming} onOpenChange={setConfirming}>

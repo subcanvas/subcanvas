@@ -33,6 +33,16 @@ Sign-in uses email magic links. Locally, emails are caught by Mailpit at http://
 
 After changing `supabase/config.toml`, restart the stack with `supabase stop && supabase start`.
 
+## Public projects and moderation
+
+An admin can make a project public: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the org can edit. Public pages are not indexed by search engines, and each carries a Report button.
+
+Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL). To take a project offline, whatever its org sets:
+
+```sql
+update public.projects set taken_down_at = now() where id = '<project id>';
+```
+
 ## Plans and billing
 
 Billing is off by default, and a self-hosted server needs none of it: with nothing configured there are no limits, no Billing page, and the Stripe code never runs.
