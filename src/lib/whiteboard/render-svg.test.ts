@@ -17,6 +17,7 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   docId: null,
   docType: null,
   openMode: "panel",
+  path: null,
   ...fields,
 })
 
@@ -246,5 +247,22 @@ describe("renderMessageSvg", () => {
       const root = parse(renderMessageSvg({ message: "This diagram is private or does not exist", theme, host: "subcanvas.app" }))
       expect(root.textContent).toContain("This diagram is private or does not exist")
     }
+  })
+})
+
+describe("repository nodes", () => {
+  it("draws the folder path under the name, escaped, and only when there is one", () => {
+    const svg = renderWhiteboardSvg({
+      nodes: [
+        node({ id: "a", title: "Payments", width: 200, height: 64, path: "services/<payments>" }),
+        node({ id: "b", title: "Plain", width: 160, height: 64, x: 300 }),
+      ],
+      edges: [],
+      theme: "dark",
+      title: "System design",
+    })
+    expect(svg).toContain("services/&lt;payments&gt;")
+    expect(svg.match(/font-family="ui-monospace/g)?.length).toBe(1)
+    expect(new DOMParser().parseFromString(svg, "image/svg+xml").documentElement?.nodeName).toBe("svg")
   })
 })

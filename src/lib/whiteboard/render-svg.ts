@@ -207,6 +207,8 @@ function textLines(
 // --- Layout ---------------------------------------------------------------
 
 const PLAIN_TEXT = { fontSize: 13, lineHeight: 17.875, paddingX: 13, paddingY: 9, maxLines: 3 }
+// The folder path under a repository node's name (10px mono on the canvas).
+const PATH_TEXT = { fontSize: 10, lineHeight: 12.5, gap: 2 }
 const HEADING = { fontSize: 18, lineHeight: 22.5 }
 const BODY = { fontSize: 13, lineHeight: 21.125 }
 const TEXT_PADDING = 8
@@ -324,24 +326,39 @@ function plainNode(placed: Placed, palette: Palette) {
   const fill = tinted ? mix(COLORS[node.color].stroke, 9, palette.sheet) : palette.sheet
 
   const inner = Math.max(box.width - PLAIN_TEXT.paddingX * 2, PLAIN_TEXT.fontSize)
-  const room = Math.floor((box.height - PLAIN_TEXT.paddingY * 2) / PLAIN_TEXT.lineHeight)
+  // A node that stands for a repository folder says which one under its
+  // name, as on the canvas: the name gives way first (two lines, not three),
+  // and the path is one truncated line.
+  const path = node.path ? truncate(node.path, inner, PATH_TEXT.fontSize, true) : null
+  const pathRoom = path ? PATH_TEXT.lineHeight + PATH_TEXT.gap : 0
+  const room = Math.floor((box.height - PLAIN_TEXT.paddingY * 2 - pathRoom) / PLAIN_TEXT.lineHeight)
   const lines = clampLines(
     wrap(node.title || "Untitled", inner, PLAIN_TEXT.fontSize),
-    clamp(room, 1, PLAIN_TEXT.maxLines),
+    clamp(room, 1, path ? 2 : PLAIN_TEXT.maxLines),
     inner,
     PLAIN_TEXT.fontSize
   )
+  const top = box.y + (box.height - lines.length * PLAIN_TEXT.lineHeight - pathRoom) / 2
 
   return (
     (node.docType === "whiteboard" ? sheetStack(box, 8, tinted ? stroke : palette.blueline, palette) : "") +
     `<rect x="${n(box.x + 0.5)}" y="${n(box.y + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="8" fill="${fill}" stroke="${stroke}"/>` +
     textLines(lines, {
       x: box.x + box.width / 2,
-      top: box.y + (box.height - lines.length * PLAIN_TEXT.lineHeight) / 2,
+      top,
       lineHeight: PLAIN_TEXT.lineHeight,
       fontSize: PLAIN_TEXT.fontSize,
       attributes: `text-anchor="middle" font-weight="500" fill="${palette.ink}"`,
     }) +
+    (path
+      ? textLines([path], {
+          x: box.x + box.width / 2,
+          top: top + lines.length * PLAIN_TEXT.lineHeight + PATH_TEXT.gap,
+          lineHeight: PATH_TEXT.lineHeight,
+          fontSize: PATH_TEXT.fontSize,
+          attributes: `text-anchor="middle" font-family="${MONO}" letter-spacing="-0.25" fill="${palette.graphite}"`,
+        })
+      : "") +
     cornerMark(placed, palette)
   )
 }

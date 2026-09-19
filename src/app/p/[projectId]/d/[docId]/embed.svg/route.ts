@@ -15,7 +15,7 @@ import { edgesMap, nodesMap, readEdge, readNode } from "@/lib/whiteboard/schema"
 
 // Part of the ETag. Raise it when the renderer's output changes, so caches
 // holding the old look let go of it.
-const RENDERER_VERSION = 1
+const RENDERER_VERSION = 2
 
 // Short, so a change shows up in a README within minutes. GitHub's image
 // proxy asks again with If-None-Match, which costs two small queries.
