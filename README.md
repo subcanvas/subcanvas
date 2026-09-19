@@ -25,6 +25,7 @@ pnpm dev
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm build` | Production build |
+| `pnpm test` | Unit tests (Vitest) for code that needs no browser and no database |
 | `pnpm db:test` | Database tests (pgTAP), including row-level security |
 | `pnpm db:types` | Regenerate `src/lib/supabase/database.types.ts` after a migration |
 | `supabase db reset` | Rebuild the local database from `supabase/migrations` |
@@ -42,6 +43,10 @@ Reports land in the `abuse_reports` table, readable only by the operator (the Su
 ```sql
 update public.projects set taken_down_at = now() where id = '<project id>';
 ```
+
+### Embedding a diagram
+
+Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so.
 
 ## Plans and billing
 

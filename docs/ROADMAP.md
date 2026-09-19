@@ -120,6 +120,8 @@ ignore:
 
 ## 4. Embeds: a live diagram in a README
 
+Status: built (image embeds); interactive iframe embeds not yet.
+
 **What.** Any whiteboard in a public project can be embedded in Markdown. The Share popover gains **Copy embed**, which gives a snippet to paste into a README, a wiki, or a docs site. On GitHub the reader sees the diagram as a picture that is always current, and clicking it opens the real thing at `/p/<project>/d/<document>`, where every box opens.
 
 **What GitHub allows decides the design.** GitHub strips iframes and scripts from Markdown. It allows images and links, and it serves every image through its own proxy, which caches. So an embed is an **image that Subcanvas renders on request**, wrapped in a link:
