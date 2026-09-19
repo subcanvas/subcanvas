@@ -81,13 +81,13 @@ A custom Yjs provider, one Realtime channel per document (`doc:<id>`):
 2. **Edit:** local Yjs updates are batched (~50 ms), broadcast on the channel, and appended to `document_updates` (debounced ~1 s, merged with `Y.mergeUpdates`).
 3. **Catch-up:** on join and on reconnect, peers exchange state vectors and send each other only the missing diff. A client that missed broadcasts recovers from peers or from the database.
 4. **Compaction:** when a document has more than ~200 update rows, a client (or a scheduled Edge Function) writes a fresh snapshot and deletes the rows it covers, in one transaction.
-5. **Presence:** cursors and selections go through Realtime presence, throttled to ~15 updates per second.
+5. **Presence:** who is in the document goes through Realtime presence, which every member including viewers may publish. Whiteboard cursors and text carets go through the Yjs awareness protocol over broadcast, throttled to ~15 updates per second, so they come from editors only. Cursor positions are in canvas coordinates, so they land on the same spot at any zoom. A client says goodbye on page hide so peers drop it at once rather than on socket timeout.
 
 **Authorization:** channels are private. Realtime authorization policies let org members subscribe and let only editors and above broadcast. RLS on `document_updates` blocks viewer writes. A viewer therefore cannot change a document even with a modified client (R5.5).
 
 **Deviations from the original plan, decided during the milestone 2 spike:**
 
-- Text carets and selections use the standard Yjs awareness protocol sent over broadcast, because that is what BlockNote's cursor plugin reads. Viewers cannot broadcast, so they see other people's carets but have none of their own. Realtime presence is still allowed for viewers by the channel policy and is reserved for whiteboard cursors and avatars in milestone 7.
+- Text carets and selections use the standard Yjs awareness protocol sent over broadcast, because that is what BlockNote's cursor plugin reads. Viewers cannot broadcast, so they see other people's carets but have none of their own. Whiteboard cursors work the same way. Avatars use Realtime presence, so viewers do show up there.
 - Catch-up has three layers instead of one: the state-vector exchange is two-way, a client that detects a gap (Yjs reports updates waiting on missing predecessors) re-reads the database, and every client re-reads the database after joining, on reconnect, and every 30 s while visible. The database re-read is the only catch-up path for viewers.
 
 **Spike results (local Supabase, two browsers):**

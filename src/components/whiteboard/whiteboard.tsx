@@ -33,6 +33,7 @@ import {
 } from "@/lib/whiteboard/use-whiteboard"
 
 import { WhiteboardActionsContext } from "./actions-context"
+import { Cursors } from "./cursors"
 import { edgeTypes } from "./edge"
 import { Inspector } from "./inspector"
 import { nodeTypes } from "./nodes"
@@ -287,6 +288,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
         >
           <Background variant={BackgroundVariant.Dots} gap={20} />
           <Controls showInteractive={false} fitViewOptions={FIT_VIEW} />
+          <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
 
           {editable && (
             <Panel position="top-center">

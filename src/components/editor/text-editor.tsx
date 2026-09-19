@@ -29,7 +29,7 @@ import {
   type TextDocumentContext,
 } from "./document-link-block"
 
-export type EditorUser = { name: string; color: string }
+export type EditorUser = { id: string; name: string; color: string }
 
 // The BlockNote content of a text document lives in this fragment.
 export const TEXT_FRAGMENT = "blocknote"
@@ -60,7 +60,7 @@ export default function TextEditor({
       collaboration: {
         provider,
         fragment: provider.doc.getXmlFragment(TEXT_FRAGMENT),
-        user,
+        user: { name: user.name, color: user.color },
         showCursorLabels: "activity",
       },
     }),

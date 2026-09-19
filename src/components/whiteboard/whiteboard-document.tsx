@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic"
 
+import { PresenceAvatars } from "@/components/editor/presence-avatars"
 import { SyncBadge } from "@/components/editor/sync-badge"
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
@@ -27,6 +28,7 @@ export function WhiteboardDocument({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-2">
         <div className="min-w-0 flex-1">{header}</div>
+        {provider && <PresenceAvatars provider={provider} user={shared.user} />}
         {provider && <SyncBadge provider={provider} editable={editable} />}
       </div>
       <div className="relative min-h-0 flex-1">

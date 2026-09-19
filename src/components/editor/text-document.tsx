@@ -6,6 +6,7 @@ import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 
 import type { TextDocumentContext } from "./document-link-block"
+import { PresenceAvatars } from "./presence-avatars"
 import { SyncBadge } from "./sync-badge"
 import type { EditorUser } from "./text-editor"
 
@@ -30,8 +31,9 @@ export function TextDocument({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="px-13">
+      <div className="flex items-center gap-3 px-13">
         <SyncBadge provider={provider} editable={editable} />
+        <PresenceAvatars provider={provider} user={user} />
       </div>
       <Editor
         provider={provider}

@@ -37,6 +37,10 @@ const CHUNK_SIZE = 100_000
 export type SyncStatus = "connecting" | "connected" | "disconnected"
 export type SaveStatus = "saved" | "saving" | "error"
 
+// Who is in the document, from Realtime presence. Viewers appear too: the
+// channel lets every member publish presence, though only editors broadcast.
+export type Peer = { id: string; name: string; color: string }
+
 type Listener = () => void
 type UpdateMessage = { id: string; i: number; n: number; d: string }
 
@@ -49,6 +53,11 @@ export class SupabaseProvider {
   // never open on an empty document that fills in a moment later.
   loaded = false
   saveStatus: SaveStatus = "saved"
+  // Other people in the document, one entry per person however many tabs
+  // they have open. A new array on every change, for useSyncExternalStore.
+  peers: Peer[] = []
+
+  private me: Peer | null = null
 
   private channel: RealtimeChannel
   private listeners = new Set<Listener>()
@@ -81,7 +90,7 @@ export class SupabaseProvider {
     this.doc.on("update", this.onDocUpdate)
     this.awareness.on("update", this.onAwarenessUpdate)
     if (typeof window !== "undefined") {
-      window.addEventListener("pagehide", this.flush)
+      window.addEventListener("pagehide", this.onPageHide)
       window.addEventListener("offline", this.onOffline)
       window.addEventListener("online", this.onOnline)
       document.addEventListener("visibilitychange", this.onVisibilityChange)
@@ -100,6 +109,7 @@ export class SupabaseProvider {
       .on("broadcast", { event: "awareness" }, ({ payload }) =>
         applyAwarenessUpdate(this.awareness, fromBase64((payload as { d: string }).d), this)
       )
+      .on("presence", { event: "sync" }, this.onPresenceSync)
 
     this.backstopTimer = setInterval(() => {
       if (this.status === "connected" && document.visibilityState === "visible")
@@ -116,6 +126,30 @@ export class SupabaseProvider {
     }
   }
 
+  // Announces this person to everyone else in the document.
+  setUser(user: Peer) {
+    const changed =
+      this.me?.id !== user.id || this.me.name !== user.name || this.me.color !== user.color
+    this.me = user
+    if (changed && this.status === "connected") void this.channel.track(user)
+  }
+
+  private onPresenceSync = () => {
+    const seen = new Map<string, Peer>()
+    for (const entries of Object.values(this.channel.presenceState<Peer>()))
+      for (const { id, name, color } of entries)
+        if (typeof id === "string" && id !== this.me?.id && !seen.has(id))
+          seen.set(id, { id, name: String(name ?? ""), color: String(color ?? "") })
+
+    const next = [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))
+    const same =
+      next.length === this.peers.length &&
+      next.every((peer, i) => peer.id === this.peers[i].id && peer.name === this.peers[i].name)
+    if (same) return
+    this.peers = next
+    this.emit()
+  }
+
   destroy() {
     if (this.destroyed) return
     this.flush()
@@ -125,7 +159,7 @@ export class SupabaseProvider {
     this.doc.off("update", this.onDocUpdate)
     this.awareness.off("update", this.onAwarenessUpdate)
     if (typeof window !== "undefined") {
-      window.removeEventListener("pagehide", this.flush)
+      window.removeEventListener("pagehide", this.onPageHide)
       window.removeEventListener("offline", this.onOffline)
       window.removeEventListener("online", this.onOnline)
       document.removeEventListener("visibilitychange", this.onVisibilityChange)
@@ -163,6 +197,7 @@ export class SupabaseProvider {
     await this.load()
     if (this.destroyed) return
     this.setStatus("connected")
+    if (this.me) void this.channel.track(this.me)
 
     if (!this.readOnly) {
       void this.send("sync-request", {
@@ -316,6 +351,15 @@ export class SupabaseProvider {
     if (this.channel.state === "joined") this.setStatus("connected")
     void this.persist()
     void this.load()
+  }
+
+  // Say goodbye on the way out, so peers drop this person's avatar and
+  // cursor now instead of when the socket times out.
+  private onPageHide = () => {
+    this.flush()
+    if (this.destroyed || this.status !== "connected") return
+    if (!this.readOnly) removeAwarenessStates(this.awareness, [this.doc.clientID], "pagehide")
+    void this.channel.untrack()
   }
 
   private onVisibilityChange = () => {

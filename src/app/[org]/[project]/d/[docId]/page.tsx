@@ -70,6 +70,7 @@ export default async function DocumentPage({
 
   const editable = hasRole(role, "editor")
   const editorUser = {
+    id: user.id,
     name: profile?.display_name ?? user.email ?? "Someone",
     color: userColor(user.id),
   }

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useSyncExternalStore } from "react"
 
 import { createClient } from "@/lib/supabase/client"
 
-import { SupabaseProvider } from "./supabase-provider"
+import { SupabaseProvider, type Peer } from "./supabase-provider"
+
+const EMPTY_PEERS: Peer[] = []
 
 // One provider, and so one Y.Doc, per document id no matter how many
 // components show that document. This keeps the side panel and the full page
@@ -87,5 +89,10 @@ export function useSyncStatus(provider: SupabaseProvider) {
     () => provider.loaded,
     () => false
   )
-  return { status, saveStatus, loaded }
+  const peers = useSyncExternalStore(
+    provider.subscribe,
+    () => provider.peers,
+    () => EMPTY_PEERS
+  )
+  return { status, saveStatus, loaded, peers }
 }
