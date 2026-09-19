@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { connection } from "next/server"
 
 import { LegalAttribution, LegalPage } from "@/components/legal-page"
 import { legalDetails } from "@/lib/legal"
@@ -10,7 +11,10 @@ export const metadata = { title: "Terms of Service" }
 // kept wherever it applies; the liability clause is theirs word for word.
 // Sections marked "ours" have no counterpart there: eligibility, public
 // projects, open source, and governing law.
-export default function TermsPage() {
+export default async function TermsPage() {
+  // The operator comes from the server's environment, so render on request:
+  // a build made before it was set must not bake in "not found".
+  await connection()
   const legal = legalDetails()
   if (!legal) notFound()
   const mail = <a href={`mailto:${legal.contact}`}>{legal.contact}</a>

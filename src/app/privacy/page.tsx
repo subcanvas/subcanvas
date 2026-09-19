@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { connection } from "next/server"
 
 import { LegalAttribution, LegalPage } from "@/components/legal-page"
 import { legalDetails } from "@/lib/legal"
@@ -11,7 +12,10 @@ export const metadata = { title: "Privacy Policy" }
 // analytics, CAPTCHA, mobile apps, newsletters), and what they do not cover is
 // added and marked "ours": sign-in with Google and GitHub, public projects,
 // the list of providers, children, and self-hosted copies.
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  // The operator comes from the server's environment, so render on request:
+  // a build made before it was set must not bake in "not found".
+  await connection()
   const legal = legalDetails()
   if (!legal) notFound()
   const mail = <a href={`mailto:${legal.contact}`}>{legal.contact}</a>
