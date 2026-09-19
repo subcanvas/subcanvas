@@ -229,6 +229,7 @@ export type Database = {
           parent_object_id: string | null
           position: number
           project_id: string
+          source: Json | null
           title: string
           type: Database["public"]["Enums"]["document_type"]
           updated_at: string
@@ -245,6 +246,7 @@ export type Database = {
           parent_object_id?: string | null
           position?: number
           project_id: string
+          source?: Json | null
           title?: string
           type: Database["public"]["Enums"]["document_type"]
           updated_at?: string
@@ -261,6 +263,7 @@ export type Database = {
           parent_object_id?: string | null
           position?: number
           project_id?: string
+          source?: Json | null
           title?: string
           type?: Database["public"]["Enums"]["document_type"]
           updated_at?: string
@@ -505,6 +508,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          source: Json | null
           taken_down_at: string | null
           visibility: Database["public"]["Enums"]["project_visibility"]
         }
@@ -514,6 +518,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          source?: Json | null
           taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
         }
@@ -523,6 +528,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          source?: Json | null
           taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
         }
@@ -629,6 +635,7 @@ export type Database = {
         }
       }
       delete_folder: { Args: { p_folder_id: string }; Returns: undefined }
+      discard_import: { Args: { p_project_id: string }; Returns: undefined }
       document_ancestors: {
         Args: { p_document_id: string }
         Returns: {
