@@ -1,0 +1,59 @@
+# The launch demo: a repository becomes a diagram you can walk into.
+#   scripts/demo/record_demo.py --dry-run     check it against the app first
+#   scripts/demo/record_demo.py               the real take
+#
+# DEMO_REPOSITORY must be public and have .subcanvas files, so there are
+# arrows to click. For subcanvas.app that is this repository, once it is public.
+window: [1440, 900]
+theme: dark
+env:
+  DEMO_EMAIL: demo@example.com
+  DEMO_PASSWORD: demo-password-change-me
+  DEMO_REPOSITORY: subcanvas/subcanvas
+
+prelude:
+  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}", org: Demo }
+
+steps:
+  - clip: import
+  - caption: Your repository already knows its own design.
+    pause: 2.5
+  - click: { role: button, name: Import from GitHub }
+  - type: "${DEMO_REPOSITORY}"
+    pause: 0.8
+  - caption: Paste a public repository. No app to install.
+    pause: 2
+  - click: { role: button, name: Import, exact: true }
+  - wait_url: "/d/[0-9a-f-]{36}"
+  - wait_for: { role: toolbar, name: Whiteboard tools }
+    pause: 1.5
+  - caption: One box per folder, with the folder's path under its name.
+    pause: 3
+
+  - clip: arrows
+  - caption: Arrows come from .subcanvas files in the repository.
+    pause: 2.5
+  - click: { css: ".react-flow__edge-textwrapper, .react-flow__edgelabel-renderer [role=button], .react-flow__edgelabel-renderer > *" }
+    pause: 1.5
+  - caption: Click an arrow, read the protocol.
+    pause: 3.5
+  - press: Escape
+
+  - clip: nesting
+  - caption: Folders inside folders are whiteboards inside boxes.
+    pause: 2
+  - double_click: { text: Application }
+  - wait_url: "via="
+    pause: 2
+  - double_click: { text: Core libraries }
+    pause: 2.5
+  - caption: Go as deep as the code goes. Then move things, delete things, draw what is missing.
+    pause: 3.5
+
+  - clip: embed
+  - click: { role: button, name: Share }
+    pause: 1
+  - caption: Copy the embed, paste it in your README. The picture stays current.
+    pause: 1.5
+  - click: { role: button, name: Copy embed }
+    pause: 3
