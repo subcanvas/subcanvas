@@ -33,6 +33,18 @@ Sign-in uses email magic links. Locally, emails are caught by Mailpit at http://
 
 After changing `supabase/config.toml`, restart the stack with `supabase stop && supabase start`.
 
+## Billing
+
+Billing is optional and off until the Stripe variables in `.env.example` are set. Free orgs can hold 25 documents (node descriptions and trashed documents do not count); a paid org has no limit. The limit is enforced in the database.
+
+To test payments locally, create a recurring $5 per-seat price in Stripe test mode, fill in the variables, and run `stripe listen --forward-to localhost:3000/api/stripe/webhook`. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events.
+
+Self-hosting without selling subscriptions? Lift the limit:
+
+```sql
+update private.config set free_document_limit = null;
+```
+
 ## License
 
 Copyright (C) 2026 Trevin Lee

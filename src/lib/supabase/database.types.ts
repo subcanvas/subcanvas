@@ -469,6 +469,47 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          current_period_end: string | null
+          org_id: string
+          seats: number
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          org_id: string
+          seats?: number
+          status?: string
+          stripe_customer_id: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          org_id?: string
+          seats?: number
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -537,6 +578,15 @@ export type Database = {
           org_name: string
           org_slug: string
           role: Database["public"]["Enums"]["org_role"]
+        }[]
+      }
+      org_usage: {
+        Args: { p_org_id: string }
+        Returns: {
+          billed_seats: number
+          document_limit: number
+          documents: number
+          paid: boolean
         }[]
       }
     }

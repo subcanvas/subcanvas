@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { syncSeats } from "@/lib/billing/stripe"
 import { ROLES, type Role } from "@/lib/roles"
 import { createClient } from "@/lib/supabase/server"
 
@@ -35,6 +36,7 @@ export async function changeRole(
   if (error) return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
   if (!data.length) return NOT_ALLOWED
 
+  await syncSeats(orgId)
   revalidatePath(`/${slug}/settings/members`)
   return { ok: true }
 }
@@ -55,6 +57,7 @@ export async function removeMember(
   if (error) return { error: error.message }
   if (!data.length) return NOT_ALLOWED
 
+  await syncSeats(orgId)
   revalidatePath(`/${slug}/settings/members`)
   return { ok: true }
 }

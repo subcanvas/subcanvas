@@ -110,7 +110,18 @@ export function ProjectTree({
   function run(action: () => Promise<ActionResult | void>, onOk?: (result: ActionResult) => void) {
     startTransition(async () => {
       const result = await action()
-      if (result && "error" in result) toast.error(result.error)
+      if (result && "error" in result)
+        toast.error(
+          result.error,
+          result.limit
+            ? {
+                action: {
+                  label: "Upgrade",
+                  onClick: () => router.push(`/${project.slug}/settings/billing`),
+                },
+              }
+            : undefined
+        )
       else if (result) onOk?.(result)
     })
   }

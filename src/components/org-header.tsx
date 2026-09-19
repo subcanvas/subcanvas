@@ -77,6 +77,12 @@ export function OrgHeader({
         >
           Members
         </Link>
+        <Link
+          href={`/${org.slug}/settings/billing`}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          Billing
+        </Link>
       </nav>
 
       <div className="ml-auto">

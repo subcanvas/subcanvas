@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { LIMIT_ERROR_CODE, LIMIT_MESSAGE } from "@/lib/billing/limit"
 import { createClient } from "@/lib/supabase/server"
 import type { Container, DocumentType } from "@/lib/tree"
 
@@ -10,11 +11,13 @@ import type { Container, DocumentType } from "@/lib/tree"
 // which is reported as "not allowed".
 
 export type ProjectRef = { slug: string; orgId: string; projectId: string }
-export type ActionResult = { error: string } | { ok: true }
+// `limit` marks the free-tier limit, so the client can offer the upgrade.
+export type ActionResult = { error: string; limit?: true } | { ok: true }
 
 const NOT_ALLOWED = { error: "You do not have permission to do that." }
 
 function fail(error: { code?: string; message: string }): ActionResult {
+  if (error.code === LIMIT_ERROR_CODE) return { error: LIMIT_MESSAGE, limit: true }
   return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
 }
 

@@ -31,7 +31,7 @@ export default async function ProjectLayout({
     .maybeSingle()
   if (!project) notFound()
 
-  const [{ data: folders }, { data: documents }] = await Promise.all([
+  const [{ data: folders }, { data: documents }, { data: usageRows }] = await Promise.all([
     supabase
       .from("folders")
       .select("id, name, parent_folder_id, position")
@@ -42,7 +42,9 @@ export default async function ProjectLayout({
       .eq("project_id", project.id)
       .eq("kind", "standard")
       .is("deleted_at", null),
+    supabase.rpc("org_usage", { p_org_id: org.id }),
   ])
+  const usage = usageRows?.[0]
 
   return (
     <SidebarProvider className="min-h-0 flex-1">
@@ -56,6 +58,14 @@ export default async function ProjectLayout({
           />
         </SidebarContent>
         <SidebarFooter>
+          {usage && !usage.paid && usage.document_limit != null && (
+            <Link
+              href={`/${org.slug}/settings/billing`}
+              className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"
+            >
+              {usage.documents} of {usage.document_limit} free documents used
+            </Link>
+          )}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton render={<Link href={`/${org.slug}/${project.id}/trash`} />}>
