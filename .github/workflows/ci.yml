@@ -7,11 +7,14 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pinned: "ubuntu-latest" moves to a new release on GitHub's schedule, and
+    # the database job depends on the image's Docker. Move all three runners
+    # (two here, one in deploy.yml) together, on purpose.
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -24,10 +27,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
 
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
         with:
           # Pinned so generated types do not change under us. Keep in step
           # with the CLI used locally.

@@ -23,7 +23,7 @@ jobs:
     # An explicit switch, turned on once the secrets below exist. Until then
     # CI still runs and this is skipped, rather than failing.
     if: vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Keep the secrets in this environment, restrict it to the main branch,
     # and add required reviewers. A workflow on any other branch then cannot
     # read them, and every migration waits for approval.
@@ -33,8 +33,8 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.110.0
       - run: supabase link --project-ref "$PROJECT_REF"
