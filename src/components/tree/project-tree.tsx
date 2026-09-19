@@ -65,11 +65,14 @@ export function ProjectTree({
   projectName,
   nodes,
   canEdit,
+  canUpgrade,
 }: {
   project: ProjectRef
   projectName: string
   nodes: TreeNode[]
   canEdit: boolean
+  // Whether this server has a paid plan to offer when the limit is hit.
+  canUpgrade: boolean
 }) {
   const router = useRouter()
   const params = useParams<{ docId?: string }>()
@@ -113,7 +116,7 @@ export function ProjectTree({
       if (result && "error" in result)
         toast.error(
           result.error,
-          result.limit
+          result.limit && canUpgrade
             ? {
                 action: {
                   label: "Upgrade",

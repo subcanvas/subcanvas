@@ -1,4 +1,5 @@
 import { OrgHeader } from "@/components/org-header"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
 export default async function OrgLayout({
@@ -22,6 +23,7 @@ export default async function OrgLayout({
       <OrgHeader
         org={org}
         orgs={orgs ?? []}
+        showBilling={billingConfigured()}
         user={{
           email: user.email ?? "",
           name: profile?.display_name ?? null,

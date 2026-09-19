@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 -- Uses its own slugs and ids so it passes against a local database that
 -- already holds development data. The limit is lowered to 2 inside this
@@ -11,6 +11,13 @@ select plan(10);
 
 insert into public.orgs (id, name, slug) values (:org, 'Billing', 'pgtap-billing');
 insert into public.projects (id, org_id, name) values (:project, :org, 'P');
+-- A fresh deployment has no limit. (The development database may have one
+-- set by hand, so this checks the column default rather than the row.)
+select is(
+  (select column_default from information_schema.columns
+   where table_schema = 'private' and table_name = 'config' and column_name = 'free_document_limit'),
+  null, 'there is no document limit unless a deployment sets one');
+
 update private.config set free_document_limit = 2;
 
 create function pg_temp.add_doc(p_title text, p_kind public.document_kind default 'standard')

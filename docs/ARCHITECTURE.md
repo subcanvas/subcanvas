@@ -56,7 +56,7 @@ Notes:
 - **Soft delete:** `deleted_at` gives a trash and makes R1.8 recoverable. Children of a deleted document are hidden with it.
 - **Free-tier limit (R7.1):** a `BEFORE INSERT` trigger on `documents` counts rows where `kind = 'standard'` and `deleted_at is null` for the org, and rejects the insert when the org has no active subscription and the count is 25. Enforced in the database so no client can bypass it.
 - **Billed seats (R7.2a):** `count(*) from org_members where role <> 'viewer'`. The server actions that change membership (role change, removal, accepting an invite) call `syncSeats`, which sets the Stripe quantity; the webhook then records it. This replaced the planned trigger plus Edge Function: it is less machinery, and it runs on any Node host. Membership changed directly in the database is not synced until the next change made through the app.
-- **The limit is a deployment setting.** `private.config.free_document_limit` defaults to 25; `null` lifts it for self-hosters who do not sell subscriptions. Restoring from the trash is checked too, and `past_due` still counts as paid while Stripe retries the card.
+- **The limit is a deployment setting, off by default.** `private.config.free_document_limit` is `null` unless a deployment that sells subscriptions sets it to 25. The default favors self-hosters: forgetting to turn it on costs the hosted service some free usage, while forgetting to turn it off would block a self-hosted team behind an upgrade button that leads nowhere. With no Stripe variables set, the Billing navigation and upgrade prompts are hidden and the Stripe code never runs. Restoring from the trash is checked too, and `past_due` still counts as paid while Stripe retries the card.
 
 ## 3. Shape of a Yjs document
 

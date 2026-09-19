@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 import { buildTree } from "@/lib/tree"
@@ -55,10 +56,11 @@ export default async function ProjectLayout({
             projectName={project.name}
             nodes={buildTree(folders ?? [], documents ?? [])}
             canEdit={hasRole(role, "editor")}
+            canUpgrade={billingConfigured()}
           />
         </SidebarContent>
         <SidebarFooter>
-          {usage && !usage.paid && usage.document_limit != null && (
+          {usage && !usage.paid && usage.document_limit != null && billingConfigured() && (
             <Link
               href={`/${org.slug}/settings/billing`}
               className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"

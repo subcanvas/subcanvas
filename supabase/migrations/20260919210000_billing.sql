@@ -1,11 +1,12 @@
 -- Milestone 8: the free-tier document limit and subscription state (R7).
 
--- One row of deployment-wide settings. Self-hosters who do not sell
--- subscriptions lift the limit with:
---   update private.config set free_document_limit = null;
+-- One row of deployment-wide settings. There is no document limit unless a
+-- deployment sets one, so a self-hosted server works with no billing setup.
+-- A deployment that sells subscriptions turns the free tier on with:
+--   update private.config set free_document_limit = 25;
 create table private.config (
   singleton boolean primary key default true check (singleton),
-  free_document_limit integer default 25 check (free_document_limit is null or free_document_limit >= 0)
+  free_document_limit integer check (free_document_limit is null or free_document_limit >= 0)
 );
 insert into private.config default values;
 

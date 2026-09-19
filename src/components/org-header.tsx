@@ -23,9 +23,12 @@ export function OrgHeader({
   org,
   orgs,
   user,
+  showBilling,
 }: {
   org: Org
   orgs: Org[]
+  // False on a server with no paid plan to offer.
+  showBilling: boolean
   user: { email: string; name: string | null; avatarUrl: string | null }
 }) {
   const router = useRouter()
@@ -77,12 +80,14 @@ export function OrgHeader({
         >
           Members
         </Link>
-        <Link
-          href={`/${org.slug}/settings/billing`}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-        >
-          Billing
-        </Link>
+        {showBilling && (
+          <Link
+            href={`/${org.slug}/settings/billing`}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            Billing
+          </Link>
+        )}
       </nav>
 
       <div className="ml-auto">

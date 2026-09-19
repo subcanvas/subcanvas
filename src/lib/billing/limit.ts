@@ -2,4 +2,4 @@
 export const LIMIT_ERROR_CODE = "GN001"
 
 export const LIMIT_MESSAGE =
-  "This org has reached the free plan's document limit. Upgrade in Billing to create more."
+  "This org has reached its document limit. Upgrade to create more, or move documents to the trash."
