@@ -15,11 +15,15 @@ type Shared = Pick<WhiteboardProps, "editable" | "context" | "user">
 
 export function WhiteboardDocument({
   documentId,
-  header,
+  breadcrumb,
+  title,
+  actions,
   ...shared
 }: Shared & {
   documentId: string
-  header: React.ReactNode
+  breadcrumb: React.ReactNode
+  title: React.ReactNode
+  actions?: React.ReactNode
 }) {
   const { editable } = shared
   const provider = useDocumentSync(documentId, !editable)
@@ -27,11 +31,22 @@ export function WhiteboardDocument({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-3 border-b px-4 py-2">
-        <div className="min-w-0 flex-1">{header}</div>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          {/* A narrow canvas has no room beside the toolbar, so the trail stays up here. */}
+          <div className="md:hidden">{breadcrumb}</div>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="min-w-0">{title}</div>
+            {provider && <SyncBadge provider={provider} editable={editable} />}
+          </div>
+        </div>
         {provider && <PresenceAvatars provider={provider} user={shared.user} />}
-        {provider && <SyncBadge provider={provider} editable={editable} />}
+        {actions}
       </div>
       <div className="relative min-h-0 flex-1">
+        {/* On the canvas, level with the toolbar, and never wide enough to reach it. */}
+        <div className="absolute top-[15px] left-4 z-10 hidden h-[42px] max-w-[calc(50%-12rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm md:flex">
+          {breadcrumb}
+        </div>
         {provider && <Loaded provider={provider} {...shared} />}
       </div>
     </div>

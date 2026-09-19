@@ -58,7 +58,7 @@ export function DocumentTitle({
       }}
       className={cn(
         size,
-        compact ? "w-full" : "mx-13",
+        compact ? "field-sizing-content max-w-full min-w-24" : "mx-13",
         "bg-transparent outline-none placeholder:text-muted-foreground"
       )}
     />

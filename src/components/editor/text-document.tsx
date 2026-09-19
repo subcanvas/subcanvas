@@ -24,7 +24,7 @@ export function TextDocument({
   // On a page of its own, the document fills the area: a bar across the top
   // like the whiteboard's, and the title and text in one centered column.
   // Without this it is laid out for the side panel.
-  page?: { header: React.ReactNode; title: React.ReactNode }
+  page?: { breadcrumb: React.ReactNode; actions?: React.ReactNode; title: React.ReactNode }
   documentId: string
   user: EditorUser
   editable: boolean
@@ -48,9 +48,13 @@ export function TextDocument({
     return (
       <div className="flex flex-1 flex-col">
         <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-sheet px-4 py-2">
-          <div className="min-w-0 flex-1">{page.header}</div>
+          {/* The trail ends with this page's name, and the save state sits beside it. */}
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {page.breadcrumb}
+            <SyncBadge provider={provider} editable={editable} />
+          </div>
           <PresenceAvatars provider={provider} user={user} />
-          <SyncBadge provider={provider} editable={editable} />
+          {page.actions}
         </div>
         {/* The wide gutter is for block handles; a phone has none. */}
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pt-12 pb-40 max-md:pt-6 max-md:[&_.bn-editor]:px-5! max-md:[&_.mx-13]:mx-5! max-md:[&_.px-13]:px-5!">

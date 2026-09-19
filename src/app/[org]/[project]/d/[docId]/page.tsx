@@ -75,7 +75,7 @@ export default async function DocumentPage({
       project={projectPath}
       projectName={project.name}
       trail={trail}
-      current={document.type === "text" ? document.title : undefined}
+      current={document.title}
     />
   )
   const actions = (
@@ -121,15 +121,9 @@ export default async function DocumentPage({
             via: trail.map((crumb) => crumb.id),
           }}
           user={editorUser}
-          header={
-            <div className="flex items-center gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {breadcrumb}
-                {title(true)}
-              </div>
-              {actions}
-            </div>
-          }
+          breadcrumb={breadcrumb}
+          title={title(true)}
+          actions={actions}
         />
       </main>
     )
@@ -147,15 +141,7 @@ export default async function DocumentPage({
           slug: org.slug,
           via: trail.map((crumb) => crumb.id),
         }}
-        page={{
-          header: (
-            <div className="flex items-center justify-between gap-3">
-              {breadcrumb}
-              {actions}
-            </div>
-          ),
-          title: title(false),
-        }}
+        page={{ breadcrumb, actions, title: title(false) }}
       />
     </main>
   )

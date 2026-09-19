@@ -63,7 +63,7 @@ export default async function PublicDocumentPage({
       project={{ slug: PUBLIC_SLUG, projectId }}
       projectName={project.name}
       trail={trail}
-      current={document.type === "text" ? document.title : undefined}
+      current={document.title}
     />
   )
   const linkedFrom = <ReferencedBy slug={PUBLIC_SLUG} references={references} />
@@ -86,15 +86,9 @@ export default async function PublicDocumentPage({
             via: trailIds,
           }}
           user={guest}
-          header={
-            <div className="flex items-center gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {breadcrumb}
-                <h1 className="truncate text-lg font-semibold">{document.title}</h1>
-              </div>
-              {linkedFrom}
-            </div>
-          }
+          breadcrumb={breadcrumb}
+          title={<h1 className="truncate text-lg font-semibold">{document.title}</h1>}
+          actions={linkedFrom}
         />
       </main>
     )
@@ -108,12 +102,8 @@ export default async function PublicDocumentPage({
         user={guest}
         context={{ orgId: document.org_id, projectId, slug: PUBLIC_SLUG, via: trailIds }}
         page={{
-          header: (
-            <div className="flex items-center justify-between gap-3">
-              {breadcrumb}
-              {linkedFrom}
-            </div>
-          ),
+          breadcrumb,
+          actions: linkedFrom,
           title: <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>,
         }}
       />

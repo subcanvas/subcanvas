@@ -27,9 +27,8 @@ export type Crumb = { id: string; title: string }
 const VISIBLE = 4
 
 // The way back out (R2.1): the project, then each sheet you came through.
-// Each one links back along the same trail. A whiteboard's title sits right
-// below the trail, so the trail leads into it; a page of text has its title
-// further down, so the trail ends with `current`.
+// Each one links back along the same trail, and the trail ends with the open
+// document's own name.
 export function DocumentBreadcrumb({
   project,
   projectName,
@@ -39,7 +38,7 @@ export function DocumentBreadcrumb({
   project: ProjectPath
   projectName: string
   trail: Crumb[]
-  current?: string
+  current: string
 }) {
   const crumbs = [
     { key: "project", title: projectName, href: `/${project.slug}/${project.projectId}` },
@@ -95,11 +94,9 @@ export function DocumentBreadcrumb({
           </Fragment>
         ))}
         <BreadcrumbSeparator />
-        {current !== undefined && (
-          <BreadcrumbItem className="min-w-0">
-            <BreadcrumbPage className="max-w-40 truncate">{current || "Untitled"}</BreadcrumbPage>
-          </BreadcrumbItem>
-        )}
+        <BreadcrumbItem className="min-w-0">
+          <BreadcrumbPage className="max-w-40 truncate">{current || "Untitled"}</BreadcrumbPage>
+        </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>
   )
