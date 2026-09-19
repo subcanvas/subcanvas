@@ -94,7 +94,21 @@ export function PlainNode({ data, selected }: NodeProps<FlowNode>) {
       }}
     >
       <Resizer selected={selected} minWidth={80} minHeight={40} />
-      <span className="line-clamp-3 break-words">{wb.title || "Untitled"}</span>
+      {wb.path ? (
+        // A node that stands for a repository folder says which one, under
+        // its name. The name gives way first: two lines, then the path.
+        <span className="flex max-w-full min-w-0 flex-col items-center gap-0.5">
+          <span className="line-clamp-2 break-words">{wb.title || "Untitled"}</span>
+          <span
+            title={wb.path}
+            className="max-w-full truncate font-mono text-[10px] leading-tight font-normal tracking-tight text-graphite"
+          >
+            {wb.path}
+          </span>
+        </span>
+      ) : (
+        <span className="line-clamp-3 break-words">{wb.title || "Untitled"}</span>
+      )}
       {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} className="absolute -top-2.5 -right-2.5" />}
       <Handles visible={selected} />
     </div>

@@ -206,6 +206,7 @@ export function ObjectDocument({
                 via: [...context.via, context.whiteboardId],
               }}
               autoFocus={justCreated}
+              source={meta.source}
             />
           </div>
         </>

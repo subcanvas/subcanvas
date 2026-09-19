@@ -3,10 +3,12 @@
 import dynamic from "next/dynamic"
 
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
+import type { DocumentSource } from "@/lib/github/source"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 
 import type { TextDocumentContext } from "./document-link-block"
 import { PresenceAvatars } from "./presence-avatars"
+import { SourceBar } from "./source-bar"
 import { SyncBadge } from "./sync-badge"
 import type { EditorUser } from "./text-editor"
 
@@ -16,9 +18,10 @@ const TextEditor = dynamic(() => import("./text-editor"), { ssr: false })
 export function TextDocument({
   documentId,
   user,
-  editable,
+  editable: mayEdit,
   context,
   autoFocus = false,
+  source = null,
   page,
 }: {
   // On a page of its own, the document fills the area: a bar across the top
@@ -30,7 +33,11 @@ export function TextDocument({
   editable: boolean
   context: Omit<TextDocumentContext, "documentId">
   autoFocus?: boolean
+  // Set when the text was imported. Its repository owns it, so nobody edits
+  // it here, whatever their role.
+  source?: DocumentSource | null
 }) {
+  const editable = mayEdit && !source
   const provider = useDocumentSync(documentId, !editable)
   if (!provider) return null
 
@@ -59,6 +66,7 @@ export function TextDocument({
         {/* The wide gutter is for block handles; a phone has none. */}
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pt-12 pb-40 max-md:pt-6 max-md:[&_.bn-editor]:px-5! max-md:[&_.mx-13]:mx-5! max-md:[&_.px-13]:px-5!">
           {page.title}
+          {source && <SourceBar source={source} />}
           {editor}
         </div>
       </div>
@@ -70,6 +78,7 @@ export function TextDocument({
         <SyncBadge provider={provider} editable={editable} />
         <PresenceAvatars provider={provider} user={user} />
       </div>
+      {source && <SourceBar source={source} />}
       {editor}
     </div>
   )

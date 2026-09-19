@@ -182,6 +182,18 @@ function NodeFields({
           />
         </Field>
       )}
+      {node.path && (
+        // Set by the import and owned by the repository, so it is shown, not edited.
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-graphite">Folder</span>
+          <p className="rounded-lg border border-rule bg-paper px-2.5 py-1.5 font-mono text-xs break-all text-ink">
+            {node.path}
+          </p>
+          {node.kind === "plain" && node.description && (
+            <p className="text-xs leading-relaxed text-graphite">{node.description}</p>
+          )}
+        </div>
+      )}
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
     </>
   )

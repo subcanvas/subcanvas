@@ -60,14 +60,50 @@ export async function changeDocument(
   const doc = fresh ? new Y.Doc() : await loadDocument(supabase, documentId)
   if (!doc) return { error: "This document could not be read." }
 
-  const before = Y.encodeStateVector(doc)
-  doc.transact(() => change(doc))
-  const update = Y.encodeStateAsUpdate(doc, before)
-  // An update that changes nothing is two bytes: no structs, no deletes.
-  if (update.length <= 2) return { error: null }
+  const update = encodeChange(doc, change)
+  if (!update) return { error: null }
 
   const { error } = await supabase
     .from("document_updates")
     .insert({ document_id: documentId, update: toBytea(update) })
   return { error: error ? "This document could not be saved." : null }
+}
+
+// Well under what the API accepts in one request body, hex-encoded.
+const MAX_BATCH_BYTES = 1_000_000
+
+// The same for many documents that were all just created, in as few
+// requests as their size allows. An import writes dozens at once, and one
+// request each would be most of the time it takes.
+export async function writeNewDocuments(
+  supabase: Client,
+  documents: { documentId: string; change: (doc: Y.Doc) => void }[]
+): Promise<{ error: string | null }> {
+  let batch: { document_id: string; update: string }[] = []
+  let batchBytes = 0
+  const flush = async () => {
+    if (!batch.length) return null
+    const { error } = await supabase.from("document_updates").insert(batch)
+    batch = []
+    batchBytes = 0
+    return error
+  }
+
+  for (const { documentId, change } of documents) {
+    const update = encodeChange(new Y.Doc(), change)
+    if (!update) continue
+    if (batchBytes + update.length > MAX_BATCH_BYTES && (await flush()))
+      return { error: "These documents could not be saved." }
+    batch.push({ document_id: documentId, update: toBytea(update) })
+    batchBytes += update.length
+  }
+  return { error: (await flush()) ? "These documents could not be saved." : null }
+}
+
+function encodeChange(doc: Y.Doc, change: (doc: Y.Doc) => void) {
+  const before = Y.encodeStateVector(doc)
+  doc.transact(() => change(doc))
+  const update = Y.encodeStateAsUpdate(doc, before)
+  // An update that changes nothing is two bytes: no structs, no deletes.
+  return update.length <= 2 ? null : update
 }

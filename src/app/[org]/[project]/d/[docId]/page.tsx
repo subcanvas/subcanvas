@@ -7,6 +7,7 @@ import { TextDocument } from "@/components/editor/text-document"
 import { ReferencedBy } from "@/components/referenced-by"
 import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
+import { readDocumentSource } from "@/lib/github/source"
 import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
@@ -33,7 +34,7 @@ export default async function DocumentPage({
   const [{ data: document }, { data: profile }, { data: project }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, title, type")
+      .select("id, title, type, source")
       .eq("id", docId)
       .eq("project_id", projectId)
       .eq("org_id", org.id)
@@ -89,7 +90,9 @@ export default async function DocumentPage({
     </div>
   )
 
-  const editable = canEdit
+  const source = readDocumentSource(document.source)
+  // An imported document belongs to its repository, title included.
+  const editable = canEdit && !source
   const editorUser = {
     id: user.id,
     name: profile?.display_name ?? user.email ?? "Someone",
@@ -141,6 +144,7 @@ export default async function DocumentPage({
           slug: org.slug,
           via: trail.map((crumb) => crumb.id),
         }}
+        source={source}
         page={{ breadcrumb, actions, title: title(false) }}
       />
     </main>

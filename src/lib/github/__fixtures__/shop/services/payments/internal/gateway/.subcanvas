@@ -1,0 +1,5 @@
+title: Card gateway
+description: The only code that talks to the card processor.
+connects:
+  - to: services/ledger
+    label: refunds

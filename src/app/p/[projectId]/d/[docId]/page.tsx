@@ -4,6 +4,7 @@ import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb
 import { TextDocument } from "@/components/editor/text-document"
 import { ReferencedBy } from "@/components/referenced-by"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
+import { readDocumentSource } from "@/lib/github/source"
 import { parseVia } from "@/lib/navigation"
 import { PUBLIC_SLUG } from "@/lib/public-route"
 import { createClient } from "@/lib/supabase/server"
@@ -22,7 +23,7 @@ export default async function PublicDocumentPage({
   const [{ data: document }, { data: project }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, org_id, title, type")
+      .select("id, org_id, title, type, source")
       .eq("id", docId)
       .eq("project_id", projectId)
       .is("deleted_at", null)
@@ -101,6 +102,7 @@ export default async function PublicDocumentPage({
         editable={false}
         user={guest}
         context={{ orgId: document.org_id, projectId, slug: PUBLIC_SLUG, via: trailIds }}
+        source={readDocumentSource(document.source)}
         page={{
           breadcrumb,
           actions: linkedFrom,
