@@ -1,0 +1,6 @@
+# What this repository is, for the system diagram Subcanvas draws of itself.
+# The format is described in docs/SUBCANVAS_FILE.md.
+title: Subcanvas
+description: Whiteboards and documents that nest inside each other. A Next.js app on Vercel, with Supabase for sign-in, data, and real-time sync.
+ignore:
+  - public
