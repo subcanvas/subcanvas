@@ -85,6 +85,7 @@ export default async function DocumentPage({
         project={{ slug: org.slug, orgId: org.id, projectId }}
         visibility={project.visibility}
         canChange={hasRole(role, "admin") && canEdit}
+        whiteboard={document.type === "whiteboard" ? { docId: document.id, title: document.title } : undefined}
       />
     </div>
   )
