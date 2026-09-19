@@ -7,8 +7,12 @@ What comes after v1 ([REQUIREMENTS.md](../REQUIREMENTS.md)). Nothing here is bui
 | 1 | [Linked documents](#1-linked-documents-google-slack-anything-with-a-url): a node opens a Google Doc or a Slack canvas instead of a Subcanvas document | Small | Teams already have their docs somewhere. Nobody should have to move them to draw the map. |
 | 2 | [Full-access MCP server](#2-full-access-mcp-server) | Medium | Nothing a human can do that an agent cannot. |
 | 3 | [GitHub integration](#3-github-integration): connect a repository, get its system diagram | Large | The big one. It shows a developer what the product is within a minute of signing up. |
+| 4 | [Embeds](#4-embeds-a-live-diagram-in-a-readme): a public diagram shown in a repository's README | Medium | The proof. Subcanvas's own README shows Subcanvas's own system design, generated from its own repository. |
+| 5 | [Launch](#5-launch): Product Hunt, with a demo video that records itself | Small | Items 3 and 4 together are the launch. |
 
 Items 2 and 3 both need the same two pieces first, described under [Shared foundation](#shared-foundation).
+
+**Where this is going.** The public Subcanvas repository has `.subcanvas` files in its folders. Subcanvas reads them and draws the system design of Subcanvas. That diagram is public, and it is embedded at the top of the repository's `README.md`, where clicking it opens the live, explorable version. One picture then shows the whole product: generated from a repository, kept current by the repository, nested as deep as the code goes, and open to anyone. When that works, we launch.
 
 ---
 
@@ -114,6 +118,65 @@ ignore:
 
 ---
 
+## 4. Embeds: a live diagram in a README
+
+**What.** Any whiteboard in a public project can be embedded in Markdown. The Share popover gains **Copy embed**, which gives a snippet to paste into a README, a wiki, or a docs site. On GitHub the reader sees the diagram as a picture that is always current, and clicking it opens the real thing at `/p/<project>/d/<document>`, where every box opens.
+
+**What GitHub allows decides the design.** GitHub strips iframes and scripts from Markdown. It allows images and links, and it serves every image through its own proxy, which caches. So an embed is an **image that Subcanvas renders on request**, wrapped in a link:
+
+```html
+<a href="https://subcanvas.app/p/PROJECT/d/DOCUMENT">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/PROJECT/d/DOCUMENT/embed.svg?theme=dark">
+    <img alt="System design of Subcanvas" src="https://subcanvas.app/p/PROJECT/d/DOCUMENT/embed.svg">
+  </picture>
+</a>
+```
+
+GitHub supports `<picture>` with a color-scheme source, so the diagram matches the reader's light or dark theme.
+
+**What it takes.**
+
+- **A renderer that needs no browser.** React Flow draws in the browser; the embed endpoint has to produce an SVG on the server from the whiteboard's Yjs state. Nodes, groups, and edges are simple shapes, so this is a renderer of our own that reads the same schema: boxes with the sheet-stack edge for anything that holds a whiteboard, labels, arrows with their labels, the grid left out. The same renderer is the export feature (R8.6), so it is built once.
+- **Freshness.** The endpoint sends a short `Cache-Control` lifetime and an `ETag` from the document's latest update, so GitHub's proxy re-fetches soon after a change and cheaply when nothing changed. A push that changes the diagram shows up in the README within minutes, with no commit to the README.
+- **Public only.** The endpoint serves documents in public projects and nothing else, with the same check as the public pages. Making a project private again turns its embeds into a plain "this diagram is private" image.
+- **A small mark.** Each embed carries a quiet "subcanvas.app" in a corner. Every README that embeds a diagram is then also how the next person finds the product.
+
+**Open questions.**
+
+| Question | Recommendation |
+|---|---|
+| SVG or PNG? | SVG: sharp at any size, small, and text in it stays selectable and searchable. Offer `embed.png` later for places that refuse SVG (some chat apps and email). |
+| How deep does an embed show? | The one whiteboard, as drawn. Boxes that hold something keep their stacked edge, which is the invitation to click through. |
+| Fonts in an SVG served as an image cannot load from the network. | Use the system UI font stack in embeds. Matching Geist exactly would mean converting text to outlines, which loses selectable text. |
+| Interactive embeds (pan, zoom, open a box) for sites that do allow iframes? | Later. An `/embed` page in an iframe is straightforward once the image exists; GitHub, the launch target, cannot use it. |
+| Does embedding count against the free plan? | No. Public projects are free and unlimited, and embeds are how they spread. |
+
+**Dogfooding, which is the launch asset.** Add `.subcanvas` files to this repository (`src/app`, `src/lib/sync`, `supabase`, and so on, with the real connections: app to Supabase Auth, the sync provider to Realtime and Postgres, billing to Stripe), connect the repository to a public Subcanvas project, and embed the top-level diagram at the top of `README.md`. It doubles as living architecture documentation, and every rough edge we hit doing it is one a customer would have hit.
+
+---
+
+## 5. Launch
+
+**When.** After items 3 and 4 work on this repository: a diagram generated from the repository and its `.subcanvas` files, embedded in the README, and a try-it path a stranger can finish in a minute. Then Product Hunt, and posts where developers are (Reddit, Hacker News), each linking to the repository, whose README is the demonstration.
+
+**A demo video that records itself.** A product demo recorded by hand goes stale with every interface change and takes an afternoon to redo. Instead: a Python script moves the real cursor through a storyboard while the Openscreen CLI records the screen, so the video can be regenerated after any release with one command.
+
+- **A storyboard file**, not code: an ordered list of steps (go to this page, move to this element, click, type this text, pause, caption). Changing the demo means editing the list.
+- **Find by element, move for real.** Pixel coordinates break the moment the layout shifts. The script asks the browser where an element is (by its accessible name, through Playwright or the DevTools protocol), then moves the operating system's cursor there along an eased curve with small pauses, so it looks like a person and lands on the right thing.
+- **The same take every time.** A seeded demo account and project, a fixed window size and zoom, the dark theme, notifications off, and waits that depend on the page being ready, not on timers.
+- **Cuts for each place.** A full run of about 90 seconds for Product Hunt, and 15 to 30 second clips (connect a repository and watch the diagram appear; open a box, and the box inside it) for Reddit and social posts, cut from the same recording by step markers.
+
+**Open questions.**
+
+| Question | Recommendation |
+|---|---|
+| Does the script live in this repository? | Yes, under `scripts/demo/`, with its storyboard. It doubles as a smoke test of the main flow. |
+| Voice-over or captions? | Captions, burned in from the storyboard. Most feeds autoplay muted, and captions regenerate with the video. |
+| What else has to be true on launch day? | Sign-up open to strangers (real email delivery through Resend, Google and GitHub sign-in), the try-it box on the landing page, billing either on or clearly "free for now", the Terms and Privacy pages live, and a status or contact address that someone is reading. |
+
+---
+
 ## Shared foundation
 
 Two pieces that items 2 and 3 both need, and that are worth building once and first.
@@ -128,6 +191,8 @@ Two pieces that items 2 and 3 both need, and that are worth building once and fi
 3. **GitHub import, read-only:** Developers tab, automatic mapping, README documents, delete-to-prune. This is the demonstration, and it ships without `.subcanvas` support.
 4. **MCP server.** By now the writer exists and the hard part is breadth, not depth.
 5. **`.subcanvas` files and push sync.**
-6. **Pull requests from Subcanvas, connected Google and Slack accounts, the landing-page try-it box.**
+6. **Embeds**, then this repository's own `.subcanvas` files and the diagram in its README.
+7. **The landing-page try-it box and the self-recording demo video. Then launch.**
+8. **Pull requests from Subcanvas, connected Google and Slack accounts.** Useful, and not needed for the launch.
 
 The MCP server could trade places with GitHub import. GitHub import is ahead because it is what brings people in; the MCP server is what makes the product more useful to the people already there.
