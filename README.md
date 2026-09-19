@@ -35,4 +35,8 @@ After changing `supabase/config.toml`, restart the stack with `supabase stop && 
 
 ## License
 
-[AGPL-3.0](LICENSE)
+Copyright (C) 2026 Trevin Lee
+
+Graph Notes is free software: you can redistribute it and/or modify it under the terms of the [GNU Affero General Public License](LICENSE) as published by the Free Software Foundation, version 3.
+
+In short: you may self-host and modify it, but if you run a modified version as a network service, you must make your modified source available to its users. It comes with no warranty.
