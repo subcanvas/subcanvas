@@ -13,6 +13,7 @@ import {
 } from "@blocknote/react"
 import { BlockNoteView } from "@blocknote/shadcn"
 import { FileText, Link2, Workflow } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -53,6 +54,7 @@ export default function TextEditor({
   autoFocus?: boolean
 }) {
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
   const editor = useCreateBlockNote(
@@ -172,7 +174,12 @@ export default function TextEditor({
 
   return (
     <TextDocumentContextProvider value={context}>
-      <BlockNoteView editor={editor} editable={editable} theme="light" slashMenu={false}>
+      <BlockNoteView
+        editor={editor}
+        editable={editable}
+        theme={resolvedTheme === "dark" ? "dark" : "light"}
+        slashMenu={false}
+      >
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>

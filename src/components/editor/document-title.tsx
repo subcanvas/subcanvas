@@ -38,7 +38,9 @@ export function DocumentTitle({
     })
   }
 
-  const size = compact ? "text-lg font-semibold" : "text-3xl font-semibold tracking-tight"
+  const size = compact
+    ? "font-heading text-lg font-semibold tracking-tight"
+    : "font-heading text-4xl font-semibold tracking-tight"
 
   if (!editable)
     return <h1 className={cn(size, !compact && "px-13", "truncate")}>{title}</h1>

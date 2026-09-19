@@ -30,7 +30,7 @@ export function CreateOrgForm() {
   const [slugEdited, setSlugEdited] = useState(false)
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Create your org</CardTitle>
         <CardDescription>

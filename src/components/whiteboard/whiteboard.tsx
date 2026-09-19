@@ -13,6 +13,7 @@ import {
   useReactFlow,
 } from "@xyflow/react"
 import { Group, Redo2, Square, Type, Undo2 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -63,6 +64,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   const wb = useWhiteboard(provider.doc, editable)
   const flow = useReactFlow<FlowNode, FlowEdge>()
   const router = useRouter()
+  const { resolvedTheme } = useTheme()
   const wrapper = useRef<HTMLDivElement>(null)
   const pasteCount = useRef(0)
   const addCount = useRef(0)
@@ -260,7 +262,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   return (
     <WhiteboardActionsContext value={actions}>
     <div className="flex size-full" onKeyDown={onKeyDown}>
-      <div ref={wrapper} className="relative min-w-0 flex-1">
+      <div ref={wrapper} className="relative min-w-0 flex-1 bg-paper">
         <ReactFlow
           nodes={wb.nodes}
           edges={wb.edges}
@@ -274,6 +276,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           onEdgeDoubleClick={(_, edge) => openObject(edge.id)}
           zoomOnDoubleClick={false}
           onSelectionChange={onSelectionChange}
+          colorMode={resolvedTheme === "dark" ? "dark" : "light"}
           connectionMode={ConnectionMode.Loose}
           nodesDraggable={editable}
           nodesConnectable={editable}
@@ -286,7 +289,8 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           fitViewOptions={FIT_VIEW}
           proOptions={{ hideAttribution: false }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={20} />
+          {/* Drafting paper: a non-photo blue grid that never competes with the ink. */}
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="var(--blueline)" bgColor="var(--paper)" />
           <Controls showInteractive={false} fitViewOptions={FIT_VIEW} />
           <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
 
@@ -295,26 +299,48 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
               <div
                 role="toolbar"
                 aria-label="Whiteboard tools"
-                className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-sm"
+                className="flex items-center gap-0.5 rounded-xl border border-rule bg-sheet p-1 shadow-sm"
               >
-                <Tool label="Add node" onClick={() => add("plain")}>
+                <Tool label="Node" hint="A box with a title" onClick={() => add("plain")}>
                   <Square />
                 </Tool>
-                <Tool label="Add text" onClick={() => add("text")}>
+                <Tool label="Text" hint="A heading and a paragraph, no box" onClick={() => add("text")}>
                   <Type />
                 </Tool>
-                <Tool label="Add group" onClick={() => add("group")}>
+                <Tool label="Group" hint="A frame that moves what is inside it" onClick={() => add("group")}>
                   <Group />
                 </Tool>
                 <Separator orientation="vertical" className="mx-1 h-5" />
-                <Tool label="Undo" onClick={wb.undo}>
+                <Tool label="Undo" iconOnly onClick={wb.undo}>
                   <Undo2 />
                 </Tool>
-                <Tool label="Redo" onClick={wb.redo}>
+                <Tool label="Redo" iconOnly onClick={wb.redo}>
                   <Redo2 />
                 </Tool>
               </div>
             </Panel>
+          )}
+
+          {wb.nodes.length === 0 ? (
+            <Panel position="top-center" className="!top-1/2 !-translate-y-1/2">
+              <div className="flex max-w-sm flex-col items-center gap-2 text-center">
+                <p className="font-heading text-xl font-semibold">An empty sheet</p>
+                <p className="text-sm text-graphite">
+                  {editable
+                    ? "Add a node to begin. Anything you add can hold a description, or a whole whiteboard of its own."
+                    : "Nothing has been added here yet."}
+                </p>
+              </div>
+            </Panel>
+          ) : (
+            editable && (
+              <Panel position="bottom-center">
+                <p className="rounded-full border border-rule bg-sheet/90 px-3 py-1 text-xs text-graphite shadow-xs backdrop-blur">
+                  Drag from a node&apos;s edge to connect <span className="mx-1 text-rule">/</span> Click to edit
+                  <span className="mx-1 text-rule">/</span> Double-click to open what is inside
+                </p>
+              </Panel>
+            )
           )}
         </ReactFlow>
       </div>
@@ -337,10 +363,14 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
 
 function Tool({
   label,
+  hint,
+  iconOnly = false,
   onClick,
   children,
 }: {
   label: string
+  hint?: string
+  iconOnly?: boolean
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -348,12 +378,19 @@ function Tool({
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button variant="ghost" size="icon" aria-label={label} onClick={onClick}>
+          <Button
+            variant="ghost"
+            size={iconOnly ? "icon" : "default"}
+            aria-label={iconOnly ? label : undefined}
+            className="text-ink"
+            onClick={onClick}
+          >
             {children}
+            {!iconOnly && label}
           </Button>
         }
       />
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>{hint ?? label}</TooltipContent>
     </Tooltip>
   )
 }

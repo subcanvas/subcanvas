@@ -3,7 +3,7 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react"
 import { FileText, Workflow } from "lucide-react"
 
-import { COLORS, type DocType } from "@/lib/whiteboard/schema"
+import { COLORS, type DocType, type WbNode } from "@/lib/whiteboard/schema"
 import type { FlowNode } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
@@ -21,7 +21,7 @@ function Handles({ visible }: { visible: boolean }) {
           type="source"
           position={Position[(side[0].toUpperCase() + side.slice(1)) as keyof typeof Position]}
           className={cn(
-            "!size-2.5 !border-2 !border-background !bg-foreground transition-opacity",
+            "!size-2.5 !rounded-full !border-2 !border-sheet !bg-cobalt transition-opacity",
             visible ? "opacity-100" : "opacity-0 group-hover/node:opacity-100"
           )}
         />
@@ -30,7 +30,19 @@ function Handles({ visible }: { visible: boolean }) {
   )
 }
 
-// Marks an object that holds a document (R4.9), and opens it.
+function Resizer({ selected, minWidth, minHeight }: { selected: boolean; minWidth: number; minHeight: number }) {
+  return (
+    <NodeResizer
+      isVisible={selected}
+      minWidth={minWidth}
+      minHeight={minHeight}
+      lineClassName="!border-cobalt/60"
+      handleClassName="!size-2 !rounded-[2px] !border-cobalt !bg-sheet"
+    />
+  )
+}
+
+// What an object holds, and the way in (R4.7, R4.9).
 export function DocumentMark({
   objectId,
   docType,
@@ -42,7 +54,7 @@ export function DocumentMark({
 }) {
   const { openObject } = useWhiteboardActions()
   const Icon = docType === "whiteboard" ? Workflow : FileText
-  const label = docType === "whiteboard" ? "Open whiteboard" : "Open document"
+  const label = docType === "whiteboard" ? "Open the whiteboard inside" : "Open the document inside"
   return (
     <button
       type="button"
@@ -51,7 +63,7 @@ export function DocumentMark({
       onClick={() => openObject(objectId)}
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        "nodrag nopan pointer-events-auto absolute flex size-5 items-center justify-center rounded-sm bg-background text-muted-foreground ring-1 ring-border outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+        "nodrag nopan pointer-events-auto flex size-5 items-center justify-center rounded-[5px] border border-rule bg-sheet text-graphite outline-none transition-colors hover:border-cobalt hover:text-cobalt focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >
@@ -60,45 +72,43 @@ export function DocumentMark({
   )
 }
 
-function Resizer({ selected, minWidth, minHeight }: { selected: boolean; minWidth: number; minHeight: number }) {
-  return (
-    <NodeResizer
-      isVisible={selected}
-      minWidth={minWidth}
-      minHeight={minHeight}
-      lineClassName="!border-ring"
-      handleClassName="!size-2 !rounded-sm !border-ring !bg-background"
-    />
-  )
-}
+// The signature. An object that holds a whiteboard is drawn as a stack of
+// sheets, because there are more sheets inside it. A description is a note
+// on the same sheet, so it gets the mark without the stack.
+const stackFor = (wb: WbNode) => (wb.docType === "whiteboard" ? "sheet-stack" : "shadow-xs")
 
 export function PlainNode({ data, selected }: NodeProps<FlowNode>) {
-  const color = COLORS[data.wb.color]
+  const { wb } = data
+  const color = COLORS[wb.color]
   return (
     <div
       className={cn(
-        "group/node flex size-full items-center justify-center rounded-md border-2 px-3 py-2 text-center text-sm font-medium",
-        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
+        "group/node relative flex size-full items-center justify-center rounded-lg border px-3 py-2 text-center text-[13px] leading-snug font-medium transition-shadow",
+        stackFor(wb),
+        selected && "outline-2 outline-offset-2 outline-cobalt"
       )}
-      style={{ borderColor: color.stroke, backgroundColor: color.fill }}
+      style={{
+        borderColor: wb.color === "default" ? "color-mix(in oklch, var(--ink) 55%, var(--sheet))" : color.stroke,
+        backgroundColor: color.fill,
+        ["--stack-edge" as string]: wb.color === "default" ? "var(--blueline)" : color.stroke,
+      }}
     >
       <Resizer selected={selected} minWidth={80} minHeight={40} />
-      <span className="line-clamp-3 break-words">{data.wb.title || "Untitled"}</span>
-      {data.wb.docId && (
-        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
-      )}
+      <span className="line-clamp-3 break-words">{wb.title || "Untitled"}</span>
+      {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} className="absolute -top-2.5 -right-2.5" />}
       <Handles visible={selected} />
     </div>
   )
 }
 
 export function TextNode({ data, selected }: NodeProps<FlowNode>) {
-  const color = COLORS[data.wb.color]
+  const { wb } = data
+  const color = COLORS[wb.color]
   return (
     <div
       className={cn(
-        "group/node flex size-full flex-col gap-1 rounded-md p-2",
-        selected ? "ring-2 ring-ring" : "hover:ring-1 hover:ring-border"
+        "group/node relative flex size-full flex-col gap-1 rounded-md p-2",
+        selected ? "outline-2 outline-cobalt" : "hover:outline-1 hover:outline-rule"
       )}
     >
       <NodeResizer
@@ -107,54 +117,61 @@ export function TextNode({ data, selected }: NodeProps<FlowNode>) {
         // Height follows the text.
         shouldResize={(_, params) => params.direction[1] === 0}
         lineClassName="!border-transparent"
-        handleClassName="!size-2 !rounded-sm !border-ring !bg-background"
+        handleClassName="!size-2 !rounded-[2px] !border-cobalt !bg-sheet"
       />
       <h3
-        className="text-base font-semibold leading-snug break-words"
-        style={{ color: data.wb.color === "default" ? undefined : color.stroke }}
+        className="font-heading text-lg leading-tight font-semibold break-words"
+        style={{ color: wb.color === "default" ? undefined : color.stroke }}
       >
-        {data.wb.title || "Untitled"}
+        {wb.title || "Untitled"}
       </h3>
-      {data.wb.description && (
-        <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">
-          {data.wb.description}
+      {wb.description ? (
+        <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-graphite">
+          {wb.description}
         </p>
+      ) : (
+        // A prompt, not content: shown only while the node is selected.
+        selected && <p className="text-[13px] text-graphite/60">Add body text in the panel.</p>
       )}
-      {data.wb.docId && (
-        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
-      )}
+      {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} className="absolute -top-2.5 -right-2.5" />}
       <Handles visible={selected} />
     </div>
   )
 }
 
 export function GroupNode({ data, selected }: NodeProps<FlowNode>) {
-  const color = COLORS[data.wb.color]
+  const { wb } = data
+  const color = COLORS[wb.color]
+  const tinted = wb.color !== "default"
   return (
     <div
       className={cn(
-        "group/node size-full rounded-lg border-2 border-dashed",
-        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
+        "group/node relative size-full rounded-xl border",
+        wb.docType === "whiteboard" && "sheet-stack",
+        selected && "outline-2 outline-offset-2 outline-cobalt"
       )}
       style={{
-        borderColor: data.wb.color === "default" ? "var(--border)" : color.stroke,
-        backgroundColor: data.wb.color === "default" ? "color-mix(in oklch, var(--muted) 50%, transparent)" : color.fill,
+        borderColor: tinted ? `color-mix(in oklch, ${color.stroke} 45%, var(--sheet))` : "var(--rule)",
+        backgroundColor: tinted
+          ? `color-mix(in oklch, ${color.stroke} 5%, var(--paper))`
+          : "color-mix(in oklch, var(--ink) 3%, var(--paper))",
+        ["--stack-edge" as string]: tinted ? color.stroke : "var(--blueline)",
       }}
     >
       <Resizer selected={selected} minWidth={160} minHeight={100} />
-      {data.wb.title && (
+      {wb.title && (
+        // A tab on the top edge, like the label on a folder.
         <div
-          className="absolute top-0 left-0 max-w-full truncate rounded-br-md rounded-tl-md px-2 py-0.5 text-xs font-semibold"
+          className="absolute -top-px left-3 max-w-[calc(100%-1.5rem)] -translate-y-1/2 truncate rounded-[5px] border bg-sheet px-1.5 py-px font-mono text-[10px] font-medium tracking-wide uppercase"
           style={{
-            color: data.wb.color === "default" ? "var(--muted-foreground)" : color.stroke,
+            borderColor: tinted ? `color-mix(in oklch, ${color.stroke} 45%, var(--sheet))` : "var(--rule)",
+            color: tinted ? color.stroke : "var(--graphite)",
           }}
         >
-          {data.wb.title}
+          {wb.title}
         </div>
       )}
-      {data.wb.docId && (
-        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
-      )}
+      {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} className="absolute -top-2.5 -right-2.5" />}
       <Handles visible={selected} />
     </div>
   )

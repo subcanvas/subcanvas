@@ -65,7 +65,7 @@ export function LoginForm({
 
   if (sentTo) {
     return (
-      <Card className="w-full max-w-sm">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Check your email</CardTitle>
           <CardDescription>
@@ -82,10 +82,10 @@ export function LoginForm({
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Sign in to Subcanvas</CardTitle>
-        <CardDescription>We will email you a link. No password needed.</CardDescription>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Enter your email and we will send you a link. There is no password to remember.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <form onSubmit={sendLink} className="flex flex-col gap-3">
@@ -102,7 +102,7 @@ export function LoginForm({
             />
           </div>
           <Button type="submit" disabled={pending}>
-            {pending ? "Sending…" : "Email me a sign-in link"}
+            {pending ? "Sending…" : "Email me a link"}
           </Button>
         </form>
 

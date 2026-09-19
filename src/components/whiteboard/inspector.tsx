@@ -67,7 +67,7 @@ export function Inspector({
       ref={panel}
       aria-label="Object settings"
       style={{ width }}
-      className="relative flex shrink-0 flex-col gap-5 overflow-y-auto border-l bg-background p-4"
+      className="relative flex shrink-0 flex-col gap-5 overflow-y-auto border-l border-rule bg-sheet p-4"
     >
       <div
         role="separator"
@@ -92,7 +92,7 @@ export function Inspector({
         }}
       />
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">
+        <h2 className="font-mono text-[11px] font-medium tracking-wide text-graphite uppercase">
           {"node" in selection ? KIND_LABELS[selection.node.kind] : "Edge"}
         </h2>
         <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>

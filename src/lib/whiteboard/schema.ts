@@ -53,16 +53,25 @@ export const COLOR_KEYS = [
   "default", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
 ] as const
 
+// A color is one pencil: a stroke, and a fill that is the same pencil pressed
+// lightly onto the sheet. Fills are mixed with the sheet, not made
+// transparent, so the grid never shows through and dark mode just works.
+const pencil = (label: string, stroke: string) => ({
+  label,
+  stroke,
+  fill: `color-mix(in oklch, ${stroke} 9%, var(--sheet))`,
+})
+
 export const COLORS: Record<ColorKey, { label: string; stroke: string; fill: string }> = {
-  default: { label: "Default", stroke: "var(--foreground)", fill: "var(--background)" },
-  red: { label: "Red", stroke: "#e5484d", fill: "#e5484d1f" },
-  orange: { label: "Orange", stroke: "#f76b15", fill: "#f76b151f" },
-  yellow: { label: "Yellow", stroke: "#e2a336", fill: "#ffc53d2e" },
-  green: { label: "Green", stroke: "#30a46c", fill: "#30a46c1f" },
-  teal: { label: "Teal", stroke: "#12a594", fill: "#12a5941f" },
-  blue: { label: "Blue", stroke: "#0090ff", fill: "#0090ff1f" },
-  purple: { label: "Purple", stroke: "#8e4ec6", fill: "#8e4ec61f" },
-  pink: { label: "Pink", stroke: "#d6409f", fill: "#d6409f1f" },
+  default: { label: "Ink", stroke: "var(--ink)", fill: "var(--sheet)" },
+  red: pencil("Red", "#e5484d"),
+  orange: pencil("Orange", "#f76b15"),
+  yellow: pencil("Yellow", "#d99a1c"),
+  green: pencil("Green", "#2b9a66"),
+  teal: pencil("Teal", "#12a594"),
+  blue: pencil("Blue", "#0b7fe0"),
+  purple: pencil("Purple", "#8e4ec6"),
+  pink: pencil("Pink", "#d6409f"),
 }
 
 export const DEFAULT_SIZE: Record<NodeKind, { width: number | null; height: number | null }> = {

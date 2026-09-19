@@ -3,6 +3,7 @@ import { Globe } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { Wordmark } from "@/components/logo"
 import { ReportAbuse } from "@/components/report-abuse"
 import { ProjectTree } from "@/components/tree/project-tree"
 import { Badge } from "@/components/ui/badge"
@@ -48,9 +49,9 @@ export default async function PublicProjectLayout({
 
   return (
     <>
-      <header className="flex h-12 items-center gap-3 border-b px-4">
-        <Link href="/" className="font-semibold">
-          Subcanvas
+      <header className="flex h-12 items-center gap-3 border-b bg-sheet px-4">
+        <Link href="/" className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Wordmark />
         </Link>
         <Badge variant="secondary">
           <Globe />

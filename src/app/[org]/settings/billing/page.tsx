@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { PageHeader } from "@/components/page-header"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
@@ -31,8 +32,8 @@ export default async function BillingPage({
   const hasLimits = plan?.private_document_limit != null || plan?.editor_limit != null
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+      <PageHeader eyebrow={org.name} title="Billing" />
 
       {justPaid && !paid && (
         <p role="status" className="rounded-md border bg-muted/50 p-3 text-sm">

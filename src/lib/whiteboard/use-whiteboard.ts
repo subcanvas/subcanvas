@@ -64,7 +64,9 @@ function toFlowNode(wb: WbNode, existing: FlowNode | undefined, known: Set<strin
 }
 
 function toFlowEdge(wb: WbEdge, existing: FlowEdge | undefined): FlowEdge {
-  const marker = { type: MarkerType.ArrowClosed, color: COLORS[wb.color].stroke, width: 18, height: 18 }
+  // Default edges are graphite, quieter than the nodes they join.
+  const stroke = wb.color === "default" ? "var(--graphite)" : COLORS[wb.color].stroke
+  const marker = { type: MarkerType.ArrowClosed, color: stroke, width: 14, height: 14 }
   return {
     ...existing,
     id: wb.id,
@@ -252,7 +254,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
             width: size.width,
             height: size.height,
             title: kind === "group" ? "Group" : kind === "text" ? "Heading" : "Node",
-            description: kind === "text" ? "Describe it here." : "",
+            description: "",
             color: "default",
           })
         )

@@ -1,3 +1,4 @@
+import { AuthShell } from "@/components/auth-shell"
 import { redirect } from "next/navigation"
 
 import { safeNext } from "@/lib/auth"
@@ -21,12 +22,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
     .filter((p): p is "google" | "github" => p === "google" || p === "github")
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <AuthShell>
       <LoginForm
         next={next}
         providers={providers}
         linkError={params.error === "link"}
       />
-    </main>
+    </AuthShell>
   )
 }

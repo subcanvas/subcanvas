@@ -1,6 +1,7 @@
 "use client"
 
-import { ChevronsUpDown, LogOut, Plus } from "lucide-react"
+import { ChevronsUpDown, LogOut, Monitor, Moon, Plus, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -15,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { LogoMark } from "@/components/logo"
 import { createClient } from "@/lib/supabase/client"
 
 type Org = { name: string; slug: string }
@@ -32,6 +34,7 @@ export function OrgHeader({
   user: { email: string; name: string | null; avatarUrl: string | null }
 }) {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   async function signOut() {
     await createClient().auth.signOut()
@@ -40,7 +43,14 @@ export function OrgHeader({
   }
 
   return (
-    <header className="flex h-12 items-center gap-4 border-b px-4">
+    <header className="flex h-12 items-center gap-2 border-b bg-sheet px-3">
+      <Link
+        href={`/${org.slug}`}
+        aria-label="Subcanvas"
+        className="flex size-8 items-center justify-center rounded-md outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <LogoMark />
+      </Link>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -107,6 +117,23 @@ export function OrgHeader({
           <DropdownMenuContent align="end" className="min-w-48">
             <DropdownMenuGroup>
               <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+              {(
+                [
+                  ["light", "Light", Sun],
+                  ["dark", "Dark", Moon],
+                  ["system", "Match my device", Monitor],
+                ] as const
+              ).map(([value, label, Icon]) => (
+                <DropdownMenuItem key={value} onClick={() => setTheme(value)}>
+                  <Icon />
+                  {label}
+                  {theme === value && <span className="ml-auto text-xs text-muted-foreground">On</span>}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={signOut}>

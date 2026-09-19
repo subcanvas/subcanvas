@@ -8,6 +8,7 @@ import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
 import { userColor } from "@/lib/user-color"
+import { cn } from "@/lib/utils"
 
 export default async function DocumentPage({
   params,
@@ -86,7 +87,7 @@ export default async function DocumentPage({
 
   if (document.type === "whiteboard")
     return (
-      <main className="flex h-[calc(100svh-3rem)] flex-col">
+      <main className={cn("flex h-[calc(100svh-3rem)] flex-col bg-sheet", trail.length > 0 && "animate-sheet-enter")}>
         <WhiteboardDocument
           key={document.id}
           documentId={document.id}
@@ -113,7 +114,12 @@ export default async function DocumentPage({
     )
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-8">
+    <main
+      className={cn(
+        "mx-auto my-6 flex w-full max-w-3xl flex-1 flex-col gap-4 rounded-xl border border-rule bg-sheet py-8 shadow-xs",
+        trail.length > 0 && "animate-sheet-enter"
+      )}
+    >
       <div className="flex items-center justify-between gap-3 px-13">
         {breadcrumb}
         {linkedFrom}

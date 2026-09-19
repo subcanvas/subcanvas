@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { PageHeader } from "@/components/page-header"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
 
@@ -37,14 +38,14 @@ export default async function MembersPage({
   ])
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
-        <p className="text-sm text-muted-foreground">
-          Owners, admins, and editors are billed seats. Viewers are free.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
+      <PageHeader
+        eyebrow={org.name}
+        title="Members"
+        description="Owners, admins, and editors can change things, and are the seats a paid plan is billed for. Viewers can only look, and are always free."
+      />
 
+      <div className="overflow-hidden rounded-xl border border-rule bg-sheet">
       <Table>
         <TableHeader>
           <TableRow>
@@ -89,6 +90,7 @@ export default async function MembersPage({
           })}
         </TableBody>
       </Table>
+      </div>
 
       {isAdmin && (
         <section className="flex flex-col gap-4">

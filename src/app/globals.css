@@ -12,7 +12,14 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-rule: var(--rule);
+  --color-blueline: var(--blueline);
+  --color-cobalt: var(--cobalt);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,73 +58,74 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Subcanvas: "Sheets".
+   Every document is a sheet of paper, and going inside something puts a new
+   sheet on the stack. Cool paper, navy ink, drafting "non-photo blue" for the
+   grid and sheet edges, and one cobalt reserved for what you can act on.
+   Red is never decorative: it only ever means destructive. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --paper: #f4f6fa;
+  --sheet: #ffffff;
+  --ink: #10162f;
+  --graphite: #59627a;
+  --rule: #dde3ee;
+  --blueline: #9ccbe8;
+  --cobalt: #2447f9;
+
+  --background: var(--sheet);
+  --foreground: var(--ink);
+  --card: var(--sheet);
+  --card-foreground: var(--ink);
+  --popover: var(--sheet);
+  --popover-foreground: var(--ink);
+  --primary: var(--cobalt);
+  --primary-foreground: #ffffff;
+  --secondary: #eaeef6;
+  --secondary-foreground: var(--ink);
+  --muted: #eef1f7;
+  --muted-foreground: var(--graphite);
+  --accent: #e8edfb;
+  --accent-foreground: var(--ink);
+  --destructive: #d92d3a;
+  --border: var(--rule);
+  --input: #cfd7e6;
+  --ring: var(--cobalt);
+  --chart-1: #2447f9;
+  --chart-2: #12a594;
+  --chart-3: #e2a336;
+  --chart-4: #8e4ec6;
+  --chart-5: #d6409f;
+  --radius: 0.5rem;
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--cobalt);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e3e9f5;
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--rule);
+  --sidebar-ring: var(--cobalt);
+
+  /* How far the sheets behind a node peek out. */
+  --stack-offset: 4px;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --paper: #0c1020;
+  --sheet: #141a2e;
+  --ink: #e9edf9;
+  --graphite: #97a1bb;
+  --rule: #262f49;
+  --blueline: #2f4f72;
+  --cobalt: #7d95ff;
+
+  --primary-foreground: #0c1020;
+  --secondary: #1d2540;
+  --muted: #1a2138;
+  --accent: #222c4d;
+  --destructive: #ff6b76;
+  --input: #303a58;
+  --sidebar-primary-foreground: #0c1020;
+  --sidebar-accent: #1d2540;
 }
 
 @layer base {
@@ -125,9 +133,61 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-paper text-foreground;
   }
   html {
     @apply font-sans;
   }
+  h1,
+  h2 {
+    font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+    letter-spacing: -0.015em;
+  }
+}
+
+/* The signature: something that contains a document is drawn as a stack of
+   sheets. Two offset outlines behind the element, made of shadows so they
+   take no layout space. --stack-edge is the outline color. */
+@utility sheet-stack {
+  --stack-edge: var(--rule);
+  box-shadow:
+    var(--stack-offset) var(--stack-offset) 0 -1px var(--sheet),
+    var(--stack-offset) var(--stack-offset) 0 0 var(--stack-edge),
+    calc(var(--stack-offset) * 2) calc(var(--stack-offset) * 2) 0 -1px var(--sheet),
+    calc(var(--stack-offset) * 2) calc(var(--stack-offset) * 2) 0 0 var(--stack-edge);
+}
+
+/* A short drill-in when arriving inside something. */
+@keyframes sheet-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+@utility animate-sheet-enter {
+  animation: sheet-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* React Flow's own chrome, in our materials. */
+.react-flow {
+  --xy-controls-button-background-color: var(--sheet);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--ink);
+  --xy-controls-button-border-color: var(--rule);
+  --xy-controls-box-shadow: 0 1px 2px rgb(16 22 47 / 0.06);
+  --xy-selection-background-color: color-mix(in oklch, var(--cobalt) 8%, transparent);
+  --xy-selection-border: 1px solid var(--cobalt);
+  --xy-connectionline-stroke: var(--cobalt);
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 0.6rem;
+}
+.react-flow__attribution a {
+  color: var(--graphite);
 }

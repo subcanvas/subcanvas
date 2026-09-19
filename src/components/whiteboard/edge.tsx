@@ -42,8 +42,12 @@ export function WhiteboardEdge({
         markerEnd={markerEnd}
         interactionWidth={24}
         style={{
-          stroke: COLORS[wb?.color ?? "default"].stroke,
-          strokeWidth: selected ? 3 : 2,
+          stroke: selected
+            ? "var(--cobalt)"
+            : !wb || wb.color === "default"
+              ? "var(--graphite)"
+              : COLORS[wb.color].stroke,
+          strokeWidth: selected ? 2.25 : 1.5,
           strokeDasharray: wb?.stroke === "dotted" ? "2 6" : undefined,
           strokeLinecap: wb?.stroke === "dotted" ? "round" : undefined,
         }}
@@ -57,8 +61,8 @@ export function WhiteboardEdge({
             {wb.label && (
               <span
                 className={cn(
-                  "rounded border bg-background px-1.5 py-0.5 text-xs font-medium",
-                  selected && "border-ring"
+                  "rounded-[5px] border border-rule bg-sheet px-1.5 py-px font-mono text-[11px] text-graphite",
+                  selected && "border-cobalt text-ink"
                 )}
               >
                 {wb.label}

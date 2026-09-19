@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import { AuthShell } from "@/components/auth-shell"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -29,8 +30,8 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   const user = auth.user
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
+    <AuthShell>
+      <Card className="w-full">
         {!invite ? (
           <CardHeader>
             <CardTitle>This invite is no longer valid</CardTitle>
@@ -68,6 +69,6 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
           </>
         )}
       </Card>
-    </main>
+    </AuthShell>
   )
 }
