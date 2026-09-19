@@ -73,7 +73,7 @@ export function Inspector({
       className={cn(
         "z-20 flex flex-col overflow-y-auto border-rule bg-sheet",
         // Narrow: a bottom sheet over the canvas.
-        "absolute inset-x-0 bottom-0 max-h-[70%] rounded-t-2xl border-t shadow-[0_-8px_30px_rgb(16_22_47/0.12)]",
+        "absolute inset-x-0 bottom-0 max-h-[70%] rounded-t-2xl border-t shadow-[0_-8px_30px_rgb(0_0_0/0.12)]",
         // Wide: a column beside the canvas.
         "md:relative md:inset-auto md:max-h-none md:w-(--panel-width) md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
       )}

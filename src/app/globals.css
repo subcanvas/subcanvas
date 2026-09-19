@@ -116,18 +116,21 @@
   --sheet: #171717;
   --ink: #ededed;
   --graphite: #a1a1a1;
-  --rule: #2a2a2a;
-  --blueline: #3d3d3d;
-  --cobalt: #7d95ff;
+  --rule: #333333;
+  /* No blue here: the grid and sheet edges are a gray that still reads. */
+  --blueline: #525252;
+  --cobalt: #5379ff;
 
+  /* One step above the sheet, so menus and popovers lift off it. */
+  --popover: #1f1f1f;
   --primary-foreground: #0a0a0a;
-  --secondary: #222222;
+  --secondary: #262626;
   --muted: #1f1f1f;
-  --accent: #262626;
+  --accent: #2e2e2e;
   --destructive: #ff6b76;
-  --input: #3a3a3a;
+  --input: #666666;
   --sidebar-primary-foreground: #0a0a0a;
-  --sidebar-accent: #222222;
+  --sidebar-accent: #262626;
 }
 
 @layer base {
@@ -175,11 +178,12 @@
 
 /* React Flow's own chrome, in our materials. */
 .react-flow {
+  --xy-background-color: var(--paper);
   --xy-controls-button-background-color: var(--sheet);
   --xy-controls-button-background-color-hover: var(--muted);
   --xy-controls-button-color: var(--ink);
   --xy-controls-button-border-color: var(--rule);
-  --xy-controls-box-shadow: 0 1px 2px rgb(16 22 47 / 0.06);
+  --xy-controls-box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
   --xy-selection-background-color: color-mix(in oklch, var(--cobalt) 8%, transparent);
   --xy-selection-border: 1px solid var(--cobalt);
   --xy-connectionline-stroke: var(--cobalt);
@@ -192,4 +196,23 @@
 }
 .react-flow__attribution a {
   color: var(--graphite);
+}
+
+/* BlockNote's chrome, in our materials. Its own themes are a different
+   white and a different near-black. */
+html .bn-root[data-color-scheme] {
+  --bn-colors-editor-background: var(--sheet);
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-menu-background: var(--popover);
+  --bn-colors-menu-text: var(--popover-foreground);
+  --bn-colors-tooltip-background: var(--ink);
+  --bn-colors-tooltip-text: var(--sheet);
+  --bn-colors-hovered-background: var(--accent);
+  --bn-colors-hovered-text: var(--accent-foreground);
+  --bn-colors-selected-background: var(--accent);
+  --bn-colors-selected-text: var(--accent-foreground);
+  --bn-colors-disabled-background: var(--muted);
+  --bn-colors-disabled-text: var(--graphite);
+  --bn-colors-border: var(--rule);
+  --bn-colors-side-menu: var(--graphite);
 }
