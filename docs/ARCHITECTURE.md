@@ -42,7 +42,7 @@ document_links    id, org_id
                   target_document_id
                   kind: parent|reference                                   (R1.5, R1.6)
 
-document_snapshots  document_id (pk), state bytea, state_vector bytea, updated_at
+document_snapshots  document_id (pk), state bytea, updated_at
 document_updates    id bigserial, document_id, update bytea, created_by, created_at
 
 subscriptions     org_id (pk), stripe_customer_id, stripe_subscription_id,
@@ -85,7 +85,24 @@ A custom Yjs provider, one Realtime channel per document (`doc:<id>`):
 
 **Authorization:** channels are private. Realtime authorization policies let org members subscribe and let only editors and above broadcast. RLS on `document_updates` blocks viewer writes. A viewer therefore cannot change a document even with a modified client (R5.5).
 
-**Known risks, to validate in the milestone 2 spike:** Realtime message size and rate limits (large pastes need chunking), broadcast is not guaranteed delivery (step 3 covers this), and the side panel and standalone page must share one Yjs document instance per document id (R5.4).
+**Deviations from the original plan, decided during the milestone 2 spike:**
+
+- Text carets and selections use the standard Yjs awareness protocol sent over broadcast, because that is what BlockNote's cursor plugin reads. Viewers cannot broadcast, so they see other people's carets but have none of their own. Realtime presence is still allowed for viewers by the channel policy and is reserved for whiteboard cursors and avatars in milestone 7.
+- Catch-up has three layers instead of one: the state-vector exchange is two-way, a client that detects a gap (Yjs reports updates waiting on missing predecessors) re-reads the database, and every client re-reads the database after joining, on reconnect, and every 30 s while visible. The database re-read is the only catch-up path for viewers.
+
+**Spike results (local Supabase, two browsers):**
+
+| Risk | Result |
+|---|---|
+| Live editing both ways | Works. Remote text and labeled carets appear in well under a second. |
+| Disconnect and reconnect | Works. Both sides edited while one was offline; on reconnect both converged at once with nothing lost. |
+| Reload to the same state | Works. About 25 keystrokes persisted as 2 rows. |
+| Message size limits | Works. A 239 KB paste arrived live, split into 100 KB chunks. |
+| Compaction | Works. 256 update rows became one snapshot, and a fresh client loaded the full document from it. |
+| Viewers cannot write | Enforced in three places: no insert on `document_updates`, no broadcast on the channel (both covered by pgTAP tests of the policies), and a read-only editor. |
+| One Y.Doc per document (R5.4) | Built (`use-document-sync.ts` shares one provider per document id). Not exercised until the side panel exists in milestone 5. |
+
+Not yet tested: hosted Supabase (rate limits and latency differ from local), more than two clients, and long sessions across an auth token refresh.
 
 ## 5. Routes and breadcrumbs
 

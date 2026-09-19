@@ -34,6 +34,210 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_snapshots: {
+        Row: {
+          document_id: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          document_id: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          document_id?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_snapshots_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_updates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_id: string
+          id: number
+          update: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          id?: never
+          update: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          id?: never
+          update?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_updates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_updates_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          folder_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["document_kind"]
+          org_id: string
+          parent_document_id: string | null
+          parent_object_id: string | null
+          position: number
+          project_id: string
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          folder_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["document_kind"]
+          org_id: string
+          parent_document_id?: string | null
+          parent_object_id?: string | null
+          position?: number
+          project_id: string
+          title?: string
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          folder_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["document_kind"]
+          org_id?: string
+          parent_document_id?: string | null
+          parent_object_id?: string | null
+          position?: number
+          project_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["document_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          org_id: string
+          parent_folder_id: string | null
+          position: number
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          org_id: string
+          parent_folder_id?: string | null
+          position?: number
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          org_id?: string
+          parent_folder_id?: string | null
+          position?: number
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_invites: {
         Row: {
           accepted_at: string | null
@@ -177,6 +381,45 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          org_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          org_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -197,6 +440,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      compact_document: {
+        Args: { p_document_id: string; p_state: string; p_up_to_id: number }
+        Returns: undefined
       }
       create_org: {
         Args: { p_name: string; p_slug: string }
@@ -225,6 +472,8 @@ export type Database = {
       }
     }
     Enums: {
+      document_kind: "standard" | "description"
+      document_type: "whiteboard" | "text"
       org_role: "viewer" | "editor" | "admin" | "owner"
     }
     CompositeTypes: {
@@ -356,6 +605,8 @@ export const Constants = {
   },
   public: {
     Enums: {
+      document_kind: ["standard", "description"],
+      document_type: ["whiteboard", "text"],
       org_role: ["viewer", "editor", "admin", "owner"],
     },
   },
