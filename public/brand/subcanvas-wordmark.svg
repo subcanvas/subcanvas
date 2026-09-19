@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 196 40" fill="none">
+  <rect x="4.5" y="6.5" width="27" height="27" rx="6" fill="#ffffff" stroke="#10162f" stroke-width="2.25"/>
+  <rect x="14" y="16" width="13" height="13" rx="3" fill="#2447f9"/>
+  <text x="44" y="28" font-family="'Bricolage Grotesque', 'Geist', system-ui, sans-serif" font-size="25" font-weight="600" letter-spacing="-0.4" fill="#10162f">Subcanvas</text>
+</svg>

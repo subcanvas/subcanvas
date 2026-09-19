@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- For places that want a filled square: app listings, OAuth consent screens. -->
+  <rect width="512" height="512" fill="#f4f6fa"/>
+  <rect x="116" y="116" width="280" height="280" rx="60" fill="#ffffff" stroke="#10162f" stroke-width="22"/>
+  <rect x="210" y="210" width="136" height="136" rx="30" fill="#2447f9"/>
+</svg>
