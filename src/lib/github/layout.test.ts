@@ -88,6 +88,16 @@ describe("layoutBoard", () => {
     }
   })
 
+  it("keeps an arrow that skips a column clear of the node it skips", () => {
+    // a -> b -> c, and a -> c: the long arrow is drawn straight from a to c.
+    const nodes = [node("a"), node("b"), node("c")]
+    const positions = layoutBoard(nodes, [edge("a", "b"), edge("b", "c"), edge("a", "c", "long way round")])
+    const [a, b, c] = ["a", "b", "c"].map((id) => positions.get(id)!)
+    const lineTop = Math.min(a.y, c.y) + 32
+    const lineBottom = Math.max(a.y, c.y) + 32
+    expect(b.y + 64 < lineTop || b.y > lineBottom).toBe(true)
+  })
+
   it("handles an empty board", () => {
     expect(layoutBoard([], []).size).toBe(0)
   })

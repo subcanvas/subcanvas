@@ -31,11 +31,15 @@ export function layoutBoard(nodes: LayoutNode[], edges: LayoutEdge[]): Map<strin
     graph.setGraph({ rankdir: "LR", nodesep: NODE_GAP, ranksep: RANK_GAP, marginx: 0, marginy: 0 })
     for (const node of nodes)
       if (joined.has(node.id)) graph.setNode(node.id, { width: node.width, height: node.height })
+    // An arrow that skips a column is drawn straight from box to box, not
+    // along the detour dagre plans for it. So its lane is as tall as a node:
+    // whatever it skips is then pushed clear of the line, not half under it.
+    const lane = Math.max(...nodes.map((node) => node.height))
     drawn.forEach((edge, index) =>
       graph.setEdge(
         edge.source,
         edge.target,
-        { width: edge.label.length * LABEL_CHARACTER_WIDTH, height: 20, labelpos: "c" },
+        { width: edge.label.length * LABEL_CHARACTER_WIDTH, height: lane, labelpos: "c" },
         String(index)
       )
     )
