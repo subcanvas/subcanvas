@@ -100,10 +100,19 @@ export function mapFolders(files: RepositoryFile[], ignored: string[] = []): Map
   const childrenOf = (root: string) =>
     [...folders].filter((path) => parentPath(path).toLowerCase() === root && !isSupporting(path))
 
+  // src/ is usually an implementation detail, but when a folder in it has
+  // a README of its own, the folders in it are the parts of the system
+  // (src/cartservice, src/frontend), and half of them is worse than all.
+  const srcHoldsParts = [...folders].some(
+    (path) => parentPath(path).toLowerCase() === "src" && describesItself(path)
+  )
+  const isConventionalRoot = (path: string) =>
+    CONVENTIONAL_ROOTS.has(path.toLowerCase()) || (srcHoldsParts && path.toLowerCase() === "src")
+
   let qualifying = [...folders].filter((path) => {
     if (withSubcanvasFile.has(path)) return true
     if (isSupporting(path) || depthOf(path) > MAX_AUTOMATIC_DEPTH) return false
-    return describesItself(path) || CONVENTIONAL_ROOTS.has(parentPath(path).toLowerCase())
+    return describesItself(path) || isConventionalRoot(parentPath(path))
   })
   // A small project keeps everything under src/, so its parts are the
   // folders in there. In a larger one src/ is an implementation detail.
@@ -113,11 +122,22 @@ export function mapFolders(files: RepositoryFile[], ignored: string[] = []): Map
     qualifying = childrenOf(ROOT).filter((path) => withCode.has(path))
 
   // When there are too many, keep what someone asked for by name, then what
-  // is nearest the top.
+  // is nearest the top. Within a level the parents take turns (the first
+  // folder of each, then the second of each), so a monorepo with eighty
+  // crates still shows some of its packages.
+  qualifying.sort((a, b) => a.localeCompare(b))
+  const turn = new Map<string, number>()
+  const seen = new Map<string, number>()
+  for (const path of qualifying) {
+    const count = seen.get(parentPath(path)) ?? 0
+    seen.set(parentPath(path), count + 1)
+    turn.set(path, count)
+  }
   qualifying.sort(
     (a, b) =>
       Number(withSubcanvasFile.has(b)) - Number(withSubcanvasFile.has(a)) ||
       depthOf(a) - depthOf(b) ||
+      turn.get(a)! - turn.get(b)! ||
       a.localeCompare(b)
   )
 

@@ -85,6 +85,11 @@ describe("mapFolders", () => {
     expect(paths(mapFolders(files("src/auth/a.ts", "api/README.md")))).toEqual(["api"])
   })
 
+  it("maps everything in src once one folder there has a README", () => {
+    const mapping = mapFolders(files("src/cart/README.md", "src/payments/main.go", "src/tests/a.go", "deploy/README.md"))
+    expect(paths(mapping)).toEqual(["deploy", "src", "src/cart", "src/payments"])
+  })
+
   it("falls back to the top-level folders that hold code", () => {
     const mapping = mapFolders(files("server/main.go", "client/deep/app.tsx", "assets/logo.png", "tests/a.py", "LICENSE"))
     expect(paths(mapping)).toEqual(["client", "server"])
@@ -105,6 +110,13 @@ describe("mapFolders", () => {
     // Every mapped folder's parent is mapped too.
     const mapped = new Set(paths(mapping))
     for (const folder of mapping.folders) expect(folder.parent === "" || mapped.has(folder.parent)).toBe(true)
+  })
+
+  it("shares the cap between parents instead of spending it on the first", () => {
+    const crates = Array.from({ length: 80 }, (_, i) => `apps/a${String(i).padStart(2, "0")}/README.md`)
+    const mapping = mapFolders(files(...crates, "packages/ui/index.ts", "packages/core/index.ts", "services/api/main.go"))
+    expect(mapping.capped).toBe(true)
+    expect(paths(mapping)).toEqual(expect.arrayContaining(["packages/ui", "packages/core", "services/api", "apps/a00"]))
   })
 
   it("handles a large tree quickly", () => {

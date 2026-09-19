@@ -170,6 +170,7 @@ describe("humanize", () => {
     ["payments-api", "Payments API"],
     ["eslint_config", "Eslint Config"],
     ["ui", "UI"],
+    ["src", "Source"],
     ["next.js", "Next JS"],
     ["myService", "MyService"],
     ["---", "---"],

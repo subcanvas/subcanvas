@@ -2,7 +2,7 @@
 
 import { FolderGit2, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +24,9 @@ import { importFromGitHub } from "./actions"
 export function ImportProject({ slug }: { slug: string }) {
   const [state, action, pending] = useActionState(importFromGitHub.bind(null, slug), null)
   const imported = state && "ok" in state ? state : null
+  // Held here because a form clears itself after its action runs, and after
+  // a typo the name is what the person wants to fix.
+  const [repository, setRepository] = useState("")
 
   return (
     <Dialog>
@@ -44,7 +47,7 @@ export function ImportProject({ slug }: { slug: string }) {
               <DialogTitle>Imported, with notes</DialogTitle>
               <DialogDescription>
                 {imported.folders} {imported.folders === 1 ? "folder is" : "folders are"} on the
-                diagram. A few things could not be used as written:
+                diagram. Before you look:
               </DialogDescription>
             </DialogHeader>
             <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto rounded-lg border border-rule bg-paper p-3 text-xs leading-relaxed text-graphite">
@@ -73,6 +76,8 @@ export function ImportProject({ slug }: { slug: string }) {
               <Input
                 id="import-repository"
                 name="repository"
+                value={repository}
+                onChange={(event) => setRepository(event.target.value)}
                 required
                 maxLength={300}
                 autoFocus

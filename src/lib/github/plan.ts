@@ -40,8 +40,12 @@ const UPPERCASE = new Set([
   "js", "ts", "css", "html", "url", "sso", "mcp",
 ])
 
+// Folder names that are abbreviations of a word.
+const SPELLED_OUT: Record<string, string> = { src: "Source", cmd: "Commands", pkg: "Packages", libs: "Libraries" }
+
 // "payments-api" reads better on a node as "Payments API".
 export function humanize(folderName: string) {
+  if (folderName.toLowerCase() in SPELLED_OUT) return SPELLED_OUT[folderName.toLowerCase()]
   const words = folderName.split(/[-_.\s]+/).filter(Boolean)
   if (!words.length) return folderName
   return words
