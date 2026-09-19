@@ -57,6 +57,19 @@ pnpm build
 pnpm start          # serves on port 3000
 ```
 
+**With Docker:**
+
+```sh
+docker build -t subcanvas \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co \
+  --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key> \
+  --build-arg NEXT_PUBLIC_AUTH_PROVIDERS=google,github \
+  .
+docker run -p 3000:3000 --env-file subcanvas.env subcanvas
+```
+
+The `NEXT_PUBLIC_` values are compiled into the browser bundle, which is why they are build arguments: changing one means rebuilding the image. Everything else in the table (the `LEGAL_` variables, `SUPABASE_SECRET_KEY`, the Stripe keys) is read when the container runs, so it goes in the env file, and secrets never end up in an image layer. The container listens on port 3000 as a non-root user and keeps no state: all data is in Supabase, so it can be replaced or run in several copies freely. Put it behind something that terminates TLS.
+
 Point your domain at the host, open it, sign in, and create your org.
 
 ## 5. Keeping it up to date
@@ -81,7 +94,7 @@ Environment secrets, unlike repository secrets, are released only to approved ru
 - **Your providers' limits are yours to check.** Supabase's free plan pauses a project after a week without activity, and caps real-time connections and messages. Vercel's Hobby plan does not allow commercial use.
 - **Back up the database.** Supabase's paid plans take daily backups. On any plan, `supabase db dump` writes a copy you can keep.
 - **Public projects.** An admin can make a project readable by anyone with the link. Reports and takedowns are described in the [README](../README.md#public-projects-and-moderation); they are SQL for now.
-- **There is no Docker image yet.** It is planned.
+- **There is no published Docker image.** The repository has a `Dockerfile` (section 4), and the image has to be built with your own Supabase URL and key, so a public one would be of little use.
 
 ## Selling subscriptions (optional)
 

@@ -1,0 +1,15 @@
+# Keep the build context small and keep local secrets out of the image.
+.git
+.github
+.next
+node_modules
+.env*
+!.env.example
+.shots
+.worktrees
+scripts/demo/out
+supabase/.temp
+supabase/.branches
+docs
+*.md
+!README.md
