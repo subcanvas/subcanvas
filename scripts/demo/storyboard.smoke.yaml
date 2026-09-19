@@ -1,0 +1,33 @@
+# A short walk through what exists today, to prove the recorder works and as
+# a smoke test of the main flow:  record_demo.py --dry-run --storyboard storyboard.smoke.yaml
+window: [1440, 900]
+theme: dark
+env:
+  DEMO_EMAIL: demo-smoke@example.com
+  DEMO_PASSWORD: demo-smoke-password
+  DEMO_PROJECT: Moving to Lisbon
+
+prelude:
+  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}", org: Demo }
+
+steps:
+  - clip: new-project
+  - caption: Start with a project.
+    pause: 1.5
+  - click: { role: button, name: New project }
+  - type: "${DEMO_PROJECT}"
+  - press: Enter
+  - wait_url: "/[0-9a-f-]{36}$"
+  - caption: Add a whiteboard.
+    pause: 1
+  - click: { role: button, name: Add to project }
+  - click: { role: menuitem, name: Whiteboard }
+  - wait_for: { role: toolbar, name: Whiteboard tools }
+  - clip: draw
+  - caption: Every box can hold a page of notes, or a whole whiteboard of its own.
+    pause: 2
+  - click: { role: button, name: Node, exact: true }
+  - click: { role: button, name: Text, exact: true }
+  - click: { role: button, name: Group, exact: true }
+  - move: { role: button, name: Share }
+    pause: 1.5
