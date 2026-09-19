@@ -4,6 +4,7 @@ import { FileText } from "lucide-react"
 import { useState } from "react"
 
 import { cn } from "@/lib/utils"
+import { COLORS } from "@/lib/whiteboard/colors"
 
 // A working miniature of the product: click a stacked box to go inside it.
 // Positions are percentages of the sheet, so it scales with the page.
@@ -88,10 +89,10 @@ const SHEETS: Record<string, Sheet> = {
 }
 
 const TONES = {
-  green: "#2b9a66",
-  blue: "#0b7fe0",
-  orange: "#f76b15",
-  purple: "#8e4ec6",
+  green: COLORS.green.stroke,
+  blue: COLORS.blue.stroke,
+  orange: COLORS.orange.stroke,
+  purple: COLORS.purple.stroke,
 }
 const BOX_W = 20
 const BOX_H = 17

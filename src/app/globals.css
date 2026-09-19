@@ -109,6 +109,18 @@
 
   /* How far the sheets behind a node peek out. */
   --stack-offset: 4px;
+
+  /* A whiteboard color written as text (a text node's heading, a group's
+     label). The pencil strokes in lib/whiteboard/schema.ts are border colors
+     and are too light to read as words; these are at least 4.5:1 on paper. */
+  --pencil-red-text: #ce2c31;
+  --pencil-orange-text: #bd4b00;
+  --pencil-yellow-text: #946800;
+  --pencil-green-text: #1f7d54;
+  --pencil-teal-text: #007a6a;
+  --pencil-blue-text: #0b68cb;
+  --pencil-purple-text: #8145b5;
+  --pencil-pink-text: #c2298a;
 }
 
 .dark {
@@ -133,6 +145,15 @@
   --input: #666666;
   --sidebar-primary-foreground: #0a0a0a;
   --sidebar-accent: #262626;
+
+  --pencil-red-text: #ff8f8c;
+  --pencil-orange-text: #ffa057;
+  --pencil-yellow-text: #f5c542;
+  --pencil-green-text: #46d08e;
+  --pencil-teal-text: #2fd0b5;
+  --pencil-blue-text: #70b8ff;
+  --pencil-purple-text: #c99bf5;
+  --pencil-pink-text: #ff8dcc;
 }
 
 @layer base {

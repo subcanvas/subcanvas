@@ -53,26 +53,7 @@ export const COLOR_KEYS = [
   "default", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
 ] as const
 
-// A color is one pencil: a stroke, and a fill that is the same pencil pressed
-// lightly onto the sheet. Fills are mixed with the sheet, not made
-// transparent, so the grid never shows through and dark mode just works.
-const pencil = (label: string, stroke: string) => ({
-  label,
-  stroke,
-  fill: `color-mix(in oklch, ${stroke} 9%, var(--sheet))`,
-})
-
-export const COLORS: Record<ColorKey, { label: string; stroke: string; fill: string }> = {
-  default: { label: "Ink", stroke: "var(--ink)", fill: "var(--sheet)" },
-  red: pencil("Red", "#e5484d"),
-  orange: pencil("Orange", "#f76b15"),
-  yellow: pencil("Yellow", "#d99a1c"),
-  green: pencil("Green", "#2b9a66"),
-  teal: pencil("Teal", "#12a594"),
-  blue: pencil("Blue", "#0b7fe0"),
-  purple: pencil("Purple", "#8e4ec6"),
-  pink: pencil("Pink", "#d6409f"),
-}
+export { COLORS } from "./colors"
 
 export const DEFAULT_SIZE: Record<NodeKind, { width: number | null; height: number | null }> = {
   plain: { width: 160, height: 64 },

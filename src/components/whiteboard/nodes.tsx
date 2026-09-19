@@ -121,7 +121,7 @@ export function TextNode({ data, selected }: NodeProps<FlowNode>) {
       />
       <h3
         className="font-heading text-lg leading-tight font-semibold break-words"
-        style={{ color: wb.color === "default" ? undefined : color.stroke }}
+        style={{ color: wb.color === "default" ? undefined : color.text }}
       >
         {wb.title || "Untitled"}
       </h3>
@@ -131,7 +131,7 @@ export function TextNode({ data, selected }: NodeProps<FlowNode>) {
         </p>
       ) : (
         // A prompt, not content: shown only while the node is selected.
-        selected && <p className="text-[13px] text-graphite/60">Add body text in the panel.</p>
+        selected && <p className="text-[13px] text-graphite italic">Add body text in the panel.</p>
       )}
       {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} className="absolute -top-2.5 -right-2.5" />}
       <Handles visible={selected} />
@@ -165,7 +165,7 @@ export function GroupNode({ data, selected }: NodeProps<FlowNode>) {
           className="absolute -top-px left-3 max-w-[calc(100%-1.5rem)] -translate-y-1/2 truncate rounded-[5px] border bg-sheet px-1.5 py-px font-mono text-[10px] font-medium tracking-wide uppercase"
           style={{
             borderColor: tinted ? `color-mix(in oklch, ${color.stroke} 45%, var(--sheet))` : "var(--rule)",
-            color: tinted ? color.stroke : "var(--graphite)",
+            color: tinted ? color.text : "var(--graphite)",
           }}
         >
           {wb.title}
