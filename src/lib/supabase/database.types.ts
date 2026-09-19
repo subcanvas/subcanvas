@@ -461,6 +461,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_folder: { Args: { p_folder_id: string }; Returns: undefined }
+      document_ancestors: {
+        Args: { p_document_id: string }
+        Returns: {
+          deleted_at: string
+          depth: number
+          id: string
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+        }[]
+      }
       get_invite: {
         Args: { p_token: string }
         Returns: {

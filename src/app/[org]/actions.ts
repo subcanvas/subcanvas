@@ -36,30 +36,3 @@ export async function createProject(
 
   redirect(`/${slug}/${project.id}`)
 }
-
-export async function createTextDocument(
-  slug: string,
-  orgId: string,
-  projectId: string
-): Promise<FormState> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { data: document, error } = await supabase
-    .from("documents")
-    .insert({ org_id: orgId, project_id: projectId, type: "text", created_by: user?.id })
-    .select("id")
-    .single()
-
-  if (error)
-    return {
-      error:
-        error.code === "42501"
-          ? "You do not have permission to create documents."
-          : error.message,
-    }
-
-  redirect(`/${slug}/${projectId}/d/${document.id}`)
-}

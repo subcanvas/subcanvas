@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 
+import { DocumentTitle } from "@/components/editor/document-title"
 import { TextDocument } from "@/components/editor/text-document"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
@@ -24,9 +25,21 @@ export default async function DocumentPage({
   ])
   if (!document) notFound()
 
+  // A document inside a trashed document is in the trash too.
+  const { data: ancestors } = await supabase.rpc("document_ancestors", {
+    p_document_id: document.id,
+  })
+  if (ancestors?.some((ancestor) => ancestor.deleted_at !== null)) notFound()
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-8">
-      <h1 className="px-13 text-3xl font-semibold tracking-tight">{document.title}</h1>
+      <DocumentTitle
+        key={document.title}
+        project={{ slug: org.slug, orgId: org.id, projectId }}
+        documentId={document.id}
+        title={document.title}
+        editable={hasRole(role, "editor")}
+      />
       {document.type === "text" ? (
         <TextDocument
           documentId={document.id}
