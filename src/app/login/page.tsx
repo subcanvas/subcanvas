@@ -2,6 +2,7 @@ import { AuthShell } from "@/components/auth-shell"
 import { redirect } from "next/navigation"
 
 import { safeNext } from "@/lib/auth"
+import { legalDetails } from "@/lib/legal"
 import { createClient } from "@/lib/supabase/server"
 
 import { LoginForm } from "./login-form"
@@ -29,6 +30,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         next={next}
         providers={providers}
         linkError={params.error === "link"}
+        showLegal={legalDetails() !== null}
       />
     </AuthShell>
   )

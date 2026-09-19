@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { HeroCanvas } from "@/components/landing/hero-canvas"
 import { Wordmark } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
+import { legalDetails } from "@/lib/legal"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
@@ -163,6 +164,16 @@ export default async function Home() {
           <a href={`${SOURCE_URL}/blob/main/LICENSE`} className="rounded-md px-2 py-1.5 hover:text-ink">
             AGPL-3.0
           </a>
+          {legalDetails() && (
+            <>
+              <Link href="/terms" className="rounded-md px-2 py-1.5 hover:text-ink">
+                Terms
+              </Link>
+              <Link href="/privacy" className="rounded-md px-2 py-1.5 hover:text-ink">
+                Privacy
+              </Link>
+            </>
+          )}
         </div>
       </footer>
     </div>

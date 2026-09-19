@@ -45,6 +45,7 @@ Give your host these environment variables (they are also listed in [`.env.examp
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The publishable key. Safe to expose: row-level security is what protects the data. |
 | `SUPABASE_SECRET_KEY` | A secret key. Server only. It bypasses row-level security, so never give it to a build that runs untrusted code, such as a preview deployment of someone's pull request. Only billing uses it; without billing you can leave it out. |
 | `NEXT_PUBLIC_AUTH_PROVIDERS` | Optional: `google`, `github`, or `google,github` |
+| `LEGAL_OPERATOR`, `LEGAL_CONTACT`, `LEGAL_GOVERNING_LAW` | Optional, all three or none: the person or company running the server, the address for legal and privacy requests, and the US state whose law governs (for example `California`). When set, the server has a Terms of Service at `/terms` and a Privacy Policy at `/privacy`, linked from the landing page and the sign-in card. The text describes subcanvas.app's setup (Supabase, Vercel, Resend, Stripe, Cloudflare; no analytics), so read both pages and change what does not match yours before publishing them under your name. Google requires both links on its OAuth consent screen. |
 
 **On Vercel:** import your copy of the repository, add the variables (the secret key to the Production environment only), and add your domain.
 

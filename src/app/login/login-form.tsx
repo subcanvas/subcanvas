@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
@@ -63,10 +64,13 @@ export function LoginForm({
   next,
   providers,
   linkError,
+  showLegal,
 }: {
   next: string
   providers: Provider[]
   linkError: boolean
+  // Whether this server has terms to agree to (see lib/legal).
+  showLegal: boolean
 }) {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>("signin")
@@ -261,6 +265,20 @@ export function LoginForm({
             </p>
           )}
         </div>
+
+        {showLegal && (
+          <p className="border-t border-rule pt-3 text-xs leading-relaxed text-graphite">
+            By continuing you agree to the{" "}
+            <Link href="/terms" className={link}>
+              Terms of Service
+            </Link>{" "}
+            and the{" "}
+            <Link href="/privacy" className={link}>
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        )}
       </CardContent>
     </Card>
   )
