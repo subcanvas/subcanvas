@@ -66,9 +66,12 @@ export function ProjectTree({
   nodes,
   canEdit,
   canUpgrade,
+  trashHref,
 }: {
   project: ProjectRef
   projectName: string
+  // Where this project's trash is. A public visitor has none.
+  trashHref?: string
   nodes: TreeNode[]
   canEdit: boolean
   // Whether this server has a paid plan to offer when the limit is hit.
@@ -357,9 +360,27 @@ export function ProjectTree({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <SidebarGroupLabel className="h-auto py-1 font-heading text-[15px] font-semibold text-ink">
+      <SidebarGroupLabel className="h-auto py-1 pr-14 font-heading text-[15px] font-semibold text-ink">
         <span className="truncate">{projectName}</span>
       </SidebarGroupLabel>
+      {/* What is rarely needed lives here, not in a row of its own. */}
+      {trashHref && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarGroupAction aria-label="Project menu" className={cn(canEdit && "right-9")}>
+                <MoreHorizontal />
+              </SidebarGroupAction>
+            }
+          />
+          <DropdownMenuContent align="start" className="min-w-44">
+            <DropdownMenuItem render={<Link href={trashHref} />}>
+              <Trash2 />
+              Trash
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       {canEdit && (
         <DropdownMenu>
           <DropdownMenuTrigger

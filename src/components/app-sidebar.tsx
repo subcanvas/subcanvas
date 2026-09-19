@@ -31,7 +31,7 @@ type Org = { name: string; slug: string }
 
 // What is in the sidebar on every page of an org: which org this is at the
 // top, the org's pages, and your account at the bottom. Inside a project, the
-// project's documents go in the middle and its trash above the account.
+// project's documents go in the middle.
 export function AppSidebar({
   org,
   orgs,

@@ -1,10 +1,8 @@
-import { Trash2 } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { AppShell } from "@/components/app-shell"
 import { ProjectTree } from "@/components/tree/project-tree"
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { buildTree } from "@/lib/tree"
@@ -52,40 +50,29 @@ export default async function ProjectLayout({
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={canEdit}
       canUpgrade={billingConfigured()}
+      trashHref={`/${org.slug}/${project.id}/trash`}
     />
   )
-  const footer = (
-    <>
-      {showUsage && (
-        <Link
-          href={`/${org.slug}/settings/billing`}
-          className="flex flex-col gap-1.5 rounded-md px-2 py-1.5 text-xs text-graphite outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="flex justify-between">
-            <span>Private documents</span>
-            <span className="font-mono">
-              {plan.private_documents}/{plan.private_document_limit}
-            </span>
-          </span>
-          <span className="h-1 overflow-hidden rounded-full bg-rule" aria-hidden>
-            <span
-              className="block h-full rounded-full bg-cobalt"
-              style={{
-                width: `${Math.min(100, (plan.private_documents / Math.max(1, plan.private_document_limit)) * 100)}%`,
-              }}
-            />
-          </span>
-        </Link>
-      )}
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton render={<Link href={`/${org.slug}/${project.id}/trash`} />}>
-            <Trash2 className="text-graphite" />
-            Trash
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </>
+  const footer = showUsage && (
+    <Link
+      href={`/${org.slug}/settings/billing`}
+      className="flex flex-col gap-1.5 rounded-md px-2 py-1.5 text-xs text-graphite outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="flex justify-between">
+        <span>Private documents</span>
+        <span className="font-mono">
+          {plan.private_documents}/{plan.private_document_limit}
+        </span>
+      </span>
+      <span className="h-1 overflow-hidden rounded-full bg-rule" aria-hidden>
+        <span
+          className="block h-full rounded-full bg-cobalt"
+          style={{
+            width: `${Math.min(100, (plan.private_documents / Math.max(1, plan.private_document_limit)) * 100)}%`,
+          }}
+        />
+      </span>
+    </Link>
   )
 
   return (
