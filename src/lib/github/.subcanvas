@@ -1,0 +1,10 @@
+title: Repository import
+description: Reads a public GitHub repository and draws it. One node per folder, READMEs as read-only pages, and connections from .subcanvas files like this one.
+connects:
+  - to: src/lib/sync
+    label: writes documents from the server
+    description: The importer builds each whiteboard and README as a Yjs document on the server and appends it to document_updates, the same log a browser writes to. Nothing imported is special. It opens, syncs, and nests like anything drawn by hand.
+  - to: src/lib/whiteboard
+    label: nodes, edges, layout
+ignore:
+  - __fixtures__

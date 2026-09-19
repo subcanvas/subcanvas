@@ -7,6 +7,8 @@ connects:
     label: whiteboard pages
   - to: src/components/editor
     label: text pages
+  - to: src/lib/github
+    label: Import from GitHub
   - to: src/lib/supabase
     label: queries as the member
     description: Pages and server actions query Supabase with the member's session. A viewer who calls an editor's action is refused by the database, not only by the interface.
