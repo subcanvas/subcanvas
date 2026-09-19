@@ -50,7 +50,7 @@ export default async function PublicProjectLayout({
     <>
       <header className="flex h-12 items-center gap-3 border-b px-4">
         <Link href="/" className="font-semibold">
-          Graph Notes
+          Subcanvas
         </Link>
         <Badge variant="secondary">
           <Globe />

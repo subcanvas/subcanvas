@@ -1,4 +1,4 @@
-# Graph Notes — Requirements (v1)
+# Subcanvas — Requirements (v1)
 
 An open-source Notion/Excalidraw hybrid. Teams build nested whiteboards and text documents: a node on a high-level architecture diagram opens that service's own diagram, and an edge between two services opens a text doc describing the protocol between them.
 

@@ -24,7 +24,7 @@ import { ObjectDocument } from "./object-document"
 
 const KIND_LABELS = { plain: "Node", text: "Text node", group: "Group" }
 
-const WIDTH_KEY = "graph-notes:panel-width"
+const WIDTH_KEY = "subcanvas:panel-width"
 const MIN_WIDTH = 320
 const MAX_WIDTH = 800
 const DEFAULT_WIDTH = 440

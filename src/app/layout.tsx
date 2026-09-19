@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Graph Notes",
+  title: "Subcanvas",
   description: "Nested whiteboards and documents for teams.",
 };
 

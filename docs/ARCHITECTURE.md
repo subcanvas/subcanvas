@@ -1,4 +1,4 @@
-# Graph Notes — Data Model and Build Order
+# Subcanvas — Data Model and Build Order
 
 Companion to [REQUIREMENTS.md](../REQUIREMENTS.md). Requirement IDs in parentheses.
 

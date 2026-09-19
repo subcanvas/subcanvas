@@ -84,7 +84,7 @@ export function LoginForm({
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Sign in to Graph Notes</CardTitle>
+        <CardTitle>Sign in to Subcanvas</CardTitle>
         <CardDescription>We will email you a link. No password needed.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

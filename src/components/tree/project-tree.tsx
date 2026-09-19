@@ -57,7 +57,7 @@ import {
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
-const DRAG_TYPE = "application/x-graph-notes-item"
+const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
 
 export function ProjectTree({
