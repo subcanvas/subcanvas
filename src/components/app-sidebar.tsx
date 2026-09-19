@@ -1,12 +1,25 @@
 "use client"
 
-import { ChevronsUpDown, CreditCard, KeyRound, LayoutGrid, LogOut, Monitor, Moon, Plus, Sun, Users } from "lucide-react"
+import {
+  ChevronsUpDown,
+  CreditCard,
+  KeyRound,
+  LayoutGrid,
+  LogOut,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  Plus,
+  Sun,
+  Users,
+} from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
 import { LogoMark } from "@/components/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +37,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/client"
 
@@ -51,6 +65,7 @@ export function AppSidebar({
   const router = useRouter()
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const { toggleSidebar } = useSidebar()
 
   async function signOut() {
     await createClient().auth.signOut()
@@ -66,8 +81,8 @@ export function AppSidebar({
 
   return (
     <>
-      <SidebarHeader>
-        <SidebarMenu>
+      <SidebarHeader className="flex-row items-center gap-1">
+        <SidebarMenu className="min-w-0 flex-1">
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -97,6 +112,17 @@ export function AppSidebar({
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
+        {/* The drawer on a narrow screen has its own close button. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-graphite max-md:hidden"
+          aria-label="Hide the sidebar"
+          title="Hide the sidebar (⌘\)"
+          onClick={toggleSidebar}
+        >
+          <PanelLeftClose />
+        </Button>
       </SidebarHeader>
 
       <SidebarContent>

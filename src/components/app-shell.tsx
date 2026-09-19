@@ -1,8 +1,12 @@
+import { cookies } from "next/headers"
+
 import { AppSidebar } from "@/components/app-sidebar"
+import { DesktopSidebar } from "@/components/desktop-sidebar"
 import { MobileTree } from "@/components/tree/mobile-tree"
-import { Sidebar, SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
+import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar-state"
 
 // The frame around every signed-in page: the sidebar on a wide screen, the
 // same sidebar in a drawer on a narrow one, and the page beside it. A project
@@ -43,14 +47,16 @@ export async function AppShell({
     </AppSidebar>
   )
 
+  // Collapsing the sidebar is remembered, and read here so the page does not
+  // render open and then snap shut.
+  const open = (await cookies()).get(SIDEBAR_COOKIE_NAME)?.value !== "false"
+
   return (
-    <SidebarProvider className="min-h-0 flex-1 flex-col md:flex-row">
+    <SidebarProvider defaultOpen={open} className="min-h-0 flex-1 flex-col md:flex-row">
       <MobileTree label="Menu" title={title ?? org.name} description="Pages, documents, and your account.">
         {contents}
       </MobileTree>
-      <Sidebar collapsible="none" className="sticky top-0 hidden h-svh border-r border-rule md:flex">
-        {contents}
-      </Sidebar>
+      <DesktopSidebar>{contents}</DesktopSidebar>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </SidebarProvider>
   )
