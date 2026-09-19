@@ -142,11 +142,16 @@ async function gather(provider: RepositoryProvider, reference: RepositoryReferen
 
   const candidates = [...findSubcanvasFiles(files)].slice(0, MAX_SUBCANVAS_FILES)
   const subcanvasFiles = new Map<string, SubcanvasFile>()
+  // Kept per folder until it is known which folders are drawn: what is wrong
+  // with a file in an ignored folder is nobody's problem.
+  const fileWarnings = new Map<string, string[]>()
   await mapLimited(candidates, async ([folder, file]) => {
     const text = file.size > MAX_SUBCANVAS_FILE_BYTES ? null : await provider.readFile(repository, file.path)
     const parsed = parseSubcanvasFile(text ?? "", folder)
-    if (text === null) warnings.push(`${file.path}: the file could not be read, so it only marks the folder.`)
-    warnings.push(...parsed.warnings)
+    fileWarnings.set(folder, [
+      ...(text === null ? [`${file.path}: the file could not be read, so it only marks the folder.`] : []),
+      ...parsed.warnings,
+    ])
     subcanvasFiles.set(folder, parsed.file)
   })
 
@@ -158,8 +163,10 @@ async function gather(provider: RepositoryProvider, reference: RepositoryReferen
     )
   // A file inside an ignored folder no longer speaks for anything.
   const mapped = new Set(mapping.folders.map((folder) => folder.path))
-  for (const folder of subcanvasFiles.keys())
-    if (folder !== ROOT && !mapped.has(folder)) subcanvasFiles.delete(folder)
+  for (const folder of [...subcanvasFiles.keys()]) {
+    if (folder === ROOT || mapped.has(folder)) warnings.push(...(fileWarnings.get(folder) ?? []))
+    else subcanvasFiles.delete(folder)
+  }
 
   const wanted: [string, RepositoryFile][] = mapping.folders.flatMap((folder) =>
     folder.readme ? [[folder.path, folder.readme]] : []
