@@ -5,9 +5,11 @@ import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb
 import { DocumentTitle } from "@/components/editor/document-title"
 import { TextDocument } from "@/components/editor/text-document"
 import { ReferencedBy } from "@/components/referenced-by"
+import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
+import { hasRole } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
 import { cn } from "@/lib/utils"
 
@@ -26,7 +28,7 @@ export default async function DocumentPage({
 }: PageProps<"/[org]/[project]/d/[docId]">) {
   const { org: slug, project: projectId, docId } = await params
   const via = parseVia((await searchParams).via).filter((id) => id !== docId)
-  const { supabase, user, org, canEdit } = await getOrgContext(slug)
+  const { supabase, user, org, role, canEdit } = await getOrgContext(slug)
 
   const [{ data: document }, { data: profile }, { data: project }] = await Promise.all([
     supabase
@@ -38,7 +40,7 @@ export default async function DocumentPage({
       .is("deleted_at", null)
       .maybeSingle(),
     supabase.from("profiles").select("display_name").eq("id", user.id).single(),
-    supabase.from("projects").select("name").eq("id", projectId).maybeSingle(),
+    supabase.from("projects").select("name, visibility").eq("id", projectId).maybeSingle(),
   ])
   if (!document || !project) notFound()
 
@@ -73,10 +75,18 @@ export default async function DocumentPage({
       project={projectPath}
       projectName={project.name}
       trail={trail}
-      current={document.title}
     />
   )
-  const linkedFrom = <ReferencedBy slug={org.slug} references={references} />
+  const actions = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <ReferencedBy slug={org.slug} references={references} />
+      <ShareProject
+        project={{ slug: org.slug, orgId: org.id, projectId }}
+        visibility={project.visibility}
+        canChange={hasRole(role, "admin") && canEdit}
+      />
+    </div>
+  )
 
   const editable = canEdit
   const editorUser = {
@@ -116,7 +126,7 @@ export default async function DocumentPage({
                 {breadcrumb}
                 {title(true)}
               </div>
-              {linkedFrom}
+              {actions}
             </div>
           }
         />
@@ -132,7 +142,7 @@ export default async function DocumentPage({
     >
       <div className="flex items-center justify-between gap-3 px-13">
         {breadcrumb}
-        {linkedFrom}
+        {actions}
       </div>
       {title(false)}
       <TextDocument

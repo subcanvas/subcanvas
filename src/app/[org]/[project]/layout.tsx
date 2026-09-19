@@ -4,12 +4,10 @@ import { notFound } from "next/navigation"
 
 import { MobileTree } from "@/components/tree/mobile-tree"
 import { ProjectTree } from "@/components/tree/project-tree"
-import { ProjectVisibility } from "@/components/tree/project-visibility"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -17,7 +15,6 @@ import {
 } from "@/components/ui/sidebar"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
-import { hasRole } from "@/lib/roles"
 import { buildTree } from "@/lib/tree"
 
 export default async function ProjectLayout({
@@ -25,7 +22,7 @@ export default async function ProjectLayout({
   params,
 }: LayoutProps<"/[org]/[project]">) {
   const { org: slug, project: projectId } = await params
-  const { supabase, org, role, plan, canEdit } = await getOrgContext(slug)
+  const { supabase, org, plan, canEdit } = await getOrgContext(slug)
 
   const { data: project } = await supabase
     .from("projects")
@@ -60,13 +57,6 @@ export default async function ProjectLayout({
   // narrow one.
   const contents = (
     <>
-      <SidebarHeader className="gap-0 pb-0">
-        <ProjectVisibility
-          project={projectRef}
-          visibility={project.visibility}
-          canChange={hasRole(role, "admin") && canEdit}
-        />
-      </SidebarHeader>
       <SidebarContent>
         <ProjectTree
           project={projectRef}

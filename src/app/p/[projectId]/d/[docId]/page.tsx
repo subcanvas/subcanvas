@@ -63,7 +63,6 @@ export default async function PublicDocumentPage({
       project={{ slug: PUBLIC_SLUG, projectId }}
       projectName={project.name}
       trail={trail}
-      current={document.title}
     />
   )
   const linkedFrom = <ReferencedBy slug={PUBLIC_SLUG} references={references} />

@@ -1,13 +1,33 @@
-import Link from "next/link"
+"use client"
 
+import Link from "next/link"
+import { Fragment } from "react"
+
+import {
+  Breadcrumb,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { documentHref, type ProjectPath } from "@/lib/navigation"
-import { cn } from "@/lib/utils"
 
 export type Crumb = { id: string; title: string }
 
-// The way back out (R2.1). Each sheet you came through is a tab, tucked
-// behind the next, so the trail looks like what it is: a stack you are on
-// top of. Each tab links back along the same trail.
+// A deep trail keeps the project and the last two sheets in view; the ones
+// between fold into a menu.
+const VISIBLE = 4
+
+// The way back out (R2.1): the project, then each sheet you came through.
+// Each one links back along the same trail. The open document's own title
+// sits right below, so it is not repeated here.
 export function DocumentBreadcrumb({
   project,
   projectName,
@@ -16,10 +36,8 @@ export function DocumentBreadcrumb({
   project: ProjectPath
   projectName: string
   trail: Crumb[]
-  // Kept for callers; the open document's own title sits right below.
-  current?: string
 }) {
-  const tabs = [
+  const crumbs = [
     { key: "project", title: projectName, href: `/${project.slug}/${project.projectId}` },
     ...trail.map((crumb, index) => ({
       key: `${crumb.id}-${index}`,
@@ -31,26 +49,50 @@ export function DocumentBreadcrumb({
       ),
     })),
   ]
+  const folded = crumbs.length > VISIBLE ? crumbs.slice(1, -2) : []
+  const shown = folded.length ? [crumbs[0], ...crumbs.slice(-2)] : crumbs
 
   return (
-    <nav aria-label="breadcrumb" className="flex min-w-0 items-center gap-2">
-      <ol className="flex min-w-0 items-center">
-        {tabs.map((tab, index) => (
-          <li key={tab.key} className={cn("min-w-0", index > 0 && "-ml-1.5")} style={{ zIndex: index }}>
-            <Link
-              href={tab.href}
-              className="block max-w-40 truncate rounded-md border border-rule bg-sheet px-2 py-1 text-xs text-graphite shadow-[2px_0_0_0_var(--paper)] transition-colors outline-none hover:border-cobalt hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {tab.title}
-            </Link>
-          </li>
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList className="flex-nowrap gap-1 text-xs">
+        {shown.map((crumb, index) => (
+          <Fragment key={crumb.key}>
+            {index > 0 && <BreadcrumbSeparator />}
+            {index === 1 && folded.length > 0 && (
+              <>
+                <BreadcrumbItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label={`${folded.length} more`}
+                      className="rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <BreadcrumbEllipsis />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {folded.map((item) => (
+                        <DropdownMenuItem key={item.key} render={<Link href={item.href} />}>
+                          {item.title}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+              </>
+            )}
+            <BreadcrumbItem className="min-w-0">
+              <BreadcrumbLink
+                render={<Link href={crumb.href} />}
+                className="max-w-40 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {crumb.title}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </Fragment>
         ))}
-      </ol>
-      {trail.length > 0 && (
-        <span className="shrink-0 font-mono text-[10px] tracking-wide text-graphite uppercase">
-          {trail.length} deep
-        </span>
-      )}
-    </nav>
+        {/* Leads into the title below. */}
+        <BreadcrumbSeparator />
+      </BreadcrumbList>
+    </Breadcrumb>
   )
 }
