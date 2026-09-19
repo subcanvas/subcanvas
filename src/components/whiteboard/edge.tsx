@@ -12,6 +12,8 @@ import { COLORS } from "@/lib/whiteboard/schema"
 import type { FlowEdge } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
+import { DocumentMark } from "./nodes"
+
 export function WhiteboardEdge({
   sourceX,
   sourceY,
@@ -46,16 +48,25 @@ export function WhiteboardEdge({
           strokeLinecap: wb?.stroke === "dotted" ? "round" : undefined,
         }}
       />
-      {wb?.label && (
+      {wb && (wb.label || wb.docId) && (
         <EdgeLabelRenderer>
           <div
-            className={cn(
-              "nodrag nopan pointer-events-none absolute rounded border bg-background px-1.5 py-0.5 text-xs font-medium",
-              selected && "border-ring"
-            )}
+            className="nodrag nopan pointer-events-none absolute flex items-center gap-1"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            {wb.label}
+            {wb.label && (
+              <span
+                className={cn(
+                  "rounded border bg-background px-1.5 py-0.5 text-xs font-medium",
+                  selected && "border-ring"
+                )}
+              >
+                {wb.label}
+              </span>
+            )}
+            {wb.docId && (
+              <DocumentMark objectId={wb.id} docType={wb.docType} className="static" />
+            )}
           </div>
         </EdgeLabelRenderer>
       )}

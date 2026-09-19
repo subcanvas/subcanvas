@@ -36,11 +36,10 @@ documents         id, org_id, project_id
                   parent_object_id?              -- ...specifically this node/edge/group in it
                   position, created_by, created_at, updated_at, deleted_at?
 
-document_links    id, org_id
+document_links    id, org_id                     -- references only; see note below
                   source_document_id
-                  source_object_id?              -- node/edge/group id, or BlockNote block id
-                  target_document_id
-                  kind: parent|reference                                   (R1.5, R1.6)
+                  source_object_id               -- node/edge/group id, or BlockNote block id
+                  target_document_id                                       (R1.5, R1.6)
 
 document_snapshots  document_id (pk), state bytea, updated_at
 document_updates    id bigserial, document_id, update bytea, created_by, created_at
@@ -53,6 +52,7 @@ Notes:
 
 - **Project root documents** have `folder_id = null` and `parent_document_id = null`; the CHECK allows at most one parent pointer, and none means project root.
 - **No parent cycles (R1.9):** a trigger walks `parent_document_id` upward on insert/update and rejects loops. References are unconstrained.
+- **Links are an index, not the truth.** A document's home is recorded on the document (`parent_document_id`, `parent_object_id`), so `document_links` holds only references to documents that live elsewhere. The content is the source of truth: a whiteboard object's `docId`, or a `documentLink` block in a text document. Editors' clients reconcile the table against the content about 1.5 s after the links change, which also covers undo, paste, and merges. "Referenced by" and delete warnings are then plain queries.
 - **Soft delete:** `deleted_at` gives a trash and makes R1.8 recoverable. Children of a deleted document are hidden with it.
 - **Free-tier limit (R7.1):** a `BEFORE INSERT` trigger on `documents` counts rows where `kind = 'standard'` and `deleted_at is null` for the org, and rejects the insert when the org has no active subscription and the count is 25. Enforced in the database so no client can bypass it.
 - **Billed seats (R7.2a):** `count(*) from org_members where role <> 'viewer'`. A trigger on `org_members` marks the org for a Stripe quantity sync, which a Supabase Edge Function performs.
@@ -114,7 +114,7 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
 /[org]/[project]/d/[docId]?via=a.b.c     document page
 ```
 
-`via` is the list of document ids navigated through to get here (R2.3). The breadcrumb is `via` plus the current document. Navigating into a child appends the current id; clicking a crumb truncates. With no `via`, the breadcrumb falls back to the canonical chain from `parent_document_id` (R2.2). One query resolves all ids to titles.
+`via` is the list of document ids navigated through to get here (R2.3). Returning to a document already on the trail truncates it, so reference loops cannot grow the URL. The breadcrumb is `via` plus the current document. Navigating into a child appends the current id; clicking a crumb truncates. With no `via`, the breadcrumb falls back to the canonical chain from `parent_document_id` (R2.2). One query resolves all ids to titles.
 
 ## 6. Build order
 

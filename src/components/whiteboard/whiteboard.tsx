@@ -13,13 +13,17 @@ import {
   useReactFlow,
 } from "@xyflow/react"
 import { Group, Redo2, Square, Type, Undo2 } from "lucide-react"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import { reconcileLinks } from "@/lib/document-links"
+import { documentHref } from "@/lib/navigation"
+import { createClient } from "@/lib/supabase/client"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
@@ -28,6 +32,7 @@ import {
   type FlowNode,
 } from "@/lib/whiteboard/use-whiteboard"
 
+import { WhiteboardActionsContext } from "./actions-context"
 import { edgeTypes } from "./edge"
 import { Inspector } from "./inspector"
 import { nodeTypes } from "./nodes"
@@ -56,6 +61,7 @@ export default function Whiteboard(props: WhiteboardProps) {
 function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   const wb = useWhiteboard(provider.doc, editable)
   const flow = useReactFlow<FlowNode, FlowEdge>()
+  const router = useRouter()
   const wrapper = useRef<HTMLDivElement>(null)
   const pasteCount = useRef(0)
   const addCount = useRef(0)
@@ -81,6 +87,61 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
       ),
     []
   )
+
+  // Whiteboards and "full page" text documents navigate, extending the
+  // breadcrumb trail. A "panel" text document shows in the side panel.
+  const openObject = useCallback(
+    (objectId: string) => {
+      const object =
+        wb.nodes.find((node) => node.id === objectId)?.data.wb ??
+        wb.edges.find((edge) => edge.id === objectId)?.data?.wb
+      if (!object?.docId) return
+
+      if (object.docType === "whiteboard" || object.openMode === "navigate") {
+        router.push(
+          documentHref({ slug: context.slug, projectId: context.projectId }, object.docId, [
+            ...context.via,
+            context.whiteboardId,
+          ])
+        )
+        return
+      }
+      setDismissed(null)
+      wb.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: node.id === objectId })))
+      wb.setEdges((edges) => edges.map((edge) => ({ ...edge, selected: edge.id === objectId })))
+    },
+    [wb, router, context]
+  )
+  const actions = useMemo(() => ({ openObject }), [openObject])
+
+  // Keep the index of references in step with the content (R1.7). Debounced,
+  // and keyed on the links alone so moving things around does not trigger it.
+  const linkSignature = useMemo(
+    () =>
+      [...wb.nodes.map((node) => node.data.wb), ...wb.edges.map((edge) => edge.data!.wb)]
+        .filter((object) => object.docId)
+        .map((object) => `${object.id} ${object.docId}`)
+        .sort()
+        .join("\n"),
+    [wb.nodes, wb.edges]
+  )
+  useEffect(() => {
+    if (!editable) return
+    const timer = setTimeout(() => {
+      const linked = linkSignature
+        ? linkSignature.split("\n").map((line) => {
+            const [objectId, docId] = line.split(" ")
+            return { objectId, docId }
+          })
+        : []
+      void reconcileLinks(
+        createClient(),
+        { orgId: context.orgId, documentId: context.whiteboardId },
+        linked
+      )
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [editable, linkSignature, context.orgId, context.whiteboardId])
 
   const selectOnly = useCallback(
     (ids: string[]) => {
@@ -196,6 +257,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   }
 
   return (
+    <WhiteboardActionsContext value={actions}>
     <div className="flex size-full" onKeyDown={onKeyDown}>
       <div ref={wrapper} className="relative min-w-0 flex-1">
         <ReactFlow
@@ -207,6 +269,9 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           onEdgesChange={wb.onEdgesChange}
           onConnect={wb.onConnect}
           onNodeDragStop={onNodeDragStop}
+          onNodeDoubleClick={(_, node) => openObject(node.id)}
+          onEdgeDoubleClick={(_, edge) => openObject(edge.id)}
+          zoomOnDoubleClick={false}
           onSelectionChange={onSelectionChange}
           connectionMode={ConnectionMode.Loose}
           nodesDraggable={editable}
@@ -264,6 +329,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
         />
       )}
     </div>
+    </WhiteboardActionsContext>
   )
 }
 

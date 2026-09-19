@@ -1,11 +1,13 @@
 "use client"
 
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react"
-import { FileText } from "lucide-react"
+import { FileText, Workflow } from "lucide-react"
 
-import { COLORS } from "@/lib/whiteboard/schema"
+import { COLORS, type DocType } from "@/lib/whiteboard/schema"
 import type { FlowNode } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
+
+import { useWhiteboardActions } from "./actions-context"
 
 // One handle per side. The canvas runs in loose connection mode, so every
 // handle can start or end an edge.
@@ -28,20 +30,33 @@ function Handles({ visible }: { visible: boolean }) {
   )
 }
 
-// Marks an object that holds a document (R4.9).
-function DocumentMark({ className }: { className?: string }) {
+// Marks an object that holds a document (R4.9), and opens it.
+export function DocumentMark({
+  objectId,
+  docType,
+  className,
+}: {
+  objectId: string
+  docType: DocType | null
+  className?: string
+}) {
+  const { openObject } = useWhiteboardActions()
+  const Icon = docType === "whiteboard" ? Workflow : FileText
+  const label = docType === "whiteboard" ? "Open whiteboard" : "Open document"
   return (
-    <span
-      role="img"
-      aria-label="Has a description"
-      title="Has a description"
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => openObject(objectId)}
+      onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        "absolute flex size-4 items-center justify-center rounded-sm bg-background text-muted-foreground ring-1 ring-border",
+        "nodrag nopan pointer-events-auto absolute flex size-5 items-center justify-center rounded-sm bg-background text-muted-foreground ring-1 ring-border outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
     >
-      <FileText className="size-3" />
-    </span>
+      <Icon className="size-3" />
+    </button>
   )
 }
 
@@ -69,7 +84,9 @@ export function PlainNode({ data, selected }: NodeProps<FlowNode>) {
     >
       <Resizer selected={selected} minWidth={80} minHeight={40} />
       <span className="line-clamp-3 break-words">{data.wb.title || "Untitled"}</span>
-      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
+      {data.wb.docId && (
+        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
+      )}
       <Handles visible={selected} />
     </div>
   )
@@ -103,7 +120,9 @@ export function TextNode({ data, selected }: NodeProps<FlowNode>) {
           {data.wb.description}
         </p>
       )}
-      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
+      {data.wb.docId && (
+        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
+      )}
       <Handles visible={selected} />
     </div>
   )
@@ -133,7 +152,9 @@ export function GroupNode({ data, selected }: NodeProps<FlowNode>) {
           {data.wb.title}
         </div>
       )}
-      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
+      {data.wb.docId && (
+        <DocumentMark objectId={data.wb.id} docType={data.wb.docType} className="-top-2.5 -right-2.5" />
+      )}
       <Handles visible={selected} />
     </div>
   )

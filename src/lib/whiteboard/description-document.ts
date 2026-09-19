@@ -7,6 +7,9 @@ export type WhiteboardContext = {
   orgId: string
   projectId: string
   whiteboardId: string
+  slug: string
+  // The documents the reader passed through to get here, outermost first.
+  via: string[]
 }
 
 function uuidBytes(uuid: string) {
@@ -56,4 +59,37 @@ export async function ensureDescriptionDocument(
           : error.message,
     }
   return { id }
+}
+
+// Creates a whiteboard whose home is a whiteboard object (R1.6). Unlike a
+// description it is a standard document: it shows in the tree, nested
+// under this whiteboard, and counts toward the free-tier limit.
+export async function createChildWhiteboard(
+  supabase: SupabaseClient<Database>,
+  context: WhiteboardContext,
+  objectId: string,
+  title: string
+): Promise<{ id: string } | { error: string }> {
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      org_id: context.orgId,
+      project_id: context.projectId,
+      type: "whiteboard",
+      title: title.trim().slice(0, 200) || "Untitled",
+      parent_document_id: context.whiteboardId,
+      parent_object_id: objectId,
+      position: Date.now(),
+    })
+    .select("id")
+    .single()
+
+  if (error)
+    return {
+      error:
+        error.code === "42501"
+          ? "You do not have permission to create documents."
+          : error.message,
+    }
+  return { id: data.id }
 }

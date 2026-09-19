@@ -139,6 +139,14 @@ export async function moveItem(
   return { ok: true }
 }
 
+// The titles of documents that link to this one, for the warning shown
+// before it is trashed or deleted (R1.8).
+export async function listReferences(id: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data } = await supabase.rpc("document_references", { p_document_id: id })
+  return (data ?? []).map((row) => row.source_title)
+}
+
 export async function trashDocument(project: ProjectRef, id: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { data, error } = await supabase

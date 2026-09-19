@@ -9,6 +9,7 @@ export type EdgeShape = "spline" | "step"
 export type EdgeStroke = "solid" | "dotted"
 export type EdgeDirection = "none" | "forward" | "reverse" | "both"
 export type OpenMode = "panel" | "navigate"
+export type DocType = "text" | "whiteboard"
 export type ColorKey = (typeof COLOR_KEYS)[number]
 
 export type WbNode = {
@@ -23,6 +24,9 @@ export type WbNode = {
   description: string
   color: ColorKey
   docId: string | null
+  // Kept beside docId so the canvas knows how to open it without a lookup.
+  // A document never changes type.
+  docType: DocType | null
   openMode: OpenMode
 }
 
@@ -38,6 +42,9 @@ export type WbEdge = {
   color: ColorKey
   label: string
   docId: string | null
+  // Kept beside docId so the canvas knows how to open it without a lookup.
+  // A document never changes type.
+  docType: DocType | null
   openMode: OpenMode
 }
 
@@ -113,6 +120,9 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
     description: text(map, "description"),
     color: pick(map, "color", COLOR_KEYS, "default"),
     docId: textOrNull(map, "docId"),
+    docType: textOrNull(map, "docId")
+      ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
+      : null,
     openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
   }
 }
@@ -130,6 +140,9 @@ export function readEdge(id: string, map: Y.Map<unknown>): WbEdge {
     color: pick(map, "color", COLOR_KEYS, "default"),
     label: text(map, "label"),
     docId: textOrNull(map, "docId"),
+    docType: textOrNull(map, "docId")
+      ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
+      : null,
     openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
   }
 }

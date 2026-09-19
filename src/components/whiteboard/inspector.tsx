@@ -1,16 +1,10 @@
 "use client"
 
 import { X } from "lucide-react"
-import { useRef, useState, useTransition } from "react"
-import { toast } from "sonner"
+import { useRef, useState } from "react"
 
-import { TextDocument } from "@/components/editor/text-document"
 import type { EditorUser } from "@/components/editor/text-editor"
-import { createClient } from "@/lib/supabase/client"
-import {
-  ensureDescriptionDocument,
-  type WhiteboardContext,
-} from "@/lib/whiteboard/description-document"
+import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +19,8 @@ import {
   type WbNode,
 } from "@/lib/whiteboard/schema"
 import { cn } from "@/lib/utils"
+
+import { ObjectDocument } from "./object-document"
 
 const KIND_LABELS = { plain: "Node", text: "Text node", group: "Group" }
 
@@ -112,76 +108,36 @@ export function Inspector({
         )}
       </fieldset>
 
-      {"node" in selection && (
-        <NodeDescription
+      {"node" in selection ? (
+        <ObjectDocument
           key={selection.node.id}
-          node={selection.node}
+          objectId={selection.node.id}
+          objectTitle={selection.node.title}
+          docId={selection.node.docId}
+          docType={selection.node.docType}
+          openMode={selection.node.openMode}
           editable={editable}
           context={context}
           user={user}
-          onAttach={(docId) => onNodeChange(selection.node.id, { docId })}
+          onChange={(patch) => onNodeChange(selection.node.id, patch)}
+          onOpenModeChange={(openMode) => onNodeChange(selection.node.id, { openMode })}
+        />
+      ) : (
+        <ObjectDocument
+          key={selection.edge.id}
+          objectId={selection.edge.id}
+          objectTitle={selection.edge.label}
+          docId={selection.edge.docId}
+          docType={selection.edge.docType}
+          openMode={selection.edge.openMode}
+          editable={editable}
+          context={context}
+          user={user}
+          onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
+          onOpenModeChange={(openMode) => onEdgeChange(selection.edge.id, { openMode })}
         />
       )}
     </aside>
-  )
-}
-
-// A node's description is a full text document, created the first time
-// someone writes in it (R4.2) and edited right here (R4.5).
-function NodeDescription({
-  node,
-  editable,
-  context,
-  user,
-  onAttach,
-}: {
-  node: WbNode
-  editable: boolean
-  context: WhiteboardContext
-  user: EditorUser
-  onAttach: (docId: string) => void
-}) {
-  const [pending, startTransition] = useTransition()
-  // Focus the editor only when this person just created the document.
-  const [justCreated, setJustCreated] = useState(false)
-
-  function create() {
-    startTransition(async () => {
-      const result = await ensureDescriptionDocument(createClient(), context, node.id, node.title)
-      if ("error" in result) toast.error(result.error)
-      else {
-        setJustCreated(true)
-        onAttach(result.id)
-      }
-    })
-  }
-
-  return (
-    <section aria-label="Description" className="-mx-4 flex flex-1 flex-col gap-2 border-t pt-4">
-      <h3 className="px-4 text-sm font-medium">Description</h3>
-      {node.docId ? (
-        // A narrower gutter than the full page, leaving room for block handles.
-        <div className="[&_.bn-editor]:px-11! [&_.px-13]:px-11!">
-          <TextDocument
-            documentId={node.docId}
-            user={user}
-            editable={editable}
-            autoFocus={justCreated}
-          />
-        </div>
-      ) : editable ? (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={create}
-          className="mx-4 min-h-24 cursor-text rounded-md border border-dashed p-3 text-left text-sm text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {pending ? "Creating…" : "Write a description…"}
-        </button>
-      ) : (
-        <p className="px-4 text-sm text-muted-foreground">No description.</p>
-      )}
-    </section>
   )
 }
 

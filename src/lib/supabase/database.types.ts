@@ -34,6 +34,55 @@ export type Database = {
   }
   public: {
     Tables: {
+      document_links: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          source_document_id: string
+          source_object_id: string
+          target_document_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          source_document_id: string
+          source_object_id: string
+          target_document_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          source_document_id?: string
+          source_object_id?: string
+          target_document_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_links_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_links_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_links_target_document_id_fkey"
+            columns: ["target_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_snapshots: {
         Row: {
           document_id: string
@@ -470,6 +519,15 @@ export type Database = {
           id: string
           title: string
           type: Database["public"]["Enums"]["document_type"]
+        }[]
+      }
+      document_references: {
+        Args: { p_document_id: string }
+        Returns: {
+          project_id: string
+          source_document_id: string
+          source_title: string
+          source_type: Database["public"]["Enums"]["document_type"]
         }[]
       }
       get_invite: {

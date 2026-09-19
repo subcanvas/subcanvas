@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 
+import type { TextDocumentContext } from "./document-link-block"
 import { SyncBadge } from "./sync-badge"
 import type { EditorUser } from "./text-editor"
 
@@ -15,11 +16,13 @@ export function TextDocument({
   documentId,
   user,
   editable,
+  context,
   autoFocus = false,
 }: {
   documentId: string
   user: EditorUser
   editable: boolean
+  context: Omit<TextDocumentContext, "documentId">
   autoFocus?: boolean
 }) {
   const provider = useDocumentSync(documentId, !editable)
@@ -30,7 +33,13 @@ export function TextDocument({
       <div className="px-13">
         <SyncBadge provider={provider} editable={editable} />
       </div>
-      <Editor provider={provider} user={user} editable={editable} autoFocus={autoFocus} />
+      <Editor
+        provider={provider}
+        user={user}
+        editable={editable}
+        context={{ ...context, documentId }}
+        autoFocus={autoFocus}
+      />
     </div>
   )
 }
@@ -41,11 +50,13 @@ function Editor({
   provider,
   user,
   editable,
+  context,
   autoFocus,
 }: {
   provider: SupabaseProvider
   user: EditorUser
   editable: boolean
+  context: TextDocumentContext
   autoFocus: boolean
 }) {
   const { loaded } = useSyncStatus(provider)
@@ -53,6 +64,12 @@ function Editor({
     return <p className="px-13 text-sm text-muted-foreground">Loading…</p>
 
   return (
-    <TextEditor provider={provider} user={user} editable={editable} autoFocus={autoFocus} />
+    <TextEditor
+      provider={provider}
+      user={user}
+      editable={editable}
+      context={context}
+      autoFocus={autoFocus}
+    />
   )
 }

@@ -293,6 +293,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
               ...fields,
               // Links are not duplicated: a document has one home (R1.4).
               docId: null,
+              docType: null,
               // Keep a parent outside the copied set, so a copy stays in its group.
               parentId: inside ? ids.get(node.parentId!) : node.parentId,
               x: inside ? node.x : node.x + offset,
@@ -306,7 +307,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
           if (!source || !target) continue
           yEdges.set(
             crypto.randomUUID(),
-            toYMap({ ...edge, id: null, docId: null, source, target })
+            toYMap({ ...edge, id: null, docId: null, docType: null, source, target })
           )
         }
       })
@@ -319,6 +320,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     nodes,
     edges,
     setNodes,
+    setEdges,
     onNodesChange,
     onEdgesChange,
     onConnect,

@@ -16,6 +16,7 @@ import {
 
 import {
   deleteDocumentForever,
+  listReferences,
   restoreDocument,
   type ActionResult,
   type ProjectRef,
@@ -34,6 +35,7 @@ export function TrashRow({
 }) {
   const [pending, startTransition] = useTransition()
   const [confirming, setConfirming] = useState(false)
+  const [references, setReferences] = useState<string[]>([])
 
   function run(action: () => Promise<ActionResult>, message: string) {
     startTransition(async () => {
@@ -61,7 +63,12 @@ export function TrashRow({
             variant="destructive"
             size="sm"
             disabled={pending}
-            onClick={() => setConfirming(true)}
+            onClick={() =>
+              startTransition(async () => {
+                setReferences(await listReferences(id))
+                setConfirming(true)
+              })
+            }
           >
             Delete forever
           </Button>
@@ -74,8 +81,16 @@ export function TrashRow({
             <DialogTitle>Delete “{title}” forever?</DialogTitle>
             <DialogDescription>
               This also deletes every document nested inside it. It cannot be undone.
+              {references.length > 0 && " These documents link to it and will lose the link:"}
             </DialogDescription>
           </DialogHeader>
+          {references.length > 0 && (
+            <ul className="list-disc pl-5 text-sm">
+              {references.map((title, index) => (
+                <li key={index}>{title}</li>
+              ))}
+            </ul>
+          )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline">Cancel</Button>} />
             <Button

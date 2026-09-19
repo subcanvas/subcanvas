@@ -20,12 +20,23 @@ import {
   createDocument,
   createFolder,
   deleteFolder,
+  listReferences,
   moveItem,
   renameItem,
   trashDocument,
   type ActionResult,
   type ProjectRef,
 } from "@/app/[org]/[project]/tree-actions"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +79,12 @@ export function ProjectTree({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  // A document that is linked from elsewhere, waiting for confirmation.
+  const [confirmTrash, setConfirmTrash] = useState<{
+    id: string
+    name: string
+    references: string[]
+  } | null>(null)
 
   // Reveal the open document.
   const activePath = useMemo(
@@ -111,6 +128,27 @@ export function ProjectTree({
         }
       )
     else run(() => createDocument(project, type, container))
+  }
+
+  function trash(id: string) {
+    run(
+      () => trashDocument(project, id),
+      () => {
+        toast.success("Moved to trash.")
+        // Leave the page if it, or something it contains, was open.
+        if (id === activeId || activePath?.includes(id))
+          router.push(`/${project.slug}/${project.projectId}`)
+      }
+    )
+  }
+
+  // Warn first when other documents link to this one (R1.8).
+  function requestTrash(id: string, name: string) {
+    startTransition(async () => {
+      const references = await listReferences(id)
+      if (references.length) setConfirmTrash({ id, name, references })
+      else trash(id)
+    })
   }
 
   function drop(event: React.DragEvent, target: Container) {
@@ -236,20 +274,9 @@ export function ProjectTree({
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() =>
-                  run(
-                    () =>
-                      node.kind === "folder"
-                        ? deleteFolder(project, node.id)
-                        : trashDocument(project, node.id),
-                    () => {
-                      if (node.kind === "document") {
-                        toast.success("Moved to trash.")
-                        // Leave the page if it, or something it contains, was open.
-                        if (node.id === activeId || activePath?.includes(node.id))
-                          router.push(`/${project.slug}/${project.projectId}`)
-                      }
-                    }
-                  )
+                  node.kind === "folder"
+                    ? run(() => deleteFolder(project, node.id))
+                    : requestTrash(node.id, node.name)
                 }
               >
                 <Trash2 />
@@ -285,6 +312,32 @@ export function ProjectTree({
       onDragLeave={() => setDropTarget((current) => (current === "root" ? null : current))}
       onDrop={(event) => canEdit && drop(event, { kind: "root" })}
     >
+      <Dialog open={confirmTrash !== null} onOpenChange={(open) => !open && setConfirmTrash(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move “{confirmTrash?.name}” to the trash?</DialogTitle>
+            <DialogDescription>
+              It is linked from {confirmTrash?.references.length === 1 ? "another document" : "other documents"}.
+              Those links will show it as trashed until you restore it.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="list-disc pl-5 text-sm">
+            {confirmTrash?.references.map((title, index) => <li key={index}>{title}</li>)}
+          </ul>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Cancel</Button>} />
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirmTrash) trash(confirmTrash.id)
+                setConfirmTrash(null)
+              }}
+            >
+              Move to trash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <SidebarGroupLabel>{projectName}</SidebarGroupLabel>
       {canEdit && (
         <DropdownMenu>
