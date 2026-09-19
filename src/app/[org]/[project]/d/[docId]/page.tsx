@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { DocumentTitle } from "@/components/editor/document-title"
 import { TextDocument } from "@/components/editor/text-document"
+import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
@@ -31,27 +32,42 @@ export default async function DocumentPage({
   })
   if (ancestors?.some((ancestor) => ancestor.deleted_at !== null)) notFound()
 
+  const editable = hasRole(role, "editor")
+  const title = (compact: boolean) => (
+    <DocumentTitle
+      key={document.title}
+      project={{ slug: org.slug, orgId: org.id, projectId }}
+      documentId={document.id}
+      title={document.title}
+      editable={editable}
+      compact={compact}
+    />
+  )
+
+  if (document.type === "whiteboard")
+    return (
+      <main className="flex h-[calc(100svh-3rem)] flex-col">
+        <WhiteboardDocument
+          key={document.id}
+          documentId={document.id}
+          editable={editable}
+          header={title(true)}
+        />
+      </main>
+    )
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-8">
-      <DocumentTitle
-        key={document.title}
-        project={{ slug: org.slug, orgId: org.id, projectId }}
+      {title(false)}
+      <TextDocument
+        key={document.id}
         documentId={document.id}
-        title={document.title}
-        editable={hasRole(role, "editor")}
+        editable={editable}
+        user={{
+          name: profile?.display_name ?? user.email ?? "Someone",
+          color: userColor(user.id),
+        }}
       />
-      {document.type === "text" ? (
-        <TextDocument
-          documentId={document.id}
-          editable={hasRole(role, "editor")}
-          user={{
-            name: profile?.display_name ?? user.email ?? "Someone",
-            color: userColor(user.id),
-          }}
-        />
-      ) : (
-        <p className="px-13 text-muted-foreground">Whiteboards arrive in milestone 4.</p>
-      )}
     </main>
   )
 }
