@@ -1,0 +1,5 @@
+title: Project tree
+description: The sidebar's list of folders and documents. Create, rename, drag to move, and trash, with the open document revealed.
+connects:
+  - to: src/app/[org]
+    label: server actions

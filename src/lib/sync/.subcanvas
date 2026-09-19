@@ -1,0 +1,6 @@
+title: Real-time sync
+description: A custom Yjs provider. One private Realtime channel per document, with every update also appended to Postgres, so nothing depends on a broadcast arriving.
+connects:
+  - to: supabase/migrations
+    label: Realtime and Postgres
+    description: On open, a client reads the snapshot and any later rows of document_updates, then joins the channel doc:<id>. Edits are batched (about 100 ms), broadcast only when someone else is connected, and appended to document_updates (about 1 s, merged). On join and reconnect, peers trade state vectors and send only the missing difference. After about 200 rows a client writes a fresh snapshot and deletes the rows it covers, in one transaction.

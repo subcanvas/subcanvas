@@ -1,0 +1,5 @@
+title: Sign-in
+description: Email and password, an emailed link, or Google and GitHub when the server has them configured.
+connects:
+  - to: src/app/auth
+    label: links and OAuth return here

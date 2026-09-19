@@ -1,0 +1,12 @@
+title: Org workspace
+description: Everything a signed-in member sees. An org's projects, members, and billing, and inside a project, its document tree, whiteboards, and pages.
+connects:
+  - to: src/components/tree
+    label: project tree
+  - to: src/components/whiteboard
+    label: whiteboard pages
+  - to: src/components/editor
+    label: text pages
+  - to: src/lib/supabase
+    label: queries as the member
+    description: Pages and server actions query Supabase with the member's session. A viewer who calls an editor's action is refused by the database, not only by the interface.

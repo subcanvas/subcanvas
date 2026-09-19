@@ -1,0 +1,5 @@
+title: Database tests
+description: pgTAP tests of row-level security. Two orgs cannot see each other, a viewer cannot write, and an anonymous visitor reads only public projects.
+connects:
+  - to: supabase/migrations
+    label: tests

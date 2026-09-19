@@ -1,0 +1,6 @@
+title: Supabase clients
+description: Browser, server, and proxy clients that carry the member's session, plus generated database types. One admin client exists, used only by billing.
+connects:
+  - to: supabase/migrations
+    label: PostgREST and Auth
+    description: Queries go through PostgREST with the member's token. Row-level security on every table is the one place access is decided. The generated types in database.types.ts are checked against the migrations in CI.

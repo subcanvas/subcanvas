@@ -1,0 +1,5 @@
+title: Auth callback
+description: Where sign-in links, OAuth, and password resets land. Swaps the one-time code for a session cookie, then sends the person where they were going.
+connects:
+  - to: src/lib/supabase
+    label: exchanges code for session

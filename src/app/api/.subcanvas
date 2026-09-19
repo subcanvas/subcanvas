@@ -1,0 +1,6 @@
+title: Stripe webhook
+description: Receives subscription events from Stripe and records each org's plan. The only code that runs without a signed-in user.
+connects:
+  - to: src/lib/billing
+    label: subscription events
+    description: Stripe signs each event; the handler verifies the signature, then writes the subscription's state to the org's plan with the server's secret key. Everything else in the app reads that plan through row-level security.
