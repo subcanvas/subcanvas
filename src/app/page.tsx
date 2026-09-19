@@ -29,6 +29,16 @@ const INSIDE = [
   },
 ]
 
+const DEVELOPER_STEPS = [
+  ["Paste a repository.", "Public repositories, no GitHub app to install."],
+  ["Get the diagram.", "Folder paths sit under each name, and every README opens beside the drawing."],
+  [
+    "Say what connects.",
+    "An optional .subcanvas file in a folder names what it talks to. Each connection becomes an arrow, and its description becomes the page behind the arrow.",
+  ],
+  ["Put it in your README.", "A public diagram embeds as a picture that stays current and opens the live version."],
+] as const
+
 const USES = [
   ["Plan a move", "Visa, apartment, budget. Each one opens into its own steps."],
   ["Map a system", "Services on top. Inside each, how it works. On each arrow, the contract between them."],
@@ -52,6 +62,9 @@ export default async function Home() {
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <Wordmark />
         <nav className="flex items-center gap-1 text-sm">
+          <a href="#developers" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Developers
+          </a>
           <a href="#pricing" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             Pricing
           </a>
@@ -115,6 +128,59 @@ export default async function Home() {
               </div>
             ))}
           </dl>
+        </section>
+
+        <section id="developers" className="border-t border-rule">
+          <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
+            <div className="flex flex-col gap-5">
+              <p className="font-mono text-xs tracking-wide text-graphite uppercase">For developers</p>
+              <h2 className="text-3xl font-semibold">Your repository already knows its own design</h2>
+              <p className="max-w-xl leading-relaxed text-graphite">
+                Import a public GitHub repository and get its system diagram: one box per folder, each
+                folder&apos;s README inside its box, and folders inside folders as whiteboards inside boxes. Then
+                make it yours: move things, delete what is not part of the design, draw what is missing.
+              </p>
+              <ol className="flex max-w-xl flex-col gap-3 text-sm leading-relaxed">
+                {DEVELOPER_STEPS.map(([title, body], index) => (
+                  <li key={title} className="flex gap-3">
+                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-rule font-mono text-[11px] text-graphite">
+                      {index + 1}
+                    </span>
+                    <span>
+                      <span className="font-semibold">{title}</span>{" "}
+                      <span className="text-graphite">{body}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link href="/login" className={buttonVariants()}>
+                  Import a repository
+                </Link>
+                <a
+                  href={`${SOURCE_URL}/blob/main/docs/SUBCANVAS_FILE.md`}
+                  className={buttonVariants({ variant: "ghost" })}
+                >
+                  The .subcanvas file
+                </a>
+              </div>
+            </div>
+            <pre
+              aria-label="An example .subcanvas file"
+              className="sheet-stack overflow-x-auto rounded-xl border border-rule bg-sheet p-5 font-mono text-[13px] leading-relaxed text-graphite [--stack-edge:var(--blueline)]"
+            >
+              <code>
+                <span className="text-graphite"># services/payments/.subcanvas{"\n"}</span>
+                <span className="text-ink">title</span>: Payments{"\n"}
+                <span className="text-ink">description</span>: Charges cards and reconciles payouts.{"\n"}
+                <span className="text-ink">connects</span>:{"\n"}
+                {"  "}- <span className="text-ink">to</span>: services/ledger{"\n"}
+                {"    "}<span className="text-ink">label</span>: gRPC{"\n"}
+                {"    "}<span className="text-ink">description</span>: Posts a journal entry{"\n"}
+                {"      "}for every settled charge.
+              </code>
+            </pre>
+          </div>
         </section>
 
         <section id="pricing" className="border-t border-rule bg-sheet">
