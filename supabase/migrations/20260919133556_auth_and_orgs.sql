@@ -22,7 +22,10 @@ create table public.profiles (
 create table public.orgs (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 80),
-  slug text not null unique check (slug ~ '^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$'),
+  slug text not null unique
+    check (slug ~ '^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$')
+    -- Org slugs are top-level URL segments, so app routes are reserved.
+    check (slug not in ('login', 'auth', 'onboarding', 'invite', 'api', 'settings', 'new', 'admin')),
   created_by uuid references public.profiles (id) on delete set null,
   created_at timestamptz not null default now()
 );
