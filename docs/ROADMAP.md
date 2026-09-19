@@ -45,7 +45,9 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 - **It acts as a user, never as an admin.** The agent signs in through OAuth as a person and gets that person's role in each org. Row-level security stays the one place access is decided, exactly as for the web app. There is no service key behind the MCP server and no separate permission model to keep in step.
 - **The tool list is the feature list.** Orgs and members (list, invite, change role, remove). Projects (create, rename, make public or private, delete). Folders and documents (create, move, rename, trash, restore, link, list references). Whiteboards (add, move, restyle, connect, group, and delete nodes, edges, and groups; open what is inside them). Text (read as Markdown, insert, replace, delete blocks). Billing (read the plan; return a checkout or portal link, since paying is the one step that needs a human and a card).
-- **Agents are collaborators, not importers.** An agent's edits go through the same Yjs documents as a person's, so people watching see them arrive live, undo works, and the agent shows up in presence under a name like "Trevin's agent".
+- **Agents are collaborators, not importers.** An agent's edits are Yjs updates to the same documents people edit, so they merge with what people are typing, people watching see them arrive live, and undo works.
+- **Yjs, but no standing connection.** MCP is request and response, the endpoint runs on serverless functions that cannot hold a socket, and Realtime is billed by concurrent connections (the reason viewers hold none). So each tool call is a short session: read the snapshot and update log from Postgres (at most about a second behind, since browsers persist after ~1 s), append the change to `document_updates`, and announce it on the document's channel through Realtime's HTTP broadcast. Browsers that miss the broadcast pick the change up on their next database re-read. Tools address blocks and objects by id, never by position or matching text, so a read that is a second stale cannot make an edit land in the wrong place.
+- **Shown while working.** Realtime presence needs a socket, so an agent is not a standing avatar. While it is making changes, people in the document see "Trevin's agent is editing", sent over the same HTTP broadcast and expiring after a few seconds.
 - **Parity is tested, not promised.** A feature is not done until its tool exists. A test lists every server action and fails when one has no matching tool.
 
 **Transport and hosting.** A remote server at `subcanvas.app/mcp` (streamable HTTP, OAuth 2.1 per the MCP specification), so it works from Claude, ChatGPT, Cursor, and anything else that speaks MCP without installing anything. Self-hosters get the same endpoint from their own deployment.
@@ -57,6 +59,8 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 | Should destructive tools (delete a project, remove a member) ask for confirmation? | No special case. The web app sends documents to the trash instead of destroying them, and the agent gets the same safety net. Mark the tools as destructive in their MCP annotations so clients can ask their user. |
 | Can a user limit an agent to one project or to read-only? | Yes, at connection time: the OAuth consent screen offers "everything I can do" (the default), "read only", and "only these projects". |
 | Are agents billed as editors? | No. An agent acts as its user, who is already counted. |
+| Can an agent watch a document and react to changes? | Later, as an optional live mode. It needs a long-lived process outside the serverless deployment, which is a cost for us and for self-hosters, so it waits for a use case that needs it. |
+| Does Realtime's HTTP broadcast apply a user's token and the channel's authorization policies to a private channel? | Believed so; confirm with a spike before building on it. If not, edits still arrive through the 30 s database re-read, only slower. |
 | Rate limits? | Per user, shared between the web app and agents, so an agent cannot do more damage than a script in the browser could. |
 
 ---
@@ -114,7 +118,7 @@ ignore:
 
 Two pieces that items 2 and 3 both need, and that are worth building once and first.
 
-1. **A server-side document writer.** Today only a browser writes to a document's Yjs state. An agent's edits and a repository sync both have to write from the server: load the document, apply a change as a Yjs update, persist it, and broadcast it to everyone who has the document open. It must respect the same permission checks as a browser client.
+1. **A server-side document writer.** Today only a browser writes to a document's Yjs state. An agent's edits and a repository sync both have to write from the server, without a socket: load the document from Postgres, apply a change as a Yjs update, append it to `document_updates`, and announce it over Realtime's HTTP broadcast to everyone who has the document open. It must respect the same permission checks as a browser client.
 2. **A source on documents and objects.** A record of where something came from and what keeps it current: `{ provider: "github", repository, path, ref }` for a repository node, `{ provider: "google", url }` for a linked document. It is what makes a document read-only, what a sync matches on, and what the interface shows next to the title.
 
 ## Suggested order
