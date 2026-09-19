@@ -62,7 +62,9 @@
    Every document is a sheet of paper, and going inside something puts a new
    sheet on the stack. Cool paper, navy ink, drafting "non-photo blue" for the
    grid and sheet edges, and one cobalt reserved for what you can act on.
-   Red is never decorative: it only ever means destructive. */
+   Red is never decorative: it only ever means destructive.
+   The dark theme is neutral, white to black, with no blue in the surfaces:
+   cobalt is the only color left on the page. */
 :root {
   --paper: #f4f6fa;
   --sheet: #ffffff;
@@ -110,22 +112,22 @@
 }
 
 .dark {
-  --paper: #0c1020;
-  --sheet: #141a2e;
-  --ink: #e9edf9;
-  --graphite: #97a1bb;
-  --rule: #262f49;
-  --blueline: #2f4f72;
+  --paper: #0a0a0a;
+  --sheet: #171717;
+  --ink: #ededed;
+  --graphite: #a1a1a1;
+  --rule: #2a2a2a;
+  --blueline: #3d3d3d;
   --cobalt: #7d95ff;
 
-  --primary-foreground: #0c1020;
-  --secondary: #1d2540;
-  --muted: #1a2138;
-  --accent: #222c4d;
+  --primary-foreground: #0a0a0a;
+  --secondary: #222222;
+  --muted: #1f1f1f;
+  --accent: #262626;
   --destructive: #ff6b76;
-  --input: #303a58;
-  --sidebar-primary-foreground: #0c1020;
-  --sidebar-accent: #1d2540;
+  --input: #3a3a3a;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #222222;
 }
 
 @layer base {
