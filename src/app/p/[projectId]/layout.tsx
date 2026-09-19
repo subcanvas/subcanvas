@@ -78,7 +78,7 @@ export default async function PublicProjectLayout({
         </div>
       </header>
       <SidebarProvider className="min-h-0 flex-1 flex-col md:flex-row">
-        <MobileTree projectName={project.name}>
+        <MobileTree title={project.name}>
           <SidebarContent>{tree}</SidebarContent>
         </MobileTree>
         <Sidebar collapsible="none" className="sticky top-0 hidden h-[calc(100svh-3rem)] border-r border-rule md:flex">

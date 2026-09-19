@@ -108,7 +108,7 @@ export default async function DocumentPage({
 
   if (document.type === "whiteboard")
     return (
-      <main id="main" className={cn("flex h-[calc(100svh-3rem)] flex-col bg-sheet max-md:h-[calc(100svh-3rem-41px)]", trail.length > 0 && "animate-sheet-enter")}>
+      <main id="main" className={cn("flex h-svh flex-col bg-sheet max-md:h-[calc(100svh-41px)]", trail.length > 0 && "animate-sheet-enter")}>
         <WhiteboardDocument
           key={document.id}
           documentId={document.id}

@@ -1,5 +1,3 @@
-import { OrgHeader } from "@/components/org-header"
-import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
 export default async function OrgLayout({
@@ -7,29 +5,10 @@ export default async function OrgLayout({
   params,
 }: LayoutProps<"/[org]">) {
   const { org: slug } = await params
-  const { supabase, user, org, role, plan } = await getOrgContext(slug)
-
-  const [{ data: orgs }, { data: profile }] = await Promise.all([
-    supabase.from("orgs").select("name, slug").order("created_at"),
-    supabase
-      .from("profiles")
-      .select("display_name, avatar_url")
-      .eq("id", user.id)
-      .single(),
-  ])
+  const { role, plan } = await getOrgContext(slug)
 
   return (
     <>
-      <OrgHeader
-        org={org}
-        orgs={orgs ?? []}
-        showBilling={billingConfigured()}
-        user={{
-          email: user.email ?? "",
-          name: profile?.display_name ?? null,
-          avatarUrl: profile?.avatar_url ?? null,
-        }}
-      />
       {plan && (plan.locked || plan.grace_ends_at) && (
         <p role="status" className="border-b bg-destructive/10 px-4 py-2 text-sm">
           {plan.locked
