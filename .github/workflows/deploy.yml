@@ -1,0 +1,69 @@
+name: Deploy
+
+# Pushes database migrations to the hosted Supabase project when main changes.
+# The app itself is built by its host (Vercel's Git integration, or yours).
+# Setup is in docs/DEPLOYMENT.md.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  # The app may go live slightly before or after this job. Write migrations
+  # the previous app version can live with: add first, remove in a later release.
+  migrate:
+    needs: ci
+    # An explicit switch, turned on once the secrets below exist. Until then
+    # CI still runs and this is skipped, rather than failing.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    # Keep the secrets in this environment, restrict it to the main branch,
+    # and add required reviewers. A workflow on any other branch then cannot
+    # read them, and every migration waits for approval.
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.110.0
+      - run: supabase link --project-ref "$PROJECT_REF"
+      - run: supabase db push
+
+      # The free plan's limits are data, not schema: self-hosters must not
+      # inherit them from a migration, so a deployment that sells
+      # subscriptions sets them here. Leave both variables unset to leave the
+      # database as it is.
+      - name: Free plan limits
+        if: vars.FREE_PRIVATE_DOCUMENT_LIMIT != '' || vars.FREE_EDITOR_LIMIT != ''
+        env:
+          DOCUMENTS: ${{ vars.FREE_PRIVATE_DOCUMENT_LIMIT }}
+          EDITORS: ${{ vars.FREE_EDITOR_LIMIT }}
+        run: |
+          # Each is a whole number, or "none" (or unset) for no limit.
+          sql_value() {
+            case "$1" in
+              ''|none) echo null ;;
+              *[!0-9]*) echo "::error::'$1' is not a whole number or 'none'." >&2; exit 1 ;;
+              *) echo "$1" ;;
+            esac
+          }
+          documents=$(sql_value "$DOCUMENTS")
+          editors=$(sql_value "$EDITORS")
+          query="update private.config set free_private_document_limit = $documents, free_editor_limit = $editors"
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -n --arg query "$query" '{query: $query}')"
+          echo "Free plan: $documents private documents, $editors editors."
