@@ -22,12 +22,22 @@ export function LegalPage({ title, children }: { title: string; children: React.
       </header>
       <main
         id="main"
-        className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 pt-8 pb-24 text-[15px] leading-relaxed text-ink [&_a]:text-cobalt [&_a]:underline-offset-4 hover:[&_a]:underline [&_h2]:mt-8 [&_h2]:font-sans [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-normal [&_li]:ml-5 [&_li]:list-disc [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1.5"
+        className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 pt-8 pb-24 text-[15px] leading-relaxed text-ink [&_a]:text-cobalt [&_a]:underline-offset-4 hover:[&_a]:underline [&_h2]:mt-8 [&_h2]:font-sans [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-normal [&_h3]:mt-3 [&_h3]:font-semibold [&_li]:ml-5 [&_li]:list-disc [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-1.5"
       >
         <h1 className="text-4xl font-semibold">{title}</h1>
         <p className="text-sm text-graphite">Effective {LEGAL_EFFECTIVE}</p>
         {children}
       </main>
     </div>
+  )
+}
+
+// CC BY 4.0 asks for this credit, in these words.
+export function LegalAttribution() {
+  return (
+    <p className="mt-8 border-t border-rule pt-4 text-sm text-graphite">
+      Adapted from the <a href="https://github.com/basecamp/policies">Basecamp open-source policies</a> /{" "}
+      <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+    </p>
   )
 }
