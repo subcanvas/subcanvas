@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { MobileTree } from "@/components/tree/mobile-tree"
 import { ProjectTree } from "@/components/tree/project-tree"
 import { ProjectVisibility } from "@/components/tree/project-visibility"
 import {
@@ -47,47 +48,73 @@ export default async function ProjectLayout({
       .is("deleted_at", null),
   ])
 
+  const projectRef = { slug: org.slug, orgId: org.id, projectId: project.id }
+  const showUsage =
+    project.visibility === "private" &&
+    plan &&
+    !plan.paid &&
+    plan.private_document_limit != null &&
+    billingConfigured()
+
+  // The same contents serve the sidebar on a wide screen and a drawer on a
+  // narrow one.
+  const contents = (
+    <>
+      <SidebarHeader className="gap-0 pb-0">
+        <ProjectVisibility
+          project={projectRef}
+          visibility={project.visibility}
+          canChange={hasRole(role, "admin") && canEdit}
+        />
+      </SidebarHeader>
+      <SidebarContent>
+        <ProjectTree
+          project={projectRef}
+          projectName={project.name}
+          nodes={buildTree(folders ?? [], documents ?? [])}
+          canEdit={canEdit}
+          canUpgrade={billingConfigured()}
+        />
+      </SidebarContent>
+      <SidebarFooter className="gap-2 border-t border-rule">
+        {showUsage && (
+          <Link
+            href={`/${org.slug}/settings/billing`}
+            className="flex flex-col gap-1.5 rounded-md px-2 py-1.5 text-xs text-graphite outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="flex justify-between">
+              <span>Private documents</span>
+              <span className="font-mono">
+                {plan.private_documents}/{plan.private_document_limit}
+              </span>
+            </span>
+            <span className="h-1 overflow-hidden rounded-full bg-rule" aria-hidden>
+              <span
+                className="block h-full rounded-full bg-cobalt"
+                style={{
+                  width: `${Math.min(100, (plan.private_documents / Math.max(1, plan.private_document_limit)) * 100)}%`,
+                }}
+              />
+            </span>
+          </Link>
+        )}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton render={<Link href={`/${org.slug}/${project.id}/trash`} />}>
+              <Trash2 className="text-graphite" />
+              Trash
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </>
+  )
+
   return (
-    <SidebarProvider className="min-h-0 flex-1">
-      <Sidebar collapsible="none" className="sticky top-0 h-[calc(100svh-3rem)] border-r">
-        <SidebarHeader>
-          <ProjectVisibility
-            project={{ slug: org.slug, orgId: org.id, projectId: project.id }}
-            visibility={project.visibility}
-            canChange={hasRole(role, "admin") && canEdit}
-          />
-        </SidebarHeader>
-        <SidebarContent>
-          <ProjectTree
-            project={{ slug: org.slug, orgId: org.id, projectId: project.id }}
-            projectName={project.name}
-            nodes={buildTree(folders ?? [], documents ?? [])}
-            canEdit={canEdit}
-            canUpgrade={billingConfigured()}
-          />
-        </SidebarContent>
-        <SidebarFooter>
-          {project.visibility === "private" &&
-            plan &&
-            !plan.paid &&
-            plan.private_document_limit != null &&
-            billingConfigured() && (
-              <Link
-                href={`/${org.slug}/settings/billing`}
-                className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-sidebar-accent"
-              >
-                {plan.private_documents} of {plan.private_document_limit} free private documents used
-              </Link>
-            )}
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton render={<Link href={`/${org.slug}/${project.id}/trash`} />}>
-                <Trash2 />
-                Trash
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
+    <SidebarProvider className="min-h-0 flex-1 flex-col md:flex-row">
+      <MobileTree projectName={project.name}>{contents}</MobileTree>
+      <Sidebar collapsible="none" className="sticky top-0 hidden h-[calc(100svh-3rem)] border-r border-rule md:flex">
+        {contents}
       </Sidebar>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </SidebarProvider>

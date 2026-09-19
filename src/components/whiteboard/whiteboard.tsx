@@ -261,7 +261,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
 
   return (
     <WhiteboardActionsContext value={actions}>
-    <div className="flex size-full" onKeyDown={onKeyDown}>
+    <div className="relative flex size-full" onKeyDown={onKeyDown}>
       <div ref={wrapper} className="relative min-w-0 flex-1 bg-paper">
         <ReactFlow
           nodes={wb.nodes}

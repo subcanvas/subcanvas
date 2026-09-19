@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb"
@@ -9,6 +10,15 @@ import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
 import { userColor } from "@/lib/user-color"
 import { cn } from "@/lib/utils"
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/[org]/[project]/d/[docId]">): Promise<Metadata> {
+  const { org: slug, docId } = await params
+  const { supabase } = await getOrgContext(slug)
+  const { data } = await supabase.from("documents").select("title").eq("id", docId).maybeSingle()
+  return { title: data?.title ?? "Document" }
+}
 
 export default async function DocumentPage({
   params,
@@ -87,7 +97,7 @@ export default async function DocumentPage({
 
   if (document.type === "whiteboard")
     return (
-      <main className={cn("flex h-[calc(100svh-3rem)] flex-col bg-sheet", trail.length > 0 && "animate-sheet-enter")}>
+      <main id="main" className={cn("flex h-[calc(100svh-3rem)] flex-col bg-sheet max-md:h-[calc(100svh-3rem-41px)]", trail.length > 0 && "animate-sheet-enter")}>
         <WhiteboardDocument
           key={document.id}
           documentId={document.id}
@@ -114,7 +124,7 @@ export default async function DocumentPage({
     )
 
   return (
-    <main
+    <main id="main"
       className={cn(
         "mx-auto my-6 flex w-full max-w-3xl flex-1 flex-col gap-4 rounded-xl border border-rule bg-sheet py-8 shadow-xs",
         trail.length > 0 && "animate-sheet-enter"

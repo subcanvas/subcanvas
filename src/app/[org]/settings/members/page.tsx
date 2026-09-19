@@ -10,9 +10,12 @@ import {
 import { PageHeader } from "@/components/page-header"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
+import { userColor } from "@/lib/user-color"
 
 import { InviteForm } from "./invite-form"
 import { InviteActions, MemberActions } from "./row-actions"
+
+export const metadata = { title: "Members" }
 
 export default async function MembersPage({
   params,
@@ -38,7 +41,7 @@ export default async function MembersPage({
   ])
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
+    <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
       <PageHeader
         eyebrow={org.name}
         title="Members"
@@ -66,15 +69,24 @@ export default async function MembersPage({
             return (
               <TableRow key={member.user_id}>
                 <TableCell>
-                  <div className="font-medium">
-                    {member.profiles?.display_name ?? member.profiles?.email}
-                    {isSelf && <span className="text-muted-foreground"> (you)</span>}
-                  </div>
-                  {member.profiles?.display_name && (
-                    <div className="text-sm text-muted-foreground">
-                      {member.profiles.email}
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium text-white"
+                      style={{ backgroundColor: userColor(member.user_id) }}
+                    >
+                      {(member.profiles?.display_name ?? member.profiles?.email ?? "?").charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">
+                        {member.profiles?.display_name ?? member.profiles?.email}
+                        {isSelf && <span className="font-normal text-graphite"> (you)</span>}
+                      </div>
+                      {member.profiles?.display_name && (
+                        <div className="truncate text-sm text-graphite">{member.profiles.email}</div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </TableCell>
                 <MemberActions
                   slug={org.slug}
@@ -95,10 +107,10 @@ export default async function MembersPage({
       {isAdmin && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold">Invites</h2>
-            <p className="text-sm text-muted-foreground">
-              Create an invite, then send the link to that person. They must sign
-              in with the invited email. Links expire after 7 days.
+            <h2 className="text-xl font-semibold">Invite someone</h2>
+            <p className="max-w-xl text-sm leading-relaxed text-graphite">
+              Create an invite, then send them the link yourself. It works once, only for the email you
+              enter, and for 7 days.
             </p>
           </div>
 

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 
 import { Wordmark } from "@/components/logo"
 import { ReportAbuse } from "@/components/report-abuse"
+import { MobileTree } from "@/components/tree/mobile-tree"
 import { ProjectTree } from "@/components/tree/project-tree"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -47,6 +48,16 @@ export default async function PublicProjectLayout({
     supabase.auth.getUser(),
   ])
 
+  const tree = (
+    <ProjectTree
+      project={{ slug: PUBLIC_SLUG, orgId: project.org_id, projectId: project.id }}
+      projectName={project.name}
+      nodes={buildTree(folders ?? [], documents ?? [])}
+      canEdit={false}
+      canUpgrade={false}
+    />
+  )
+
   return (
     <>
       <header className="flex h-12 items-center gap-3 border-b bg-sheet px-4">
@@ -66,17 +77,12 @@ export default async function PublicProjectLayout({
           )}
         </div>
       </header>
-      <SidebarProvider className="min-h-0 flex-1">
-        <Sidebar collapsible="none" className="sticky top-0 h-[calc(100svh-3rem)] border-r">
-          <SidebarContent>
-            <ProjectTree
-              project={{ slug: PUBLIC_SLUG, orgId: project.org_id, projectId: project.id }}
-              projectName={project.name}
-              nodes={buildTree(folders ?? [], documents ?? [])}
-              canEdit={false}
-              canUpgrade={false}
-            />
-          </SidebarContent>
+      <SidebarProvider className="min-h-0 flex-1 flex-col md:flex-row">
+        <MobileTree projectName={project.name}>
+          <SidebarContent>{tree}</SidebarContent>
+        </MobileTree>
+        <Sidebar collapsible="none" className="sticky top-0 hidden h-[calc(100svh-3rem)] border-r border-rule md:flex">
+          <SidebarContent>{tree}</SidebarContent>
         </Sidebar>
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </SidebarProvider>

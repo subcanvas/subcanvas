@@ -245,7 +245,7 @@ export function ProjectTree({
 
           {node.kind === "folder" ? (
             <SidebarMenuButton onClick={() => toggle(node.id)} className="pr-7">
-              <Icon />
+              <Icon className="text-graphite" />
               {label}
             </SidebarMenuButton>
           ) : renamingId === node.id ? (
@@ -257,9 +257,9 @@ export function ProjectTree({
             <SidebarMenuButton
               isActive={node.id === activeId}
               render={<Link href={href} draggable={false} />}
-              className="pr-7"
+              className="pr-7 data-active:font-medium data-active:shadow-[inset_2px_0_0_0_var(--cobalt)]"
             >
-              <Icon />
+              <Icon className={node.type === "whiteboard" ? "text-cobalt" : "text-graphite"} />
               {label}
             </SidebarMenuButton>
           )}
@@ -301,7 +301,12 @@ export function ProjectTree({
         )}
 
         {isOpen && node.children.length > 0 && (
-          <SidebarMenu>{node.children.map((child) => renderNode(child, depth + 1))}</SidebarMenu>
+          <SidebarMenu
+            className="relative before:absolute before:top-0 before:bottom-1 before:left-(--guide) before:w-px before:bg-rule"
+            style={{ ["--guide" as string]: `${depth * 12 + 10}px` }}
+          >
+            {node.children.map((child) => renderNode(child, depth + 1))}
+          </SidebarMenu>
         )}
         {isOpen && node.kind === "folder" && node.children.length === 0 && (
           <p
@@ -352,7 +357,9 @@ export function ProjectTree({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <SidebarGroupLabel>{projectName}</SidebarGroupLabel>
+      <SidebarGroupLabel className="h-auto py-1 font-heading text-[15px] font-semibold text-ink">
+        <span className="truncate">{projectName}</span>
+      </SidebarGroupLabel>
       {canEdit && (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -373,8 +380,8 @@ export function ProjectTree({
         {nodes.length ? (
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
-          <p className="px-2 py-1 text-sm text-muted-foreground">
-            {canEdit ? "Nothing here yet. Use + to add a document." : "Nothing here yet."}
+          <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
+            {canEdit ? "No documents yet. Use + to add a whiteboard or a page of notes." : "No documents yet."}
           </p>
         )}
       </SidebarGroupContent>

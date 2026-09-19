@@ -6,7 +6,7 @@ import { Wordmark } from "@/components/logo"
 // invite. One sheet on the drafting paper, with the mark above it.
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <main
+    <main id="main"
       className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-12"
       style={{
         backgroundImage: "radial-gradient(var(--blueline) 1px, transparent 1px)",

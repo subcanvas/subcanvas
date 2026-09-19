@@ -4,13 +4,12 @@ import { X } from "lucide-react"
 import { useRef, useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
-import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import {
   COLOR_KEYS,
   COLORS,
@@ -22,7 +21,7 @@ import { cn } from "@/lib/utils"
 
 import { ObjectDocument } from "./object-document"
 
-const KIND_LABELS = { plain: "Node", text: "Text node", group: "Group" }
+const KIND_LABELS = { plain: "Node", text: "Text", group: "Group" }
 
 const WIDTH_KEY = "subcanvas:panel-width"
 const MIN_WIDTH = 320
@@ -35,7 +34,8 @@ function storedWidth() {
 }
 
 // The panel that opens from the right when one object is selected (R4.3).
-// It sits beside the canvas rather than over it, so nothing is hidden.
+// On a wide screen it sits beside the canvas, so nothing is hidden. On a
+// narrow one it rises from the bottom as a sheet over the canvas.
 export function Inspector({
   selection,
   editable,
@@ -62,12 +62,21 @@ export function Inspector({
     localStorage.setItem(WIDTH_KEY, String(clamped))
   }
 
+  const isNode = "node" in selection
+  const name = isNode ? selection.node.title : selection.edge.label
+
   return (
     <aside
       ref={panel}
       aria-label="Object settings"
-      style={{ width }}
-      className="relative flex shrink-0 flex-col gap-5 overflow-y-auto border-l border-rule bg-sheet p-4"
+      style={{ ["--panel-width" as string]: `${width}px` }}
+      className={cn(
+        "z-20 flex flex-col overflow-y-auto border-rule bg-sheet",
+        // Narrow: a bottom sheet over the canvas.
+        "absolute inset-x-0 bottom-0 max-h-[70%] rounded-t-2xl border-t shadow-[0_-8px_30px_rgb(16_22_47/0.12)]",
+        // Wide: a column beside the canvas.
+        "md:relative md:inset-auto md:max-h-none md:w-(--panel-width) md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
+      )}
     >
       <div
         role="separator"
@@ -77,7 +86,7 @@ export function Inspector({
         aria-valuemax={MAX_WIDTH}
         aria-valuenow={width}
         tabIndex={0}
-        className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize outline-none hover:bg-ring/40 focus-visible:bg-ring/60"
+        className="absolute inset-y-0 left-0 z-10 hidden w-1.5 cursor-col-resize outline-none hover:bg-cobalt/30 focus-visible:bg-cobalt/50 md:block"
         onPointerDown={(event) => {
           event.preventDefault()
           event.currentTarget.setPointerCapture(event.pointerId)
@@ -91,24 +100,28 @@ export function Inspector({
           if (event.key === "ArrowRight") resize(width - 24)
         }}
       />
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[11px] font-medium tracking-wide text-graphite uppercase">
-          {"node" in selection ? KIND_LABELS[selection.node.kind] : "Edge"}
+
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
+        <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
+          {isNode ? KIND_LABELS[selection.node.kind] : "Arrow"}
+        </span>
+        <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
+          {name || (isNode ? "Untitled" : "No label")}
         </h2>
         <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>
           <X />
         </Button>
-      </div>
+      </header>
 
-      <fieldset disabled={!editable} className="flex flex-col gap-5">
-        {"node" in selection ? (
+      <fieldset disabled={!editable} className="flex flex-col gap-5 p-4">
+        {isNode ? (
           <NodeFields node={selection.node} onChange={(patch) => onNodeChange(selection.node.id, patch)} />
         ) : (
           <EdgeFields edge={selection.edge} onChange={(patch) => onEdgeChange(selection.edge.id, patch)} />
         )}
       </fieldset>
 
-      {"node" in selection ? (
+      {isNode ? (
         <ObjectDocument
           key={selection.node.id}
           objectId={selection.node.id}
@@ -159,11 +172,11 @@ function NodeFields({
         />
       </Field>
       {node.kind === "text" && (
-        <Field label="Body text" htmlFor="wb-description">
+        <Field label="Body text" htmlFor="wb-description" hint="Shown on the whiteboard, under the heading.">
           <Textarea
             id="wb-description"
             value={node.description}
-            rows={5}
+            rows={4}
             maxLength={2000}
             onChange={(event) => onChange({ description: event.target.value })}
           />
@@ -188,35 +201,37 @@ function EdgeFields({
           id="wb-label"
           value={edge.label}
           maxLength={120}
-          placeholder="None"
+          placeholder="What this arrow means"
           onChange={(event) => onChange({ label: event.target.value })}
         />
       </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Choice
+          label="Line"
+          value={edge.shape}
+          options={[
+            { value: "spline", label: "Curved" },
+            { value: "step", label: "Angled" },
+          ]}
+          onChange={(shape) => onChange({ shape })}
+        />
+        <Choice
+          label="Stroke"
+          value={edge.stroke}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "dotted", label: "Dotted" },
+          ]}
+          onChange={(stroke) => onChange({ stroke })}
+        />
+      </div>
       <Choice
-        label="Line"
-        value={edge.shape}
-        options={[
-          { value: "spline", label: "Curved" },
-          { value: "step", label: "Right angles" },
-        ]}
-        onChange={(shape) => onChange({ shape })}
-      />
-      <Choice
-        label="Stroke"
-        value={edge.stroke}
-        options={[
-          { value: "solid", label: "Solid" },
-          { value: "dotted", label: "Dotted" },
-        ]}
-        onChange={(stroke) => onChange({ stroke })}
-      />
-      <Choice
-        label="Arrow"
+        label="Arrowheads"
         value={edge.direction}
         options={[
           { value: "none", label: "None" },
-          { value: "forward", label: "Forward" },
-          { value: "reverse", label: "Reverse" },
+          { value: "forward", label: "End" },
+          { value: "reverse", label: "Start" },
           { value: "both", label: "Both" },
         ]}
         onChange={(direction) => onChange({ direction })}
@@ -229,16 +244,21 @@ function EdgeFields({
 function Field({
   label,
   htmlFor,
+  hint,
   children,
 }: {
   label: string
   htmlFor: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={htmlFor}>{label}</Label>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={htmlFor} className="text-xs text-graphite">
+        {label}
+      </Label>
       {children}
+      {hint && <p className="text-xs text-graphite/80">{hint}</p>}
     </div>
   )
 }
@@ -255,8 +275,8 @@ function Choice<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label>{label}</Label>
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs text-graphite">{label}</Label>
       <ToggleGroup
         aria-label={label}
         variant="outline"
@@ -270,7 +290,11 @@ function Choice<T extends string>({
         }}
       >
         {options.map((option) => (
-          <ToggleGroupItem key={option.value} value={option.value} className="flex-1">
+          <ToggleGroupItem
+            key={option.value}
+            value={option.value}
+            className="flex-1 data-pressed:border-cobalt data-pressed:bg-accent data-pressed:text-ink"
+          >
             {option.label}
           </ToggleGroupItem>
         ))}
@@ -281,9 +305,11 @@ function Choice<T extends string>({
 
 function ColorField({ value, onChange }: { value: ColorKey; onChange: (color: ColorKey) => void }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label>Color</Label>
-      <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs text-graphite">
+        Color <span className="text-ink">{COLORS[value].label}</span>
+      </Label>
+      <div role="radiogroup" aria-label="Color" className="flex flex-wrap gap-1.5">
         {COLOR_KEYS.map((key) => (
           <button
             key={key}
@@ -294,8 +320,8 @@ function ColorField({ value, onChange }: { value: ColorKey; onChange: (color: Co
             title={COLORS[key].label}
             onClick={() => onChange(key)}
             className={cn(
-              "size-6 rounded-full border-2 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
-              value === key && "ring-2 ring-ring ring-offset-2 ring-offset-background"
+              "size-7 rounded-md border outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:hover:scale-100",
+              value === key && "ring-2 ring-cobalt ring-offset-2 ring-offset-sheet"
             )}
             style={{ borderColor: COLORS[key].stroke, backgroundColor: COLORS[key].fill }}
           />

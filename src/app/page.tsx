@@ -63,7 +63,7 @@ export default async function Home() {
         </nav>
       </header>
 
-      <main className="flex flex-col">
+      <main id="main" className="flex flex-col">
         <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 pt-10 pb-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:pt-16">
           <div className="flex flex-col items-start gap-6">
             <h1 className="text-5xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-6xl">

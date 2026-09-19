@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server"
 
 import { LoginForm } from "./login-form"
 
+export const metadata = { title: "Sign in" }
+
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const params = await searchParams
   const next = safeNext(typeof params.next === "string" ? params.next : null)

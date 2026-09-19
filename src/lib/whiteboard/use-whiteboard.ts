@@ -59,11 +59,23 @@ function toFlowNode(wb: WbNode, existing: FlowNode | undefined, known: Set<strin
     height: wb.height ?? undefined,
     // Groups sit behind what they contain.
     zIndex: wb.kind === "group" ? -1 : 0,
+    // What a screen reader announces: what it is, what it is called, and
+    // whether there is something inside to open.
+    ariaLabel: [
+      `${wb.kind === "plain" ? "Node" : wb.kind === "text" ? "Text" : "Group"}: ${wb.title || "untitled"}`,
+      wb.docType === "whiteboard" ? "holds a whiteboard" : wb.docId ? "holds a document" : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
     data: { wb },
   }
 }
 
-function toFlowEdge(wb: WbEdge, existing: FlowEdge | undefined): FlowEdge {
+function toFlowEdge(
+  wb: WbEdge,
+  existing: FlowEdge | undefined,
+  titleOf: (nodeId: string) => string
+): FlowEdge {
   // Default edges are graphite, quieter than the nodes they join.
   const stroke = wb.color === "default" ? "var(--graphite)" : COLORS[wb.color].stroke
   const marker = { type: MarkerType.ArrowClosed, color: stroke, width: 14, height: 14 }
@@ -77,6 +89,14 @@ function toFlowEdge(wb: WbEdge, existing: FlowEdge | undefined): FlowEdge {
     targetHandle: wb.targetHandle,
     markerEnd: wb.direction === "forward" || wb.direction === "both" ? marker : undefined,
     markerStart: wb.direction === "reverse" || wb.direction === "both" ? marker : undefined,
+    // Named by what it joins, not by internal ids.
+    ariaLabel: [
+      `Arrow from ${titleOf(wb.source)} to ${titleOf(wb.target)}`,
+      wb.label ? `labelled ${wb.label}` : "",
+      wb.docId ? "holds a document" : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
     data: { wb },
   }
 }
@@ -114,6 +134,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
         const known = new Set(all.map((node) => node.id))
         return parentsFirst(all).map((wb) => toFlowNode(wb, existing.get(wb.id), known))
       })
+    const titleOf = (nodeId: string) => (yNodes.get(nodeId)?.get("title") as string) || "untitled"
     const syncEdges = () =>
       setEdges((current) => {
         const existing = new Map(current.map((edge) => [edge.id, edge]))
@@ -121,7 +142,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
           .map(([id, map]) => readEdge(id, map))
           // An edge whose end was deleted by someone else is not drawn.
           .filter((wb) => yNodes.has(wb.source) && yNodes.has(wb.target))
-          .map((wb) => toFlowEdge(wb, existing.get(wb.id)))
+          .map((wb) => toFlowEdge(wb, existing.get(wb.id), titleOf))
       })
     const syncAll = () => {
       syncNodes()

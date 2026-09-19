@@ -86,19 +86,22 @@ export function ObjectDocument({
   const Icon = docType === "whiteboard" ? Workflow : FileText
 
   return (
-    <section aria-label="Document" className="-mx-4 flex flex-1 flex-col gap-3 border-t pt-4">
+    <section aria-label="Document" className="flex flex-1 flex-col gap-3 border-t border-rule py-4">
       <div className="flex items-center gap-1 px-4">
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
-          {!docId
-            ? "Description"
-            : meta === undefined
-              ? "Loading…"
-              : meta === null
-                ? "Missing document"
-                : meta.kind === "description"
-                  ? "Description"
-                  : meta.title}
-        </h3>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="font-mono text-[10px] tracking-wide text-graphite uppercase">Inside</span>
+          <h3 className="truncate text-sm font-medium">
+            {!docId
+              ? "Nothing yet"
+              : meta === undefined
+                ? "Loading…"
+                : meta === null
+                  ? "Missing document"
+                  : meta.kind === "description"
+                    ? "Description"
+                    : meta.title}
+          </h3>
+        </div>
         {docId && meta && (
           <Button variant="ghost" size="sm" onClick={open}>
             <ArrowUpRight />
@@ -124,7 +127,7 @@ export function ObjectDocument({
               type="button"
               disabled={pending}
               onClick={() => create("text")}
-              className="min-h-24 cursor-text rounded-md border border-dashed p-3 text-left text-sm text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-24 cursor-text rounded-lg border border-dashed border-input p-3 text-left text-sm text-graphite outline-none transition-colors hover:border-cobalt hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring"
             >
               {pending ? "Creating…" : "Write a description…"}
             </button>
@@ -154,21 +157,21 @@ export function ObjectDocument({
         <button
           type="button"
           onClick={open}
-          className="mx-4 flex items-center gap-3 rounded-lg border p-4 text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+          className="sheet-stack mx-4 mb-2 flex items-center gap-3 rounded-lg border border-rule bg-sheet p-4 text-left outline-none transition-[translate,border-color] [--stack-edge:var(--blueline)] hover:-translate-y-0.5 hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="flex size-10 items-center justify-center rounded-md bg-muted">
             <Icon className="size-5 text-muted-foreground" />
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">{meta.title}</span>
-            <span className="text-xs text-muted-foreground">Whiteboard. Click to open.</span>
+            <span className="text-xs text-graphite">A whiteboard. Click to go inside.</span>
           </span>
         </button>
       ) : (
         <>
           {editable && (
             <div className="flex flex-col gap-2 px-4">
-              <Label>Double-click opens it</Label>
+              <Label className="text-xs text-graphite">Double-clicking the object opens this</Label>
               <ToggleGroup
                 aria-label="Double-click opens it"
                 variant="outline"
@@ -180,10 +183,10 @@ export function ObjectDocument({
                   if (picked) onOpenModeChange(picked)
                 }}
               >
-                <ToggleGroupItem value="panel" className="flex-1">
+                <ToggleGroupItem value="panel" className="flex-1 data-pressed:border-cobalt data-pressed:bg-accent data-pressed:text-ink">
                   In this panel
                 </ToggleGroupItem>
-                <ToggleGroupItem value="navigate" className="flex-1">
+                <ToggleGroupItem value="navigate" className="flex-1 data-pressed:border-cobalt data-pressed:bg-accent data-pressed:text-ink">
                   As a full page
                 </ToggleGroupItem>
               </ToggleGroup>

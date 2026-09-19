@@ -3,6 +3,8 @@ import { getOrgContext } from "@/lib/orgs"
 
 import { TrashRow } from "./trash-row"
 
+export const metadata = { title: "Trash" }
+
 export default async function TrashPage({ params }: PageProps<"/[org]/[project]/trash">) {
   const { org: slug, project: projectId } = await params
   const { supabase, org, canEdit } = await getOrgContext(slug)
@@ -17,7 +19,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
     .order("deleted_at", { ascending: false })
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
       <PageHeader
         title="Trash"
         description="Restore a document to put it back where it was. Anything nested inside it comes back with it."

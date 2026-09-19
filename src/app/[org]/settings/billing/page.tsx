@@ -11,6 +11,8 @@ const PRICE_PER_SEAT = 5
 const longDate = (value: string) =>
   new Date(value).toLocaleDateString("en-US", { dateStyle: "long" })
 
+export const metadata = { title: "Billing" }
+
 export default async function BillingPage({
   params,
   searchParams,
@@ -32,7 +34,7 @@ export default async function BillingPage({
   const hasLimits = plan?.private_document_limit != null || plan?.editor_limit != null
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
+    <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
       <PageHeader eyebrow={org.name} title="Billing" />
 
       {justPaid && !paid && (

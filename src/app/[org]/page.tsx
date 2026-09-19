@@ -20,7 +20,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
     .order("created_at")
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <main id="main" className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
       <PageHeader
         eyebrow={org.name}
         title="Projects"

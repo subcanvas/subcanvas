@@ -73,7 +73,7 @@ export default async function PublicDocumentPage({
 
   if (document.type === "whiteboard")
     return (
-      <main className="flex h-[calc(100svh-3rem)] flex-col">
+      <main id="main" className="flex h-[calc(100svh-3rem)] flex-col bg-sheet max-md:h-[calc(100svh-3rem-41px)]">
         <WhiteboardDocument
           key={document.id}
           documentId={document.id}
@@ -100,12 +100,12 @@ export default async function PublicDocumentPage({
     )
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-8">
+    <main id="main" className="mx-auto my-6 flex w-full max-w-3xl flex-1 flex-col gap-4 rounded-xl border border-rule bg-sheet py-8 shadow-xs">
       <div className="flex items-center justify-between gap-3 px-13">
         {breadcrumb}
         {linkedFrom}
       </div>
-      <h1 className="px-13 text-3xl font-semibold tracking-tight">{document.title}</h1>
+      <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>
       <TextDocument
         key={document.id}
         documentId={document.id}
