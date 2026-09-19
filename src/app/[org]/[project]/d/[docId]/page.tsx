@@ -33,6 +33,10 @@ export default async function DocumentPage({
   if (ancestors?.some((ancestor) => ancestor.deleted_at !== null)) notFound()
 
   const editable = hasRole(role, "editor")
+  const editorUser = {
+    name: profile?.display_name ?? user.email ?? "Someone",
+    color: userColor(user.id),
+  }
   const title = (compact: boolean) => (
     <DocumentTitle
       key={document.title}
@@ -51,6 +55,8 @@ export default async function DocumentPage({
           key={document.id}
           documentId={document.id}
           editable={editable}
+          context={{ orgId: org.id, projectId, whiteboardId: document.id }}
+          user={editorUser}
           header={title(true)}
         />
       </main>
@@ -63,10 +69,7 @@ export default async function DocumentPage({
         key={document.id}
         documentId={document.id}
         editable={editable}
-        user={{
-          name: profile?.display_name ?? user.email ?? "Someone",
-          color: userColor(user.id),
-        }}
+        user={editorUser}
       />
     </main>
   )

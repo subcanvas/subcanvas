@@ -1,6 +1,7 @@
 "use client"
 
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react"
+import { FileText } from "lucide-react"
 
 import { COLORS } from "@/lib/whiteboard/schema"
 import type { FlowNode } from "@/lib/whiteboard/use-whiteboard"
@@ -24,6 +25,23 @@ function Handles({ visible }: { visible: boolean }) {
         />
       ))}
     </>
+  )
+}
+
+// Marks an object that holds a document (R4.9).
+function DocumentMark({ className }: { className?: string }) {
+  return (
+    <span
+      role="img"
+      aria-label="Has a description"
+      title="Has a description"
+      className={cn(
+        "absolute flex size-4 items-center justify-center rounded-sm bg-background text-muted-foreground ring-1 ring-border",
+        className
+      )}
+    >
+      <FileText className="size-3" />
+    </span>
   )
 }
 
@@ -51,6 +69,7 @@ export function PlainNode({ data, selected }: NodeProps<FlowNode>) {
     >
       <Resizer selected={selected} minWidth={80} minHeight={40} />
       <span className="line-clamp-3 break-words">{data.wb.title || "Untitled"}</span>
+      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
       <Handles visible={selected} />
     </div>
   )
@@ -84,6 +103,7 @@ export function TextNode({ data, selected }: NodeProps<FlowNode>) {
           {data.wb.description}
         </p>
       )}
+      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
       <Handles visible={selected} />
     </div>
   )
@@ -113,6 +133,7 @@ export function GroupNode({ data, selected }: NodeProps<FlowNode>) {
           {data.wb.title}
         </div>
       )}
+      {data.wb.docId && <DocumentMark className="-top-2 -right-2" />}
       <Handles visible={selected} />
     </div>
   )

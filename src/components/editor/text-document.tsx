@@ -15,10 +15,12 @@ export function TextDocument({
   documentId,
   user,
   editable,
+  autoFocus = false,
 }: {
   documentId: string
   user: EditorUser
   editable: boolean
+  autoFocus?: boolean
 }) {
   const provider = useDocumentSync(documentId, !editable)
   if (!provider) return null
@@ -28,7 +30,7 @@ export function TextDocument({
       <div className="px-13">
         <SyncBadge provider={provider} editable={editable} />
       </div>
-      <Editor provider={provider} user={user} editable={editable} />
+      <Editor provider={provider} user={user} editable={editable} autoFocus={autoFocus} />
     </div>
   )
 }
@@ -39,14 +41,18 @@ function Editor({
   provider,
   user,
   editable,
+  autoFocus,
 }: {
   provider: SupabaseProvider
   user: EditorUser
   editable: boolean
+  autoFocus: boolean
 }) {
   const { loaded } = useSyncStatus(provider)
   if (!loaded)
     return <p className="px-13 text-sm text-muted-foreground">Loading…</p>
 
-  return <TextEditor provider={provider} user={user} editable={editable} />
+  return (
+    <TextEditor provider={provider} user={user} editable={editable} autoFocus={autoFocus} />
+  )
 }

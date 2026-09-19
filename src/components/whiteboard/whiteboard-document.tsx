@@ -6,17 +6,21 @@ import { SyncBadge } from "@/components/editor/sync-badge"
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 
+import type { WhiteboardProps } from "./whiteboard"
+
 const Whiteboard = dynamic(() => import("./whiteboard"), { ssr: false })
+
+type Shared = Pick<WhiteboardProps, "editable" | "context" | "user">
 
 export function WhiteboardDocument({
   documentId,
-  editable,
   header,
-}: {
+  ...shared
+}: Shared & {
   documentId: string
-  editable: boolean
   header: React.ReactNode
 }) {
+  const { editable } = shared
   const provider = useDocumentSync(documentId, !editable)
 
   return (
@@ -26,15 +30,15 @@ export function WhiteboardDocument({
         {provider && <SyncBadge provider={provider} editable={editable} />}
       </div>
       <div className="relative min-h-0 flex-1">
-        {provider && <Loaded provider={provider} editable={editable} />}
+        {provider && <Loaded provider={provider} {...shared} />}
       </div>
     </div>
   )
 }
 
 // Waits for the first load so the canvas fits the real content on open.
-function Loaded({ provider, editable }: { provider: SupabaseProvider; editable: boolean }) {
+function Loaded({ provider, ...shared }: Shared & { provider: SupabaseProvider }) {
   const { loaded } = useSyncStatus(provider)
   if (!loaded) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-  return <Whiteboard provider={provider} editable={editable} />
+  return <Whiteboard provider={provider} {...shared} />
 }

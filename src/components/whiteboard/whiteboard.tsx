@@ -15,10 +15,12 @@ import {
 import { Group, Redo2, Square, Type, Undo2 } from "lucide-react"
 import { useCallback, useMemo, useRef, useState } from "react"
 
+import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
   useWhiteboard,
@@ -36,7 +38,14 @@ const FIT_VIEW = { maxZoom: 1, padding: 0.2 }
 // Shared by every whiteboard in the tab, so objects can be pasted across them.
 let clipboard: { nodes: WbNode[]; edges: WbEdge[] } | null = null
 
-export default function Whiteboard(props: { provider: SupabaseProvider; editable: boolean }) {
+export type WhiteboardProps = {
+  provider: SupabaseProvider
+  editable: boolean
+  context: WhiteboardContext
+  user: EditorUser
+}
+
+export default function Whiteboard(props: WhiteboardProps) {
   return (
     <ReactFlowProvider>
       <Canvas {...props} />
@@ -44,7 +53,7 @@ export default function Whiteboard(props: { provider: SupabaseProvider; editable
   )
 }
 
-function Canvas({ provider, editable }: { provider: SupabaseProvider; editable: boolean }) {
+function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   const wb = useWhiteboard(provider.doc, editable)
   const flow = useReactFlow<FlowNode, FlowEdge>()
   const wrapper = useRef<HTMLDivElement>(null)
@@ -247,6 +256,8 @@ function Canvas({ provider, editable }: { provider: SupabaseProvider; editable: 
         <Inspector
           selection={selection}
           editable={editable}
+          context={context}
+          user={user}
           onNodeChange={wb.updateNode}
           onEdgeChange={wb.updateEdge}
           onClose={() => setDismissed(selectedId)}

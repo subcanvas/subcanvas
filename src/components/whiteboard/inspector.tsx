@@ -1,6 +1,16 @@
 "use client"
 
 import { X } from "lucide-react"
+import { useRef, useState, useTransition } from "react"
+import { toast } from "sonner"
+
+import { TextDocument } from "@/components/editor/text-document"
+import type { EditorUser } from "@/components/editor/text-editor"
+import { createClient } from "@/lib/supabase/client"
+import {
+  ensureDescriptionDocument,
+  type WhiteboardContext,
+} from "@/lib/whiteboard/description-document"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,26 +28,73 @@ import { cn } from "@/lib/utils"
 
 const KIND_LABELS = { plain: "Node", text: "Text node", group: "Group" }
 
+const WIDTH_KEY = "graph-notes:panel-width"
+const MIN_WIDTH = 320
+const MAX_WIDTH = 800
+const DEFAULT_WIDTH = 440
+
+function storedWidth() {
+  const stored = Number(globalThis.localStorage?.getItem(WIDTH_KEY))
+  return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
+}
+
 // The panel that opens from the right when one object is selected (R4.3).
 // It sits beside the canvas rather than over it, so nothing is hidden.
 export function Inspector({
   selection,
   editable,
+  context,
+  user,
   onNodeChange,
   onEdgeChange,
   onClose,
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
   editable: boolean
+  context: WhiteboardContext
+  user: EditorUser
   onNodeChange: (id: string, patch: Partial<Omit<WbNode, "id">>) => void
   onEdgeChange: (id: string, patch: Partial<Omit<WbEdge, "id">>) => void
   onClose: () => void
 }) {
+  const [width, setWidth] = useState(storedWidth)
+  const panel = useRef<HTMLElement>(null)
+
+  function resize(next: number) {
+    const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next)))
+    setWidth(clamped)
+    localStorage.setItem(WIDTH_KEY, String(clamped))
+  }
+
   return (
     <aside
+      ref={panel}
       aria-label="Object settings"
-      className="flex w-80 shrink-0 flex-col gap-5 overflow-y-auto border-l bg-background p-4"
+      style={{ width }}
+      className="relative flex shrink-0 flex-col gap-5 overflow-y-auto border-l bg-background p-4"
     >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize panel"
+        aria-valuemin={MIN_WIDTH}
+        aria-valuemax={MAX_WIDTH}
+        aria-valuenow={width}
+        tabIndex={0}
+        className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize outline-none hover:bg-ring/40 focus-visible:bg-ring/60"
+        onPointerDown={(event) => {
+          event.preventDefault()
+          event.currentTarget.setPointerCapture(event.pointerId)
+        }}
+        onPointerMove={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId) || !panel.current) return
+          resize(panel.current.getBoundingClientRect().right - event.clientX)
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") resize(width + 24)
+          if (event.key === "ArrowRight") resize(width - 24)
+        }}
+      />
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">
           {"node" in selection ? KIND_LABELS[selection.node.kind] : "Edge"}
@@ -54,7 +111,77 @@ export function Inspector({
           <EdgeFields edge={selection.edge} onChange={(patch) => onEdgeChange(selection.edge.id, patch)} />
         )}
       </fieldset>
+
+      {"node" in selection && (
+        <NodeDescription
+          key={selection.node.id}
+          node={selection.node}
+          editable={editable}
+          context={context}
+          user={user}
+          onAttach={(docId) => onNodeChange(selection.node.id, { docId })}
+        />
+      )}
     </aside>
+  )
+}
+
+// A node's description is a full text document, created the first time
+// someone writes in it (R4.2) and edited right here (R4.5).
+function NodeDescription({
+  node,
+  editable,
+  context,
+  user,
+  onAttach,
+}: {
+  node: WbNode
+  editable: boolean
+  context: WhiteboardContext
+  user: EditorUser
+  onAttach: (docId: string) => void
+}) {
+  const [pending, startTransition] = useTransition()
+  // Focus the editor only when this person just created the document.
+  const [justCreated, setJustCreated] = useState(false)
+
+  function create() {
+    startTransition(async () => {
+      const result = await ensureDescriptionDocument(createClient(), context, node.id, node.title)
+      if ("error" in result) toast.error(result.error)
+      else {
+        setJustCreated(true)
+        onAttach(result.id)
+      }
+    })
+  }
+
+  return (
+    <section aria-label="Description" className="-mx-4 flex flex-1 flex-col gap-2 border-t pt-4">
+      <h3 className="px-4 text-sm font-medium">Description</h3>
+      {node.docId ? (
+        // A narrower gutter than the full page, leaving room for block handles.
+        <div className="[&_.bn-editor]:px-11! [&_.px-13]:px-11!">
+          <TextDocument
+            documentId={node.docId}
+            user={user}
+            editable={editable}
+            autoFocus={justCreated}
+          />
+        </div>
+      ) : editable ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={create}
+          className="mx-4 min-h-24 cursor-text rounded-md border border-dashed p-3 text-left text-sm text-muted-foreground outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {pending ? "Creating…" : "Write a description…"}
+        </button>
+      ) : (
+        <p className="px-4 text-sm text-muted-foreground">No description.</p>
+      )}
+    </section>
   )
 }
 
@@ -76,7 +203,7 @@ function NodeFields({
         />
       </Field>
       {node.kind === "text" && (
-        <Field label="Description" htmlFor="wb-description">
+        <Field label="Body text" htmlFor="wb-description">
           <Textarea
             id="wb-description"
             value={node.description}
