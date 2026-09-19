@@ -262,7 +262,7 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   return (
     <WhiteboardActionsContext value={actions}>
     <div className="relative flex size-full" onKeyDown={onKeyDown}>
-      <div ref={wrapper} className="relative min-w-0 flex-1 bg-paper">
+      <div ref={wrapper} className="@container relative min-w-0 flex-1 bg-paper">
         <ReactFlow
           nodes={wb.nodes}
           edges={wb.edges}
@@ -335,7 +335,8 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           ) : (
             editable && (
               <Panel position="bottom-center">
-                <p className="rounded-full border border-rule bg-sheet/90 px-3 py-1 text-xs text-graphite shadow-xs backdrop-blur">
+                {/* One line or nothing: wrapped, the pill turns into a blob. */}
+                <p className="hidden rounded-full border border-rule bg-sheet/90 px-3 py-1 text-xs whitespace-nowrap text-graphite shadow-xs backdrop-blur @2xl:block">
                   Drag from a node&apos;s edge to connect <span className="mx-1 text-rule">/</span> Click to edit
                   <span className="mx-1 text-rule">/</span> Double-click to open what is inside
                 </p>
