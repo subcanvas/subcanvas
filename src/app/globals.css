@@ -112,7 +112,9 @@
 }
 
 .dark {
-  --paper: #0a0a0a;
+  /* One surface. Light has white sheets on cool paper; two near-blacks side
+     by side only look mismatched, so here rules do the separating. */
+  --paper: #171717;
   --sheet: #171717;
   --ink: #ededed;
   --graphite: #a1a1a1;
