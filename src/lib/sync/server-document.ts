@@ -3,7 +3,7 @@ import * as Y from "yjs"
 
 import type { Database } from "@/lib/supabase/database.types"
 
-import { fromBytea, toBytea } from "./encoding"
+import { fromBytea, toBase64, toBytea } from "./encoding"
 
 // A document's Yjs state, read and written from the server: no browser and no
 // Realtime socket. The embed renderer reads with it; a repository import and
@@ -45,9 +45,10 @@ export async function loadDocument(supabase: Client, documentId: string): Promis
 }
 
 // Runs `change` against the document and persists what it changed as one
-// update, which merges with whatever anyone else is doing. People who have
-// the document open pick it up on their next database re-read (within 30 s);
-// announcing it over Realtime's HTTP broadcast is a later step.
+// update, which merges with whatever anyone else is doing. It is then
+// announced to the people who have the document open; anyone the
+// announcement does not reach picks the change up on their next database
+// re-read (within 30 s).
 //
 // For a document that was just created and is still empty, pass `fresh` to
 // skip the read.
@@ -66,7 +67,46 @@ export async function changeDocument(
   const { error } = await supabase
     .from("document_updates")
     .insert({ document_id: documentId, update: toBytea(update) })
-  return { error: error ? "This document could not be saved." : null }
+  if (!error) {
+    await announce(supabase, documentId, update)
+    return { error: null }
+  }
+  // Row-level security turned the write away: a viewer, or a lapsed org.
+  return {
+    error:
+      error.code === "42501"
+        ? "You do not have permission to change this document."
+        : "This document could not be saved.",
+  }
+}
+
+// The same size of piece the browser's provider sends (supabase-provider.ts).
+const CHUNK_SIZE = 100_000
+const ANNOUNCE_TIMEOUT_MS = 2000
+
+// Sends the update to the document's Realtime channel over HTTP, in the
+// message format browsers send each other, so open editors apply it at
+// once. No socket is opened. Realtime checks the caller's token against the
+// channel's policies, as it would for a browser. Nothing depends on this
+// arriving, so a failure is not an error.
+async function announce(supabase: Client, documentId: string, update: Uint8Array) {
+  const channel = supabase.channel(`doc:${documentId}`, { config: { private: true } })
+  try {
+    await supabase.realtime.setAuth()
+    const data = toBase64(update)
+    const id = crypto.randomUUID()
+    const n = Math.ceil(data.length / CHUNK_SIZE)
+    for (let i = 0; i < n; i++)
+      await channel.httpSend(
+        "update",
+        { id, i, n, d: data.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE) },
+        { timeout: ANNOUNCE_TIMEOUT_MS }
+      )
+  } catch {
+    // The database re-read covers it.
+  } finally {
+    await supabase.removeChannel(channel)
+  }
 }
 
 // Well under what the API accepts in one request body, hex-encoded.
