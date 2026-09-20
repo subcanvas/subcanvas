@@ -141,7 +141,8 @@ export default async function TermsPage() {
           the Services, until it fits the free plan or subscribes again. No content is deleted because of this.
         </li>
         <li>
-          To delete your account or an org, write to {mail} from the email address on the account. All of your
+          An owner can delete an org from its settings. To delete your account, write to {mail} from the email
+          address on the account. All of your
           content will be inaccessible from the Services immediately upon deletion. Within 30 days, all content
           will be permanently deleted from active systems and logs. Within 60 days, all content will be
           permanently deleted from our backups. We cannot recover this information once it has been permanently
