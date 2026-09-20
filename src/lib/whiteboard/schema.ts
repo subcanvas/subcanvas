@@ -1,5 +1,7 @@
 import * as Y from "yjs"
 
+import { NODE_SHAPES, type NodeShape } from "./shapes"
+
 // The shape of a whiteboard inside its Y.Doc. See docs/ARCHITECTURE.md,
 // section 3. Every object is a Y.Map of flat scalar fields, so two people
 // changing different properties of the same object merge cleanly.
@@ -32,6 +34,12 @@ export type WbNode = {
   // ("services/payments"). It is the node's identity there: the title can be
   // changed freely and the node still follows the folder.
   path: string | null
+  // The outline of a plain node. Text and groups have one look.
+  shape: NodeShape
+  // A Lucide icon name and an emoji, each shown as a badge on the corner.
+  // Either, both or neither.
+  icon: string | null
+  emoji: string | null
 }
 
 export type WbEdge = {
@@ -45,6 +53,9 @@ export type WbEdge = {
   direction: EdgeDirection
   color: ColorKey
   label: string
+  // Shown in the label, before the words.
+  icon: string | null
+  emoji: string | null
   docId: string | null
   // Kept beside docId so the canvas knows how to open it without a lookup.
   // A document never changes type.
@@ -99,6 +110,26 @@ const numberOrNull = (map: Y.Map<unknown>, key: string) => {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
+// An icon is stored by its Lucide name. The name is only checked for form
+// here: whether this version can draw it is for whoever draws (icons.ts), so
+// a name written by a newer version survives being read by an older one.
+const ICON_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/
+export function iconName(value: unknown) {
+  return typeof value === "string" && value.length <= 48 && ICON_NAME.test(value) ? value : null
+}
+
+const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u
+
+// One emoji and nothing else: a single grapheme (a family or a flag is
+// several code points but one grapheme) that a font would draw as a picture.
+export function singleEmoji(value: unknown) {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > 40 || !EMOJI.test(trimmed)) return null
+  const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(trimmed)]
+  return graphemes.length === 1 ? trimmed : null
+}
+
 // Reads are defensive: the document is shared, so another client (or a
 // future version) may have written something unexpected.
 export function readNode(id: string, map: Y.Map<unknown>): WbNode {
@@ -119,6 +150,9 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
       : null,
     openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
     path: textOrNull(map, "path"),
+    shape: pick(map, "shape", NODE_SHAPES, "rectangle"),
+    icon: iconName(map.get("icon")),
+    emoji: singleEmoji(map.get("emoji")),
   }
 }
 
@@ -134,6 +168,8 @@ export function readEdge(id: string, map: Y.Map<unknown>): WbEdge {
     direction: pick(map, "direction", ["none", "forward", "reverse", "both"] as const, "forward"),
     color: pick(map, "color", COLOR_KEYS, "default"),
     label: text(map, "label"),
+    icon: iconName(map.get("icon")),
+    emoji: singleEmoji(map.get("emoji")),
     docId: textOrNull(map, "docId"),
     docType: textOrNull(map, "docId")
       ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
