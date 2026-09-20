@@ -210,15 +210,20 @@
   --xy-selection-background-color: color-mix(in oklch, var(--cobalt) 8%, transparent);
   --xy-selection-border: 1px solid var(--cobalt);
   --xy-connectionline-stroke: var(--cobalt);
-  --xy-attribution-background-color: transparent;
 }
 .react-flow__controls {
   overflow: hidden;
   border: 1px solid var(--rule);
   border-radius: 0.6rem;
 }
-.react-flow__attribution a {
-  color: var(--graphite);
+/* In view mode nothing on the canvas offers to be changed. The handles stay
+   in the layout, since arrows are drawn from where they are measured. */
+.react-flow[data-locked] .react-flow__resize-control {
+  display: none;
+}
+.react-flow[data-locked] .react-flow__handle {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* BlockNote's chrome, in our materials. Its own themes are a different

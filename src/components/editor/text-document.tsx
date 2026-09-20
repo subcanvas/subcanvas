@@ -19,6 +19,7 @@ export function TextDocument({
   documentId,
   user,
   editable: mayEdit,
+  locked = false,
   context,
   autoFocus = false,
   source = null,
@@ -31,6 +32,11 @@ export function TextDocument({
   documentId: string
   user: EditorUser
   editable: boolean
+  // Read-only for now, by this person's choice (a whiteboard in view mode).
+  // Unlike `editable`, it leaves the connection a writer's: providers are
+  // shared and keep the role they were opened with, so one opened read-only
+  // would go on dropping edits after the switch back to edit mode.
+  locked?: boolean
   context: Omit<TextDocumentContext, "documentId">
   autoFocus?: boolean
   // Set when the text was imported. Its repository owns it, so nobody edits
@@ -45,7 +51,7 @@ export function TextDocument({
     <Editor
       provider={provider}
       user={user}
-      editable={editable}
+      editable={editable && !locked}
       context={{ ...context, documentId }}
       autoFocus={autoFocus}
     />
