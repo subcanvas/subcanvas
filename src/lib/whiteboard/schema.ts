@@ -1,12 +1,13 @@
 import * as Y from "yjs"
 
+import { mediaTypeOf, parseMediaPath, type MediaType } from "./media"
 import { NODE_SHAPES, type NodeShape } from "./shapes"
 
 // The shape of a whiteboard inside its Y.Doc. See docs/ARCHITECTURE.md,
 // section 3. Every object is a Y.Map of flat scalar fields, so two people
 // changing different properties of the same object merge cleanly.
 
-export type NodeKind = "plain" | "text" | "group"
+export type NodeKind = "plain" | "text" | "group" | "media"
 export type EdgeShape = "spline" | "step"
 export type EdgeStroke = "solid" | "dotted"
 export type EdgeDirection = "none" | "forward" | "reverse" | "both"
@@ -40,6 +41,16 @@ export type WbNode = {
   // Either, both or neither.
   icon: string | null
   emoji: string | null
+  // A media node: the picture or video it shows, as the name of a file in
+  // Storage (media.ts). The title is its caption. Whether it is a picture or
+  // a video is read off the file's extension, so the two cannot disagree.
+  mediaPath: string | null
+  mediaType: MediaType | null
+  // The file's own size in pixels, which a resize never changes.
+  mediaWidth: number | null
+  mediaHeight: number | null
+  // What a picture shows, for someone who cannot see it.
+  alt: string
 }
 
 export type WbEdge = {
@@ -74,6 +85,8 @@ export const DEFAULT_SIZE: Record<NodeKind, { width: number | null; height: numb
   plain: { width: 160, height: 64 },
   text: { width: 240, height: null },
   group: { width: 360, height: 240 },
+  // Only a fallback: a media node is created at its file's proportions.
+  media: { width: 320, height: 240 },
 }
 
 // Transactions made by this client's UI carry this origin, which is what
@@ -133,9 +146,10 @@ export function singleEmoji(value: unknown) {
 // Reads are defensive: the document is shared, so another client (or a
 // future version) may have written something unexpected.
 export function readNode(id: string, map: Y.Map<unknown>): WbNode {
+  const mediaPath = parseMediaPath(map.get("mediaPath"))
   return {
     id,
-    kind: pick(map, "kind", ["plain", "text", "group"] as const, "plain"),
+    kind: pick(map, "kind", ["plain", "text", "group", "media"] as const, "plain"),
     x: number(map, "x", 0),
     y: number(map, "y", 0),
     width: numberOrNull(map, "width"),
@@ -153,6 +167,35 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
     shape: pick(map, "shape", NODE_SHAPES, "rectangle"),
     icon: iconName(map.get("icon")),
     emoji: singleEmoji(map.get("emoji")),
+    mediaPath,
+    mediaType: mediaPath ? mediaTypeOf(mediaPath) : null,
+    mediaWidth: numberOrNull(map, "mediaWidth"),
+    mediaHeight: numberOrNull(map, "mediaHeight"),
+    alt: text(map, "alt"),
+  }
+}
+
+// A media node as it is first made: the file it shows and the size it takes,
+// and the defaults for everything else.
+export function newMediaNode(
+  fields: Pick<WbNode, "id" | "x" | "y" | "width" | "height" | "mediaWidth" | "mediaHeight"> & { mediaPath: string }
+): WbNode {
+  return {
+    kind: "media",
+    parentId: null,
+    title: "",
+    description: "",
+    color: "default",
+    docId: null,
+    docType: null,
+    openMode: "panel",
+    path: null,
+    shape: "rectangle",
+    icon: null,
+    emoji: null,
+    mediaType: mediaTypeOf(fields.mediaPath),
+    alt: "",
+    ...fields,
   }
 }
 
