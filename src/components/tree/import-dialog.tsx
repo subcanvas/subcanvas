@@ -100,6 +100,12 @@ export function ImportDialog({
     }
   }
 
+  function choose(event: React.ChangeEvent<HTMLInputElement>) {
+    if (event.target.files?.length) prepare(pickedFromInput(event.target.files))
+    // Emptied, so that choosing the same file again is still a change.
+    event.target.value = ""
+  }
+
   useEffect(() => {
     // The dialog opened already showing that it is reading these.
     if (dropped) void read(dropped)
@@ -197,7 +203,7 @@ export function ImportDialog({
                 multiple
                 accept={ACCEPT}
                 hidden
-                onChange={(event) => event.target.files?.length && prepare(pickedFromInput(event.target.files))}
+                onChange={choose}
               />
               <input
                 // React does not know this attribute, which makes the picker take a folder.
@@ -207,7 +213,7 @@ export function ImportDialog({
                 }}
                 type="file"
                 hidden
-                onChange={(event) => event.target.files?.length && prepare(pickedFromInput(event.target.files))}
+                onChange={choose}
               />
             </div>
 
@@ -380,12 +386,12 @@ function notesOf({ plan, skipped }: Prepared, done = false) {
     )
   if (plan.unlinked)
     notes.push(
-      `${count(plan.unlinked, "link points", "links point")} at files that are not in this import, and ${done ? (plan.unlinked === 1 ? "is" : "are") : "will be"} plain text.`
+      `${count(plan.unlinked, "link points at a file that is", "links point at files that are")} not in this import, and ${done ? (plan.unlinked === 1 ? "is" : "are") : "will be"} plain text.`
     )
   const byReason = new Map<SkipReason, string[]>()
   for (const { path, reason } of skipped) byReason.set(reason, [...(byReason.get(reason) ?? []), path])
   for (const [reason, paths] of byReason) {
-    const names = paths.slice(0, 3).map((path) => path.slice(path.lastIndexOf("/") + 1))
+    const names = paths.slice(0, 3).map((path) => path.split(/[/\\]/).pop())
     notes.push(
       `${count(paths.length, "file")} skipped, ${REASONS[reason]}: ${names.join(", ")}${paths.length > names.length ? ", …" : ""}`
     )

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { fixtureFiles, picked, zipOf } from "./__fixtures__/load"
 import { makeBatches } from "./batches"
-import { collect, CollectError } from "./collect"
+import { collect, CollectError, pickedFromDrop } from "./collect"
 import { csvToMarkdown, parseCsv } from "./csv"
 import { MAX_BATCH_BYTES, MAX_BATCH_DOCUMENTS, MAX_DOCUMENTS, MAX_FILE_BYTES, MAX_ZIP_ENTRIES } from "./limits"
 import { rewriteLinks } from "./links"
@@ -355,6 +355,48 @@ describe("zip safety", () => {
     await expect(collect([{ path: "fake.zip", file: new Blob(["not a zip"]) }])).rejects.toThrow("fake.zip: This file is not a zip")
     expect((await collect([{ path: "binary.txt", file: new Blob([new Uint8Array([72, 0, 105])]) }])).skipped).toEqual([
       { path: "binary.txt", reason: "unreadable" },
+    ])
+  })
+})
+
+describe("dropped folders", () => {
+  // What the browser hands over for a drop: entries that are files or
+  // directories, the latter read a page at a time.
+  const fileEntry = (fullPath: string, text: string) => ({
+    name: fullPath.slice(fullPath.lastIndexOf("/") + 1),
+    fullPath,
+    isFile: true,
+    isDirectory: false,
+    file: (resolve: (file: Blob) => void) => resolve(new Blob([text])),
+  })
+  const directoryEntry = (fullPath: string, children: unknown[]) => ({
+    name: fullPath.slice(fullPath.lastIndexOf("/") + 1),
+    fullPath,
+    isFile: false,
+    isDirectory: true,
+    createReader: () => {
+      const pages = [children.slice(0, 1), children.slice(1), []]
+      return { readEntries: (resolve: (page: unknown[]) => void) => resolve(pages.shift()!) }
+    },
+  })
+
+  it("walks directories, every page of them, and takes loose files that have no entry", async () => {
+    const vault = directoryEntry("/vault", [
+      fileEntry("/vault/a.md", "a"),
+      directoryEntry("/vault/sub", [fileEntry("/vault/sub/b.md", "b")]),
+      directoryEntry("/vault/.obsidian", [fileEntry("/vault/.obsidian/app.json", "{}")]),
+    ])
+    const items = [
+      { kind: "file", webkitGetAsEntry: () => vault },
+      { kind: "file", webkitGetAsEntry: () => null, getAsFile: () => new File(["c"], "loose.md") },
+      { kind: "string", webkitGetAsEntry: () => null },
+    ]
+    const picked = await pickedFromDrop({ items } as unknown as DataTransfer)
+    expect(picked.map((file) => file.path)).toEqual(["loose.md", "vault/a.md", "vault/sub/b.md"])
+    expect((await collect(picked)).files).toEqual([
+      { path: "loose.md", text: "c" },
+      { path: "vault/a.md", text: "a" },
+      { path: "vault/sub/b.md", text: "b" },
     ])
   })
 })
