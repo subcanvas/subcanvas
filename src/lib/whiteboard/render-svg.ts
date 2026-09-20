@@ -13,8 +13,8 @@ import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./
 // rule is why a picture on the whiteboard is drawn as a frame and not shown:
 // an image inside an image is either a reference, which GitHub's image proxy
 // and a browser showing an <img> both refuse to follow, or the file's bytes
-// inlined, which would put megabytes and a private bucket's content into a
-// response meant to be small and cached by anyone.
+// inlined, which would put megabytes into a response meant to be small and
+// asked for again every few minutes.
 
 export type SvgTheme = "light" | "dark"
 
