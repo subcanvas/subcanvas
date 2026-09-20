@@ -62,6 +62,8 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.
 
+Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
+
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.
 
 ### Not exposed yet

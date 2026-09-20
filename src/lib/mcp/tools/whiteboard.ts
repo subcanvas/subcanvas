@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import { loadDocument } from "@/lib/sync/server-document"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
+import { mediaHref } from "@/lib/whiteboard/media"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
 import { NODE_SHAPES } from "@/lib/whiteboard/shapes"
 
@@ -62,7 +63,7 @@ export const whiteboardTools = [
     title: "Read a whiteboard",
     group: "Whiteboards",
     description:
-      "Returns everything on a whiteboard as compact JSON: nodes (kind `plain` is a box, `text` is a heading with no box, `group` is a frame that contains other nodes), edges (arrows between nodes), and for each the document it holds, if any (`doc_id`, `doc_type`). A node's `group_id` is the group it is in, and its x and y are then relative to that group. A held whiteboard can be read with this tool again, and a held text document with `read_text_document`: that is how diagrams nest. What you read is at most about a second behind what people see.",
+      "Returns everything on a whiteboard as compact JSON: nodes (kind `plain` is a box, `text` is a heading with no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), edges (arrows between nodes), and for each the document it holds, if any (`doc_id`, `doc_type`). A node's `group_id` is the group it is in, and its x and y are then relative to that group. A media node's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures in the app. A held whiteboard can be read with this tool again, and a held text document with `read_text_document`: that is how diagrams nest. What you read is at most about a second behind what people see.",
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
@@ -89,6 +90,17 @@ export const whiteboardTools = [
           ...(node.emoji ? { emoji: node.emoji } : {}),
           ...(node.docId ? { doc_id: node.docId, doc_type: node.docType, open_mode: node.openMode } : {}),
           ...(node.path ? { repository_path: node.path } : {}),
+          ...(node.kind === "media" && node.mediaPath
+            ? {
+                media: {
+                  type: node.mediaType,
+                  width: node.mediaWidth,
+                  height: node.mediaHeight,
+                  ...(node.alt ? { alt: node.alt } : {}),
+                  url: `${context.origin}${mediaHref(node.mediaPath)}`,
+                },
+              }
+            : {}),
         }
       })
       const known = new Set(nodes.map((node) => node.id))
@@ -172,7 +184,7 @@ export const whiteboardTools = [
     title: "Update nodes",
     group: "Whiteboards",
     description:
-      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape, set or remove the icon and emoji badges, change the description, or change how a click opens what the node holds. Only the fields you give change, so this merges with what people are doing to the same node. If any id is unknown, nothing changes.",
+      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape, set or remove the icon and emoji badges, change the description, or change how a click opens what the node holds. On a media node the title is the caption, `alt` says what the picture shows, and a resize should keep the proportions of `media.width` to `media.height`. Only the fields you give change, so this merges with what people are doing to the same node. If any id is unknown, nothing changes.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
@@ -181,6 +193,7 @@ export const whiteboardTools = [
             id: nodeId("The node to change."),
             title: z.string().max(500).optional(),
             description: z.string().max(2000).optional(),
+            alt: z.string().max(500).optional().describe("Media nodes only: what the picture or video shows, for someone who cannot see it."),
             color: color.optional(),
             shape: shape.optional(),
             icon: icon.nullable().optional().describe("Null removes the icon."),

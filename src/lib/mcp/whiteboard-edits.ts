@@ -150,6 +150,7 @@ export type NodePatch = {
   id: string
   title?: string
   description?: string
+  alt?: string
   color?: ColorKey
   shape?: NodeShape
   // Null takes the badge off.
