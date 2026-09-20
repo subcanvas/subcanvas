@@ -4,7 +4,6 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { DesktopSidebar } from "@/components/desktop-sidebar"
 import { MobileTree } from "@/components/tree/mobile-tree"
 import { SidebarProvider } from "@/components/ui/sidebar"
-import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar-state"
 
@@ -31,14 +30,13 @@ export async function AppShell({
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
   ])
 
-  const showBilling = billingConfigured()
   const sidebarUser = {
     email: user.email ?? "",
     name: profile?.display_name ?? null,
     avatarUrl: profile?.avatar_url ?? null,
   }
   const contents = (
-    <AppSidebar org={org} orgs={orgs ?? []} showBilling={showBilling} user={sidebarUser} footer={footer}>
+    <AppSidebar org={org} orgs={orgs ?? []} user={sidebarUser} footer={footer}>
       {tree}
     </AppSidebar>
   )
@@ -52,7 +50,7 @@ export async function AppShell({
       <MobileTree label="Menu" title={title ?? org.name} description="Pages, documents, and your account.">
         {contents}
       </MobileTree>
-      <DesktopSidebar slug={org.slug} showBilling={showBilling} user={sidebarUser}>
+      <DesktopSidebar slug={org.slug} user={sidebarUser}>
         {contents}
       </DesktopSidebar>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>

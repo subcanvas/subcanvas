@@ -4,7 +4,7 @@ import { PanelLeftOpen } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-import { AccountMenu, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
+import { AccountMenu, isCurrentPage, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Sidebar, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -14,12 +14,10 @@ import { cn } from "@/lib/utils"
 // that brings the rest back. A project's documents need the open sidebar.
 export function DesktopSidebar({
   slug,
-  showBilling,
   user,
   children,
 }: {
   slug: string
-  showBilling: boolean
   user: SidebarUser
   children: React.ReactNode
 }) {
@@ -33,24 +31,25 @@ export function DesktopSidebar({
           <PanelLeftOpen />
         </Button>
         <nav aria-label="Org" className="mt-1 flex flex-col items-center gap-1 border-t border-rule pt-2">
-          {orgPages(slug, showBilling).map(({ href, label, icon: Icon }) => (
+          {orgPages(slug).map((page) => (
             <Link
-              key={href}
-              href={href}
-              aria-label={label}
-              title={label}
-              aria-current={pathname === href ? "page" : undefined}
+              key={page.href}
+              href={page.href}
+              aria-label={page.label}
+              title={page.label}
+              aria-current={isCurrentPage(pathname, page) ? "page" : undefined}
               className={cn(
                 buttonVariants({ variant: "ghost", size: "icon" }),
                 "text-graphite aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-ink"
               )}
             >
-              <Icon />
+              <page.icon />
             </Link>
           ))}
         </nav>
         <div className="mt-auto">
           <AccountMenu
+            slug={slug}
             user={user}
             side="right"
             trigger={
