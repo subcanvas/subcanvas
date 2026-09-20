@@ -1,13 +1,15 @@
 "use client"
 
-import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react"
-import { FileText, Workflow } from "lucide-react"
-import { useEffect } from "react"
+import { Handle, NodeResizer, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react"
+import { FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
+import { useEffect, useRef } from "react"
 
 import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
+import { MEDIA_MIN_SIDE } from "@/lib/whiteboard/media"
+import { useMediaUrl } from "@/lib/whiteboard/media-urls"
 import { COLORS, DEFAULT_SIZE, type DocType, type WbNode } from "@/lib/whiteboard/schema"
 import { linesThatFit, shapeGeometry, type Point, type Side } from "@/lib/whiteboard/shapes"
-import type { FlowNode } from "@/lib/whiteboard/use-whiteboard"
+import type { FlowNode, Upload } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
 import { useWhiteboardActions } from "./actions-context"
@@ -45,12 +47,23 @@ function Handles({ visible, anchors }: { visible: boolean; anchors?: Record<Side
   )
 }
 
-function Resizer({ selected, minWidth, minHeight }: { selected: boolean; minWidth: number; minHeight: number }) {
+function Resizer({
+  selected,
+  minWidth,
+  minHeight,
+  keepAspectRatio = false,
+}: {
+  selected: boolean
+  minWidth: number
+  minHeight: number
+  keepAspectRatio?: boolean
+}) {
   return (
     <NodeResizer
       isVisible={selected}
       minWidth={minWidth}
       minHeight={minHeight}
+      keepAspectRatio={keepAspectRatio}
       lineClassName="!border-cobalt/60"
       handleClassName="!size-2 !rounded-[2px] !border-cobalt !bg-sheet"
     />
@@ -319,4 +332,139 @@ export function GroupNode({ data, selected, width }: NodeProps<FlowNode>) {
   )
 }
 
-export const nodeTypes = { "wb-plain": PlainNode, "wb-text": TextNode, "wb-group": GroupNode }
+// A picture or a video. The node's box is the picture's own, so that a
+// resize keeps its proportions and arrows end on its edge; the caption hangs
+// underneath, outside the box.
+export function MediaNode({ data, selected, width }: NodeProps<FlowNode>) {
+  const { wb, upload } = data
+  return (
+    <div className="group/node relative size-full">
+      <Resizer selected={selected} minWidth={MEDIA_MIN_SIDE} minHeight={MEDIA_MIN_SIDE} keepAspectRatio />
+      <div
+        className={cn(
+          "size-full overflow-hidden rounded-md border border-rule bg-sheet",
+          wb.docType === "whiteboard" && "sheet-stack",
+          selected && "outline-2 outline-offset-2 outline-cobalt"
+        )}
+        style={{ ["--stack-edge" as string]: "var(--blueline)" }}
+      >
+        {upload ? <Uploading wb={wb} upload={upload} /> : <Media wb={wb} />}
+      </div>
+      {wb.title && (
+        <p className="pointer-events-none absolute inset-x-0 top-full mt-1.5 line-clamp-2 text-center text-xs leading-snug break-words text-graphite">
+          {wb.title}
+        </p>
+      )}
+      <Corner wb={wb} at={{ x: width ?? wb.width ?? DEFAULT_SIZE.media.width!, y: 0 }} />
+      <Handles visible={selected} />
+    </div>
+  )
+}
+
+function Uploading({ wb, upload }: { wb: WbNode; upload: Upload }) {
+  const percent = Math.round(upload.progress * 100)
+  const Icon = wb.mediaType === "video" ? Video : ImageIcon
+  return (
+    <div className="relative flex size-full items-center justify-center bg-paper">
+      {upload.preview ? (
+        // The uploader's own copy, dimmed until the file is really there.
+        // eslint-disable-next-line @next/next/no-img-element -- a local object URL, which next/image cannot load
+        <img src={upload.preview} alt="" draggable={false} className="absolute inset-0 size-full opacity-50" />
+      ) : (
+        <Icon aria-hidden className="size-6 text-graphite" />
+      )}
+      <div
+        role="progressbar"
+        aria-label={`Uploading ${wb.mediaType === "video" ? "video" : "picture"}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        className="absolute inset-x-2 bottom-2 h-1.5 overflow-hidden rounded-full bg-sheet/90 ring-1 ring-rule"
+      >
+        <div className="h-full bg-cobalt transition-[width]" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  )
+}
+
+// The part of a video, measured from its bottom edge, where the browser
+// draws the timeline and the buttons.
+const VIDEO_CONTROLS = 64
+
+function Media({ wb }: { wb: WbNode }) {
+  const { url, failed, retry } = useMediaUrl(wb.mediaPath)
+  // In edit mode a press on a node moves it. In view mode nothing moves.
+  const movable = useStore((state) => state.nodesDraggable)
+  const video = useRef<HTMLVideoElement>(null)
+  // Where a video had got to when its address ran out, to carry on from
+  // there with the new one.
+  const resumeAt = useRef(0)
+
+  // A video nobody can see stops: scrolled away, it would play on unheard
+  // or, worse, heard.
+  useEffect(() => {
+    const element = video.current
+    if (!element) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) element.pause()
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [url])
+
+  if (failed)
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-1 bg-paper p-2 text-center text-xs text-graphite">
+        <ImageOff aria-hidden className="size-5" />
+        <span className="line-clamp-2">This file cannot be shown</span>
+      </div>
+    )
+  if (!url) return <div aria-busy className="size-full animate-pulse bg-paper" />
+
+  if (wb.mediaType === "video") {
+    const overControls = (event: React.MouseEvent<HTMLVideoElement>) =>
+      event.nativeEvent.offsetY > event.currentTarget.clientHeight - VIDEO_CONTROLS
+    return (
+      <video
+        ref={video}
+        // The fragment makes a browser that would show nothing until play
+        // (Safari) show the first frame, which is the poster.
+        src={`${url}#t=0.001`}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={wb.alt || wb.title || "Video"}
+        className="size-full bg-black object-contain"
+        onError={(event) => {
+          resumeAt.current = event.currentTarget.currentTime
+          retry()
+        }}
+        onLoadedMetadata={(event) => {
+          if (resumeAt.current) event.currentTarget.currentTime = resumeAt.current
+          resumeAt.current = 0
+        }}
+        // The timeline is dragged to scrub, so a press on the controls must
+        // not start moving the node; anywhere else on the video it does.
+        // React Flow looks for this class when the press reaches it, and a
+        // pointer event is handled before the mouse or touch event it reads.
+        onPointerDownCapture={(event) => event.currentTarget.classList.toggle("nodrag", overControls(event))}
+        // While editing, a click on the picture selects the node and a
+        // double click opens what it holds. Playing is what the controls are for.
+        onClick={(event) => movable && !overControls(event) && event.preventDefault()}
+        onDoubleClick={(event) => movable && event.preventDefault()}
+      />
+    )
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- a signed address that changes every hour, which next/image would fetch and cache again each time
+    <img
+      src={url}
+      alt={wb.alt || wb.title}
+      draggable={false}
+      className="size-full select-none"
+      onError={retry}
+    />
+  )
+}
+
+export const nodeTypes = { "wb-plain": PlainNode, "wb-text": TextNode, "wb-group": GroupNode, "wb-media": MediaNode }

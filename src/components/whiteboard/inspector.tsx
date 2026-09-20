@@ -1,6 +1,6 @@
 "use client"
 
-import { X } from "lucide-react"
+import { ExternalLink, X } from "lucide-react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
+import { mediaHref } from "@/lib/whiteboard/media"
 import {
   COLOR_KEYS,
   COLORS,
@@ -17,12 +18,11 @@ import {
   type WbNode,
 } from "@/lib/whiteboard/schema"
 import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
+import { nodeLabel } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
 import { ObjectDocument } from "./object-document"
 import { EmojiField, IconField, ShapeField } from "./pickers"
-
-const KIND_LABELS = { plain: "Node", text: "Text", group: "Group" }
 
 // The panel that opens from the right when one object is selected (R4.3).
 // On a wide screen it sits beside the canvas, so nothing is hidden. On a
@@ -64,7 +64,7 @@ export function Inspector({
     >
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
         <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
-          {isNode ? KIND_LABELS[selection.node.kind] : "Arrow"}
+          {isNode ? nodeLabel(selection.node) : "Arrow"}
         </span>
         <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
           {name || (isNode ? "Untitled" : "No label")}
@@ -138,6 +138,8 @@ function NodeFields({
     )
   }
 
+  if (node.kind === "media") return <MediaFields node={node} onChange={onChange} />
+
   return (
     <>
       <Field label="Title" htmlFor="wb-title">
@@ -173,6 +175,60 @@ function NodeFields({
       )}
       {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
+      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+    </>
+  )
+}
+
+// A picture or a video: its title is the caption under it.
+function MediaFields({
+  node,
+  onChange,
+}: {
+  node: WbNode
+  onChange: (patch: Partial<Omit<WbNode, "id">>) => void
+}) {
+  return (
+    <>
+      <Field label="Caption" htmlFor="wb-title" hint="Shown under it on the whiteboard.">
+        <Input
+          id="wb-title"
+          value={node.title}
+          maxLength={200}
+          onChange={(event) => onChange({ title: event.target.value })}
+        />
+      </Field>
+      <Field
+        label="Alt text"
+        htmlFor="wb-alt"
+        hint={`What this ${node.mediaType === "video" ? "video" : "picture"} shows, for someone who cannot see it.`}
+      >
+        <Textarea
+          id="wb-alt"
+          value={node.alt}
+          rows={3}
+          maxLength={500}
+          onChange={(event) => onChange({ alt: event.target.value })}
+        />
+      </Field>
+      {node.mediaPath && (
+        <div className="flex items-center justify-between gap-2 text-xs text-graphite">
+          {node.mediaWidth && node.mediaHeight && (
+            <span className="tabular-nums">
+              {node.mediaWidth} × {node.mediaHeight} px
+            </span>
+          )}
+          <a
+            href={mediaHref(node.mediaPath)}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto inline-flex items-center gap-1 text-cobalt underline-offset-2 hover:underline"
+          >
+            Open the file <ExternalLink aria-hidden className="size-3" />
+          </a>
+        </div>
+      )}
       <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
       <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>

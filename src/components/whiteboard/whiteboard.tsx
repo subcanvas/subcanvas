@@ -14,10 +14,11 @@ import {
   useReactFlow,
   useStoreApi,
 } from "@xyflow/react"
-import { Copy, Group, LayoutGrid, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react"
+import { Copy, Group, ImagePlus, LayoutGrid, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,8 @@ import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
+import { MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
+import { copyMediaTo } from "@/lib/whiteboard/media-upload"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
   useWhiteboard,
@@ -46,6 +49,7 @@ import { Inspector } from "./inspector"
 import { ModeToggle, storedMode, storeMode, type Mode } from "./mode-toggle"
 import { nodeTypes } from "./nodes"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
+import { useMediaUploads } from "./use-media-uploads"
 
 const PASTE_OFFSET = 24
 const NUDGE = 5
@@ -56,8 +60,9 @@ const PAN_BUTTONS = [1, 2]
 
 // Where typing belongs to the text, not to the canvas.
 const TYPING = "input, textarea, select, [contenteditable=true], [role=dialog], [role=menu], [role=listbox]"
-// Controls that use Enter, Space and the arrow keys themselves.
-const OWN_KEYS = "button, a, [role=separator], [role=radio]"
+// Controls that use Enter, Space and the arrow keys themselves. A video that
+// has the focus seeks with the arrows.
+const OWN_KEYS = "button, a, video, [role=separator], [role=radio]"
 
 // Shared by every whiteboard in the tab, so objects can be pasted across them.
 let clipboard: Clip | null = null
@@ -94,6 +99,9 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   const pointer = useRef<{ x: number; y: number } | null>(null)
   const pasteCount = useRef(0)
   const addCount = useRef(0)
+  const filePicker = useRef<HTMLInputElement>(null)
+  // True while files are being dragged over the canvas.
+  const [dropping, setDropping] = useState(false)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const panel = usePanelWidth(root)
 
@@ -190,7 +198,8 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     [wb]
   )
 
-  function add(kind: NodeKind) {
+  // The middle of the canvas as it is on screen, for what the toolbar adds.
+  function nextSpot() {
     const box = wrapper.current!.getBoundingClientRect()
     const center = flow.screenToFlowPosition({
       x: box.left + box.width / 2,
@@ -198,7 +207,11 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     })
     // Cascade repeated adds so they do not land exactly on top of each other.
     const step = (addCount.current++ % 8) * 24
-    selectOnly([wb.addNode(kind, { x: center.x + step, y: center.y + step })])
+    return { x: center.x + step, y: center.y + step }
+  }
+
+  function add(kind: NodeKind) {
+    selectOnly([wb.addNode(kind, nextSpot())])
   }
 
   // The innermost group under a point, leaving out the ones `skip` names and
@@ -223,6 +236,31 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     },
     [flow]
   )
+
+  const mediaHome = useMemo(
+    () => ({ orgId: context.orgId, projectId: context.projectId, documentId: context.whiteboardId }),
+    [context.orgId, context.projectId, context.whiteboardId]
+  )
+  // A picture that lands on a group goes inside it.
+  const settleInGroup = useCallback(
+    (node: WbNode) => {
+      const group = groupAt({ x: node.x + (node.width ?? 0) / 2, y: node.y + (node.height ?? 0) / 2 }, () => false)
+      return group ? { ...node, parentId: group.id, x: node.x - group.x, y: node.y - group.y } : node
+    },
+    [groupAt]
+  )
+  const uploadFiles = useMediaUploads({ wb, home: mediaHome, settle: settleInGroup, onAdded: selectOnly })
+
+  // Files from the toolbar, a drop or a paste. `at` is where on the screen
+  // they were dropped; without one they go to the middle of the canvas.
+  function addFiles(files: File[], at: { x: number; y: number } | null) {
+    if (!files.length) return
+    if (!canEdit) {
+      if (editable) toast.message("Switch to edit mode to add pictures and videos.")
+      return
+    }
+    void uploadFiles(files, at ? flow.screenToFlowPosition(at) : nextSpot())
+  }
 
   // Dropping a node on a group puts it inside; dragging it off takes it out.
   const onNodeDragStop = useCallback(
@@ -329,20 +367,37 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     navigator.clipboard?.writeText(clip.text).catch(() => {})
   }
 
-  function paste() {
+  // Pictures copied on another whiteboard get files of their own on this
+  // one first (media-upload.ts). One that cannot be copied is left out.
+  async function withMediaHere(clip: Clip): Promise<Clip> {
+    const nodes = await Promise.all(
+      clip.nodes.map(async (node) => {
+        if (!node.mediaPath || mediaDocumentId(node.mediaPath) === context.whiteboardId) return node
+        const mediaPath = await copyMediaTo(mediaHome, node.mediaPath)
+        return mediaPath ? { ...node, mediaPath } : null
+      })
+    )
+    const kept = nodes.filter((node) => node !== null)
+    if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
+    return { ...clip, nodes: kept }
+  }
+
+  async function paste() {
     if (!clipboard || !canEdit) return
     // Each paste steps further, so repeated pastes do not pile up.
     const step = PASTE_OFFSET * pasteCount.current++
-    const { bounds } = clipboard
     const at = pointer.current && flow.screenToFlowPosition(pointer.current)
+    const clip = await withMediaHere(clipboard)
+    if (!clip.nodes.length) return
+    const { bounds } = clip
     const toPointer = at && {
       x: at.x - (bounds.x + bounds.width / 2) + step,
       y: at.y - (bounds.y + bounds.height / 2) + step,
     }
     // Under the pointer when it is over the canvas. With the pointer still on
     // the original, that would hide the copy behind it, so it goes beside.
-    if (toPointer && Math.hypot(toPointer.x, toPointer.y) >= PASTE_OFFSET) insert(clipboard, toPointer, true)
-    else insert(clipboard, { x: step + PASTE_OFFSET, y: step + PASTE_OFFSET }, false)
+    if (toPointer && Math.hypot(toPointer.x, toPointer.y) >= PASTE_OFFSET) insert(clip, toPointer, true)
+    else insert(clip, { x: step + PASTE_OFFSET, y: step + PASTE_OFFSET }, false)
   }
 
   function cut() {
@@ -432,7 +487,6 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
       else if (key === "y") run(wb.redo)
       else if (key === "c" && !textSelected) run(copy)
       else if (key === "x" && !textSelected) run(cut)
-      else if (key === "v") run(paste)
       else if (key === "d") run(duplicate)
       else if (key === "a") run(() => select(true))
       return
@@ -461,6 +515,25 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     const listener = (event: KeyboardEvent) => onKeyDown(event)
     window.addEventListener("keydown", listener)
     return () => window.removeEventListener("keydown", listener)
+  }, [])
+
+  // Paste is heard as the browser's own event, not as a key: only that event
+  // carries what is on the system clipboard. A picture copied anywhere (a
+  // screenshot, an image on a web page) becomes a media node; otherwise paste
+  // means the nodes last copied here.
+  const onPaste = useEffectEvent((event: ClipboardEvent) => {
+    const target = event.target as HTMLElement
+    if (event.defaultPrevented || target.closest(TYPING)) return
+    if (target !== document.body && !root.current?.contains(target)) return
+    event.preventDefault()
+    const files = [...(event.clipboardData?.files ?? [])]
+    if (files.length) addFiles(files, pointer.current)
+    else void paste()
+  })
+  useEffect(() => {
+    const listener = (event: ClipboardEvent) => onPaste(event)
+    window.addEventListener("paste", listener)
+    return () => window.removeEventListener("paste", listener)
   }, [])
 
   // A trackpad pinch arrives as a wheel event with Ctrl held. The canvas
@@ -492,7 +565,31 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
         className="@container relative min-w-0 flex-1 bg-paper"
         onPointerMove={(event) => (pointer.current = { x: event.clientX, y: event.clientY })}
         onPointerLeave={() => (pointer.current = null)}
+        // Files dragged in from the desktop. Always taken, even when they
+        // cannot be added: a browser left to itself would open the file in
+        // place of the whiteboard.
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = canEdit ? "copy" : "none"
+          setDropping(canEdit)
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false)
+        }}
+        onDrop={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return
+          event.preventDefault()
+          setDropping(false)
+          addFiles([...event.dataTransfer.files], { x: event.clientX, y: event.clientY })
+        }}
       >
+        {dropping && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-2 z-10 rounded-xl border-2 border-dashed border-cobalt bg-cobalt/5"
+          />
+        )}
         {/* Navigation is a drawing tool's: two fingers (or the wheel) pan, a
             pinch or the command key with the wheel zooms, and a drag on the
             empty canvas selects. Holding Space, or the middle or right
@@ -561,6 +658,26 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
                 <Tool label="Group" hint="A frame that moves what is inside it" onClick={() => add("group")}>
                   <Group />
                 </Tool>
+                <Tool
+                  label="Media"
+                  hint="A picture or a video. Files can also be dropped on the canvas, or pasted"
+                  onClick={() => filePicker.current?.click()}
+                >
+                  <ImagePlus />
+                </Tool>
+                <input
+                  ref={filePicker}
+                  type="file"
+                  multiple
+                  accept={MEDIA_ACCEPT}
+                  // The button above is the control; this only opens the dialog.
+                  hidden
+                  onChange={(event) => {
+                    addFiles([...(event.target.files ?? [])], null)
+                    // So that choosing the same file again is a change.
+                    event.target.value = ""
+                  }}
+                />
                 <Separator orientation="vertical" className="mx-1 h-5" />
                 <Tool label="Undo" hint={`Undo ${KEYS.mod}Z`} iconOnly onClick={wb.undo}>
                   <Undo2 />
