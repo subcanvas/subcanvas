@@ -195,6 +195,24 @@ else {
   await refused(owner, "append_markdown", { document_id: readme.id, markdown: "Agent was here" }, /repository/)
 }
 
+// A folder of notes: folders from the paths, a title from the heading, and a
+// link between two files that ends up pointing at the new document.
+const notes = await ok(owner, "import_markdown_documents", {
+  project_id,
+  files: [
+    { path: "guides/Install.md", markdown: "# Installing\n\nThen read [the tour](./Tour.md)." },
+    { path: "guides/Tour.md", markdown: "A tour with no heading of its own." },
+  ],
+})
+assert.equal(notes.documents.length, 2)
+assert.equal(notes.folders, 1)
+const install = notes.documents.find((document) => document.path === "guides/Install.md")
+const tour = notes.documents.find((document) => document.path === "guides/Tour.md")
+assert.equal(install.title, "Installing")
+assert.equal(tour.title, "Tour")
+const installed = await ok(owner, "read_text_document", { document_id: install.document_id })
+assert.ok(JSON.stringify(installed).includes(tour.document_id), "the link between the files points at the new document")
+
 // A viewer reads and cannot write, whatever the tool.
 await ok(viewer, "get_project", { project_id })
 await ok(viewer, "read_whiteboard", { whiteboard_id: board })
@@ -207,6 +225,7 @@ await refused(viewer, "create_project", { org_id: org.id, name: "Viewer was here
 await refused(viewer, "trash_document", { document_id: page }, /permission/)
 await refused(viewer, "set_project_visibility", { project_id, visibility: "public" }, /permission/)
 await refused(viewer, "import_github_repository", { org_id: org.id, repository: "fixture/shop" }, /permission/)
+await refused(viewer, "import_markdown_documents", { project_id, files: [{ path: "note.md", markdown: "Viewer was here" }] }, /permission/)
 assert.equal((await ok(owner, "read_whiteboard", { whiteboard_id: board })).nodes.length, 6)
 
 // Someone from another org sees none of it.
