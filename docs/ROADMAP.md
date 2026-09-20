@@ -43,6 +43,8 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 2. Full-access MCP server
 
+**Status: first version built** ([MCP.md](MCP.md)). Built: the endpoint at `/mcp`, sign-in through Supabase Auth's OAuth server with the consent page, tools for orgs (list), projects, folders and documents, text by block, whiteboards, GitHub import and embeds, live announcement of edits over Realtime's HTTP broadcast, the "Connect an agent" page, and the parity test. Not built: tools for members, invites, and billing (listed with reasons in the parity test), the "read only" and "only these projects" choices at consent, the "agent is editing" notice, and rate limits.
+
 **Principle: nothing a human can do that an agent cannot.** An agent connected to Subcanvas over the [Model Context Protocol](https://modelcontextprotocol.io) can read and change everything its user can, with the same permissions and the same limits.
 
 **What that means in practice.**
@@ -64,7 +66,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 | Can a user limit an agent to one project or to read-only? | Yes, at connection time: the OAuth consent screen offers "everything I can do" (the default), "read only", and "only these projects". |
 | Are agents billed as editors? | No. An agent acts as its user, who is already counted. |
 | Can an agent watch a document and react to changes? | Later, as an optional live mode. It needs a long-lived process outside the serverless deployment, which is a cost for us and for self-hosters, so it waits for a use case that needs it. |
-| Does Realtime's HTTP broadcast apply a user's token and the channel's authorization policies to a private channel? | Believed so; confirm with a spike before building on it. If not, edits still arrive through the 30 s database re-read, only slower. |
+| Does Realtime's HTTP broadcast apply a user's token and the channel's authorization policies to a private channel? | Yes, confirmed on the local stack and built on: an editor's token is accepted on the private channel and open browsers apply the update at once. Still to confirm on hosted Supabase. If it fails there, edits arrive through the 30 s database re-read, only slower. |
 | Rate limits? | Per user, shared between the web app and agents, so an agent cannot do more damage than a script in the browser could. |
 
 ---

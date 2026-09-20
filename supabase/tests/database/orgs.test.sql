@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(24);
 
 -- Uses its own email domain and slugs so it passes against a local database
 -- that already holds development data.
@@ -66,6 +66,9 @@ select throws_ok(
 select throws_ok(
   $$ update public.orgs set slug = 'privacy' $$,
   '23514', null, 'an org cannot take the address of an app page');
+select throws_ok(
+  $$ update public.orgs set slug = 'mcp' $$,
+  '23514', null, 'an org cannot take the address of the MCP server');
 
 -- Invites ----------------------------------------------------------------------
 

@@ -3,10 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { createFixtureProvider, FIXTURE_OWNER, fixturesFolder } from "@/lib/github/fixture-provider"
-import { createGitHubProvider, gitHubAppCredentials } from "@/lib/github/github-provider"
-import { importRepository } from "@/lib/github/import-repository"
-import { parseRepositoryReference } from "@/lib/github/reference"
+import * as operations from "@/lib/documents/operations"
+import { importFromReference } from "@/lib/github/import-reference"
 import { getOrgContext } from "@/lib/orgs"
 import { createClient } from "@/lib/supabase/server"
 
@@ -18,8 +16,6 @@ export async function createProject(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const name = String(formData.get("name") ?? "").trim()
-  if (!name) return { error: "Enter a project name." }
   const visibility = formData.get("visibility") === "public" ? "public" : "private"
 
   const supabase = await createClient()
@@ -27,21 +23,15 @@ export async function createProject(
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: project, error } = await supabase
-    .from("projects")
-    .insert({ org_id: orgId, name, visibility, created_by: user?.id })
-    .select("id")
-    .single()
+  const result = await operations.createProject(supabase, {
+    orgId,
+    userId: user?.id,
+    name: String(formData.get("name") ?? ""),
+    visibility,
+  })
+  if ("error" in result) return { error: result.error }
 
-  if (error)
-    return {
-      error:
-        error.code === "42501"
-          ? "You do not have permission to create projects."
-          : error.message,
-    }
-
-  redirect(`/${slug}/${project.id}`)
+  redirect(`/${slug}/${result.id}`)
 }
 
 // `limit` marks the free-tier limit, so the dialog can say what to do.
@@ -58,23 +48,11 @@ export async function importFromGitHub(
   _prev: ImportState,
   formData: FormData
 ): Promise<ImportState> {
-  const reference = parseRepositoryReference(String(formData.get("repository") ?? ""))
-  if (!reference)
-    return { error: "Enter a GitHub repository as owner/name, or paste its address." }
-
-  // Checked before GitHub is asked anything. The database checks again.
-  const { supabase, user, org, canEdit } = await getOrgContext(slug)
-  if (!canEdit) return { error: "You do not have permission to create projects." }
-
-  const fixtures = fixturesFolder()
-  const provider =
-    fixtures && reference.owner === FIXTURE_OWNER
-      ? createFixtureProvider(fixtures)
-      : createGitHubProvider(gitHubAppCredentials())
-
-  const outcome = await importRepository(supabase, provider, reference, {
+  const { supabase, user, org } = await getOrgContext(slug)
+  const outcome = await importFromReference(supabase, {
     orgId: org.id,
     userId: user.id,
+    repository: String(formData.get("repository") ?? ""),
     makePublic: formData.get("public") === "on",
   })
   if ("error" in outcome) return outcome
