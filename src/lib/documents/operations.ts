@@ -4,6 +4,8 @@ import { limitMessage } from "@/lib/billing/limit"
 import type { Database } from "@/lib/supabase/database.types"
 import type { Container, DocumentType } from "@/lib/tree"
 
+import { listMedia, removeMedia } from "./media-cleanup"
+
 // What can be done to a project's folders and documents, as plain functions
 // over the caller's Supabase client. The server actions and the MCP tools
 // both call these, so a person and an agent get the same checks and the same
@@ -77,6 +79,54 @@ export async function createDocument(
     .single()
   if (error) return fail(error)
   return { ok: true, id: data.id }
+}
+
+// Many folders and text documents at once, for an import. The caller chose
+// the ids, so that what it sends can already refer to them; a parent has to
+// come before what it holds. Each call is one statement: at a plan limit,
+// or without permission, none of its rows are made.
+export async function createFolders(
+  supabase: Client,
+  project: ProjectScope,
+  folders: { id: string; name: string; parentFolderId: string | null }[]
+): Promise<OperationResult> {
+  if (!folders.length) return { ok: true }
+  const first = nextPosition()
+  const { error } = await supabase.from("folders").insert(
+    folders.map((folder, index) => ({
+      id: folder.id,
+      org_id: project.orgId,
+      project_id: project.projectId,
+      parent_folder_id: folder.parentFolderId,
+      name: folder.name,
+      position: first + index,
+    }))
+  )
+  return error ? fail(error) : { ok: true }
+}
+
+export async function createTextDocuments(
+  supabase: Client,
+  project: ProjectScope,
+  userId: string | undefined,
+  documents: { id: string; title: string; container: Container }[]
+): Promise<OperationResult> {
+  if (!documents.length) return { ok: true }
+  const first = nextPosition()
+  const { error } = await supabase.from("documents").insert(
+    documents.map(({ id, title, container }, index) => ({
+      id,
+      org_id: project.orgId,
+      project_id: project.projectId,
+      type: "text" as const,
+      title,
+      folder_id: container.kind === "folder" ? container.id : null,
+      parent_document_id: container.kind === "document" ? container.id : null,
+      position: first + index,
+      created_by: userId,
+    }))
+  )
+  return error ? fail(error) : { ok: true }
 }
 
 export async function renameItem(
@@ -186,6 +236,11 @@ export async function restoreDocument(supabase: Client, id: string): Promise<Ope
 }
 
 export async function deleteDocumentForever(supabase: Client, id: string): Promise<OperationResult> {
+  // The pictures and videos on it, and on the whiteboards inside it, which
+  // the delete cascades to (media-cleanup.ts).
+  const { data: doomed } = await supabase.from("documents").select("org_id").eq("id", id).maybeSingle()
+  const media = doomed ? await listMedia(supabase, doomed.org_id, id) : []
+
   const { data, error } = await supabase
     .from("documents")
     .delete()
@@ -194,6 +249,7 @@ export async function deleteDocumentForever(supabase: Client, id: string): Promi
     .select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
+  await removeMedia(supabase, media)
   return { ok: true }
 }
 

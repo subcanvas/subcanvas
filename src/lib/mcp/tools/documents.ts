@@ -1,10 +1,16 @@
 import { z } from "zod"
 
 import * as operations from "@/lib/documents/operations"
+import { makeBatches } from "@/lib/import/batches"
+import { MAX_FILE_BYTES } from "@/lib/import/limits"
+import { isClutter, kindOf, safePath } from "@/lib/import/paths"
+import { planImport } from "@/lib/import/plan"
+import { checkImportAllowance, writeImportBatch } from "@/lib/import/write"
+import { documentHref } from "@/lib/navigation"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
 
 import { editDocument } from "../edit-document"
-import { documentUrl, findDocument, findProject, findTypedDocument, NO_DOCUMENT, NO_PROJECT } from "../lookup"
+import { documentUrl, findDocument, findProject, findTypedDocument, NO_DOCUMENT, NO_PROJECT, orgSlug } from "../lookup"
 import { createInsideObject } from "../object-documents"
 import { defineTool, id, type ToolContext } from "../tool"
 
@@ -30,6 +36,10 @@ const place = z
       .describe("Inside a whiteboard's node, group, or arrow. Same as `attach_document`."),
   ])
   .describe("Where the new document lives. Every document has exactly one home.")
+
+// One call's worth of files. An agent with more sends them in several calls;
+// links only resolve between files sent together.
+const MAX_IMPORT_FILES = 200
 
 // Writes the first content of a text document that was just created.
 export async function writeInitialMarkdown(context: ToolContext, documentId: string, markdown: string) {
@@ -86,6 +96,76 @@ export const documentTools = [
       return {
         text: `Created the ${type === "text" ? "text document" : "whiteboard"} (${created.id}).${url ? ` Open it at ${url}` : ""}`,
         data: { document_id: created.id, type, url },
+      }
+    },
+  }),
+
+  defineTool({
+    name: "import_markdown_documents",
+    title: "Import Markdown files as documents",
+    group: "Documents",
+    description:
+      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as text documents, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a document with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new documents. Local images are not imported; their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the org has no room for it.",
+    input: {
+      project_id: id("The project, from `list_projects`."),
+      place: container.default({ kind: "root" }),
+      files: z
+        .array(
+          z.object({
+            path: z.string().min(1).max(1000).describe("The file's path relative to the folder being imported, such as `guides/install.md`."),
+            markdown: z.string().max(MAX_FILE_BYTES).describe("The file's text."),
+          })
+        )
+        .min(1)
+        .max(MAX_IMPORT_FILES)
+        .describe(`Up to ${MAX_IMPORT_FILES} files, ${MAX_FILE_BYTES / 1000} KB each. Send files that link to each other in the same call.`),
+    },
+    kind: "write",
+    covers: ["[org]/[project]/import-actions.checkImport", "[org]/[project]/import-actions.importBatch"],
+    run: async (context, { project_id, place: where, files }) => {
+      const project = await findProject(context, project_id)
+      if (!project) return NO_PROJECT
+      const slug = await orgSlug(context, project.org_id)
+      if (!slug) return NO_PROJECT
+
+      const sources = files.flatMap((file) => {
+        const path = safePath(file.path)
+        const kind = path && !isClutter(path) ? kindOf(path) : null
+        return path && (kind === "markdown" || kind === "csv") ? [{ path, text: file.markdown }] : []
+      })
+      const plan = planImport(sources, {
+        intoDocument: where.kind === "document",
+        newId: () => crypto.randomUUID(),
+        hrefFor: (documentId) => documentHref({ slug, projectId: project.id }, documentId),
+      })
+      if (!plan.documents.length)
+        return { error: "None of these files can be imported. Paths must end in .md, .markdown, .txt, or .csv, and stay inside the import." }
+
+      const scope = { orgId: project.org_id, projectId: project.id }
+      const allowed = await checkImportAllowance(context.supabase, context.userId, scope, plan.documents.length)
+      if ("error" in allowed) return allowed
+
+      let imported = 0
+      for (const batch of makeBatches(plan)) {
+        const result = await writeImportBatch(context.supabase, scope, context.userId, where, batch)
+        if ("error" in result)
+          return { error: `${result.error} ${imported} of ${plan.documents.length} documents were imported before this; they stay.` }
+        imported += batch.documents.length
+      }
+
+      const documents = plan.documents.map((document) => ({ document_id: document.id, title: document.title, path: document.path }))
+      const left = files.length - sources.length + plan.skipped.length
+      return {
+        text: [
+          `Imported ${imported} document${imported === 1 ? "" : "s"} in ${plan.folders.length} folder${plan.folders.length === 1 ? "" : "s"}.`,
+          left ? `${left} file${left === 1 ? " was" : "s were"} left out (not Markdown, text, or CSV; an unsafe path; or too large).` : "",
+          plan.localImages ? `${plan.localImages} local image${plan.localImages === 1 ? " was" : "s were"} not imported; the alt text was kept.` : "",
+          plan.unlinked ? `${plan.unlinked} link${plan.unlinked === 1 ? "" : "s"} to files outside the import became plain text.` : "",
+          ...documents.map((document) => `- "${document.title}" (${document.document_id})${document.path ? ` from ${document.path}` : ""}`),
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        data: { documents, folders: plan.folders.length, skipped: plan.skipped, local_images: plan.localImages, unlinked: plan.unlinked },
       }
     },
   }),

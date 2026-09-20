@@ -2,7 +2,7 @@
 
 An open-source Notion/Excalidraw hybrid. Build whiteboards and text documents that nest inside each other: click a node on an architecture diagram to open that service's own diagram, or click an edge to read the protocol between two services.
 
-Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is being built and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and build order. What comes after v1 is in [docs/ROADMAP.md](docs/ROADMAP.md). To run your own, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Agents connect over the Model Context Protocol and work as the person who connected them: see [docs/MCP.md](docs/MCP.md). A public GitHub repository can be imported as a project; a [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to.
+Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is being built and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and build order. What comes after v1 is in [docs/ROADMAP.md](docs/ROADMAP.md). To run your own, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Agents connect over the Model Context Protocol and work as the person who connected them: see [docs/MCP.md](docs/MCP.md). A public GitHub repository can be imported as a project; a [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to. Notes from Notion, Obsidian, Google Docs, and plain folders of Markdown come in through Import files: see [docs/IMPORTING.md](docs/IMPORTING.md).
 
 ## Stack
 
@@ -48,7 +48,9 @@ update public.projects set taken_down_at = now() where id = '<project id>';
 
 ### Embedding a diagram
 
-Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so.
+Whiteboards take pictures and videos: drop files on the canvas, paste a screenshot, or use **Media** in the toolbar, and point arrows at them like at any other node (PNG, JPEG, WebP, GIF, AVIF up to 10 MB; MP4, WebM, MOV up to 100 MB).
+
+Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so. Pictures and videos on the whiteboard show in the embed as captioned frames: the embed is one standalone image and never loads another file.
 
 ## Plans and billing
 

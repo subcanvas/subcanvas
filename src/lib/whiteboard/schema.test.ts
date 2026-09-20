@@ -35,6 +35,26 @@ describe("readNode", () => {
   })
 })
 
+describe("media nodes", () => {
+  const path =
+    "00000000-0000-4000-8000-0000000000a1/00000000-0000-4000-8000-0000000000b1/00000000-0000-4000-8000-0000000000d1/00000000-0000-4000-8000-0000000000f1"
+
+  it("reads the file, its size and the alt text, and tells a video by its extension", () => {
+    const fields = { kind: "media", mediaWidth: 1920, mediaHeight: 1080, alt: "The login page" }
+    expect(readNode("x", inDocument({ ...fields, mediaPath: `${path}.png` }))).toMatchObject({
+      kind: "media", mediaType: "image", mediaPath: `${path}.png`, mediaWidth: 1920, mediaHeight: 1080, alt: "The login page",
+    })
+    expect(readNode("x", inDocument({ ...fields, mediaPath: `${path}.webm` })).mediaType).toBe("video")
+  })
+
+  it("takes no file over a path this app would not have written", () => {
+    for (const hostile of [42, "", "https://example.com/a.png", `../${path}.png`, `${path}.svg`, `${path}.png?x=1`, `${path}.png\n`]) {
+      const node = readNode("x", inDocument({ kind: "media", mediaPath: hostile, mediaType: "video" }))
+      expect(node).toMatchObject({ kind: "media", mediaPath: null, mediaType: null })
+    }
+  })
+})
+
 describe("readEdge", () => {
   it("reads an icon and an emoji, and nothing else in their place", () => {
     expect(readEdge("x", inDocument({ icon: "lock", emoji: "🔒" }, "edge"))).toMatchObject({ icon: "lock", emoji: "🔒" })

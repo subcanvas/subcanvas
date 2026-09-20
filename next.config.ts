@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   // server's copy of the editor schema is defined: a block made by one copy
   // is not a block to the other.
   serverExternalPackages: ["@blocknote/server-util", "@blocknote/core", "yjs"],
+  experimental: {
+    // An import sends notes in batches of about 600 KB (lib/import/limits),
+    // but a batch is never less than one note, and the largest note allowed,
+    // escaped as JSON, can pass the default of 1 MB. Still well under what
+    // Vercel accepts in one request.
+    serverActions: { bodySizeLimit: "2mb" },
+  },
 };
 
 export default nextConfig;

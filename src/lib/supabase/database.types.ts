@@ -665,6 +665,13 @@ export type Database = {
         }[]
       }
       has_password: { Args: never; Returns: boolean }
+      media_objects: {
+        Args: { p_document_id?: string; p_org_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
+      }
       org_usage: {
         Args: { p_org_id: string }
         Returns: {

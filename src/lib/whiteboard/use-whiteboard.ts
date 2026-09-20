@@ -29,7 +29,12 @@ import {
   type WbNode,
 } from "./schema"
 
-export type FlowNode = Node<{ wb: WbNode }>
+// `upload` marks a media node that exists on this screen only, while its
+// file is on the way to Storage. It joins the document when the file has
+// arrived, so nobody else ever sees a picture that is not there yet, and a
+// failed upload leaves nothing behind to undo.
+export type Upload = { progress: number; preview: string | null }
+export type FlowNode = Node<{ wb: WbNode; upload?: Upload }>
 export type FlowEdge = Edge<{ wb: WbEdge }>
 
 const DRAG_WRITE_INTERVAL_MS = 40
@@ -44,6 +49,12 @@ function parentsFirst(nodes: WbNode[]) {
     return depth(parent, seen) + 1
   }
   return nodes.map((wb) => ({ wb, depth: depth(wb) })).sort((a, b) => a.depth - b.depth)
+}
+
+// What a node is called, in the panel and to a screen reader.
+export function nodeLabel(wb: WbNode) {
+  if (wb.kind === "media") return wb.mediaType === "video" ? "Video" : "Image"
+  return wb.kind === "plain" ? "Node" : wb.kind === "text" ? "Text" : "Group"
 }
 
 function toFlowNode(wb: WbNode, depth: number, existing: FlowNode | undefined, known: Set<string>): FlowNode {
@@ -64,7 +75,7 @@ function toFlowNode(wb: WbNode, depth: number, existing: FlowNode | undefined, k
     // What a screen reader announces: what it is, what it is called, and
     // whether there is something inside to open.
     ariaLabel: [
-      `${wb.kind === "plain" ? "Node" : wb.kind === "text" ? "Text" : "Group"}: ${wb.title || "untitled"}`,
+      `${nodeLabel(wb)}: ${wb.title || (wb.kind === "media" ? wb.alt : "") || "untitled"}`,
       wb.docType === "whiteboard" ? "holds a whiteboard" : wb.docId ? "holds a document" : "",
     ]
       .filter(Boolean)
@@ -134,7 +145,11 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
         const existing = new Map(current.map((node) => [node.id, node]))
         const all = [...yNodes.entries()].map(([id, map]) => readNode(id, map))
         const known = new Set(all.map((node) => node.id))
-        return parentsFirst(all).map(({ wb, depth }) => toFlowNode(wb, depth, existing.get(wb.id), known))
+        return [
+          ...parentsFirst(all).map(({ wb, depth }) => toFlowNode(wb, depth, existing.get(wb.id), known)),
+          // Uploads in progress are not in the document, and stay on screen.
+          ...current.filter((node) => node.data.upload && !known.has(node.id)),
+        ]
       })
     const titleOf = (nodeId: string) => (yNodes.get(nodeId)?.get("title") as string) || "untitled"
     const syncEdges = () =>
@@ -342,8 +357,9 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
               : (ids.get(node.parentId) ?? (yNodes.has(node.parentId) ? node.parentId : null))
           yNodes.set(
             ids.get(id)!,
-            // Links are not duplicated: a document has one home (R1.4).
-            toYMap({ ...fields, docId: null, docType: null, parentId })
+            // Links are not duplicated: a document has one home (R1.4). A
+            // copied picture shows the same stored file as the original.
+            toYMap({ ...fields, mediaType: null, docId: null, docType: null, parentId })
           )
         }
         for (const edge of copiedEdges) {
@@ -359,6 +375,48 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
       return [...ids.values()]
     },
     [transactAsOneStep, yNodes, yEdges]
+  )
+
+  // A media node as it looks while its file uploads: on this screen only,
+  // and not to be moved, selected or connected until it is real.
+  const showUpload = useCallback((wb: WbNode, upload: Upload) => {
+    const node: FlowNode = {
+      ...toFlowNode(wb, 0, undefined, new Set()),
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      data: { wb, upload },
+    }
+    setNodes((current) => [...current, node])
+  }, [])
+
+  const updateUpload = useCallback(
+    (id: string, progress: number) =>
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === id && node.data.upload ? { ...node, data: { ...node.data, upload: { ...node.data.upload, progress } } } : node
+        )
+      ),
+    []
+  )
+
+  const dropUpload = useCallback(
+    (id: string) => setNodes((current) => current.filter((node) => node.id !== id || !node.data.upload)),
+    []
+  )
+
+  // The file has arrived: the node joins the document, as one step to undo.
+  // Not through `transact`, which does nothing in view mode: someone who
+  // switched to it while a file was on its way still asked for this node.
+  const addMedia = useCallback(
+    (wb: WbNode) => {
+      dropUpload(wb.id)
+      const { id, ...fields } = wb
+      undoManager.current?.stopCapturing()
+      doc.transact(() => yNodes.set(id, toYMap({ ...fields, mediaType: null })), LOCAL_ORIGIN)
+      undoManager.current?.stopCapturing()
+    },
+    [doc, dropUpload, yNodes]
   )
 
   // Arrow keys. Repeated presses merge into one step to undo, like typing.
@@ -402,6 +460,10 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     updateEdge,
     removeObjects,
     insertCopies,
+    showUpload,
+    updateUpload,
+    addMedia,
+    dropUpload,
     moveNodes,
     applyArrangement,
     // Not while looking only: undo would change the whiteboard too.

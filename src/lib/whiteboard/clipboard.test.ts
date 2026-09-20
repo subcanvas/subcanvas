@@ -21,6 +21,11 @@ const wbNode = (id: string, x: number, y: number, parentId: string | null = null
   shape: "rectangle",
   icon: null,
   emoji: null,
+  mediaPath: null,
+  mediaType: null,
+  mediaWidth: null,
+  mediaHeight: null,
+  alt: "",
 })
 
 const source = (wb: WbNode, absolute = { x: wb.x, y: wb.y }): ClipSource => ({

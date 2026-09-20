@@ -21,6 +21,10 @@ supabase db push --dry-run             # lists the migrations, changes nothing
 supabase db push
 ```
 
+The migrations also create the two private Storage buckets that hold the pictures and videos people put on whiteboards (`media-images`, 10 MB a file; `media-videos`, 100 MB a file) and the policies that guard them. There is nothing to create by hand, but check one setting: under **Storage → Settings**, the project's **global file size limit** must be at least 100 MB, or videos larger than it are refused whatever the bucket allows. Supabase's free plan caps that limit at 50 MB, so on it a video can be 50 MB at most; the app reports the refusal and nothing else breaks. To allow less, lower the buckets' `file_size_limit` and the numbers at the top of `src/lib/whiteboard/media.ts` together.
+
+Files go from the browser straight to Supabase Storage and are played from it, so the host of the Next.js app sees none of that traffic and its request size limits (4.5 MB on Vercel) do not apply. If the app is served with a `Content-Security-Policy`, allow the Supabase project's address in `img-src`, `media-src` and `connect-src`.
+
 ## 3. Configure sign-in
 
 In the Supabase dashboard, under **Authentication**:
@@ -45,7 +49,7 @@ Give your host these environment variables (they are also listed in [`.env.examp
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | The publishable key. Safe to expose: row-level security is what protects the data. |
-| `SUPABASE_SECRET_KEY` | A secret key. Server only. It bypasses row-level security, so never give it to a build that runs untrusted code, such as a preview deployment of someone's pull request. Only billing uses it; without billing you can leave it out. |
+| `SUPABASE_SECRET_KEY` | A secret key. Server only. It bypasses row-level security, so never give it to a build that runs untrusted code, such as a preview deployment of someone's pull request. Billing uses it, and so does deleting an org, to remove the org's pictures and videos from Storage. Without billing you can leave it out: a deleted org's files then stay in the buckets, unreachable, until you remove them (below). |
 | `OAUTH_CLIENT_ID_GITHUB`, `OAUTH_CLIENT_SECRET_GITHUB` | Optional, both or neither. Server only. The id and secret of a GitHub OAuth app, the one behind "Continue with GitHub" or any other. Import from GitHub uses them to read public repositories at 5,000 requests an hour; without them GitHub allows this server 60 an hour, about 20 imports. They read nothing a stranger could not, and there is no token to create or rotate. |
 | `NEXT_PUBLIC_AUTH_PROVIDERS` | Optional: `google`, `github`, or `google,github` |
 | `LEGAL_OPERATOR`, `LEGAL_CONTACT`, `LEGAL_GOVERNING_LAW` | Optional, all three or none: the person or company running the server, the address for legal and privacy requests, and the US state whose law governs (for example `California`). When set, the server has a Terms of Service at `/terms` and a Privacy Policy at `/privacy`, linked from the landing page and the sign-in card. The text describes subcanvas.app's setup (Supabase, Vercel, Resend, Stripe, Cloudflare; no analytics), so read both pages and change what does not match yours before publishing them under your name. Google requires both links on its OAuth consent screen. |
@@ -96,6 +100,7 @@ Environment secrets, unlike repository secrets, are released only to approved ru
 - **Invites are links.** An admin creates an invite and sends the link themselves; the app does not email it.
 - **Your providers' limits are yours to check.** Supabase's free plan pauses a project after a week without activity, and caps real-time connections and messages. Vercel's Hobby plan does not allow commercial use.
 - **Back up the database.** Supabase's paid plans take daily backups. On any plan, `supabase db dump` writes a copy you can keep.
+- **Pictures and videos are files, not rows.** They live in Supabase Storage, which `supabase db dump` does not copy: back the two `media-` buckets up separately if they matter to you (they speak S3). They do not count toward any plan limit. Deleting a node never deletes its file, because a copy of the node may show the same file and undo must be able to bring it back; files are removed when their whiteboard is deleted from the trash for good. What that leaves behind is the files of nodes deleted from whiteboards that still exist, and, on a server without `SUPABASE_SECRET_KEY`, the files of deleted orgs. To list the second kind: `select bucket_id, name from storage.objects where bucket_id like 'media-%' and split_part(name, '/', 1)::uuid not in (select id from public.orgs);` and remove them in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
 - **Public projects.** An admin can make a project readable by anyone with the link. Reports and takedowns are described in the [README](../README.md#public-projects-and-moderation); they are SQL for now.
 - **There is no published Docker image.** The repository has a `Dockerfile` (section 4), and the image has to be built with your own Supabase URL and key, so a public one would be of little use.
 

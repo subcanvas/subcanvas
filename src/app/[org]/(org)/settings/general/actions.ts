@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 
+import { listMedia, removeMedia } from "@/lib/documents/media-cleanup"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 import { removeMember } from "../members/actions"
@@ -47,9 +49,16 @@ export async function deleteOrg(orgId: string, confirmation: string): Promise<Ac
   if (!org) return NOT_ALLOWED
   if (confirmation.trim() !== org.name) return { error: "That is not the org's name." }
 
+  const media = await listMedia(supabase, orgId)
   const { data, error } = await supabase.from("orgs").delete().eq("id", orgId).select("id")
   if (error) return { error: error.message }
   if (!data.length) return NOT_ALLOWED
+
+  // The org's pictures and videos (media-cleanup.ts). Nobody is a member of
+  // an org that is gone, so this one step is done by the system, where it has
+  // the key to. A self-hosted server without one keeps the files, which
+  // nobody can reach any more: docs/DEPLOYMENT.md says how to clear them.
+  if (media.length && process.env.SUPABASE_SECRET_KEY) await removeMedia(createAdminClient(), media)
 
   revalidatePath("/[org]", "layout")
   return { ok: true }
