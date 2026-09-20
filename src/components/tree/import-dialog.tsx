@@ -17,7 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { makeBatches, type ImportBatch } from "@/lib/import/batches"
-import { collect, CollectError, pickedFromDrop, pickedFromInput, type PickedFile } from "@/lib/import/collect"
+import { collect, CollectError } from "@/lib/import/collect"
+import { pickedFromDrop, pickedFromInput, type PickedFile } from "@/lib/import/picked"
 import { planImport, tooManyDocuments, type ImportPlan, type Skipped, type SkipReason } from "@/lib/import/plan"
 import { documentHref } from "@/lib/navigation"
 import type { Container } from "@/lib/tree"

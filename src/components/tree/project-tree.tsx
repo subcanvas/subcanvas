@@ -13,6 +13,7 @@ import {
   Trash2,
   Workflow,
 } from "lucide-react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
@@ -56,12 +57,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { pickedFromDrop, type PickedFile } from "@/lib/import/collect"
+import { pickedFromDrop, type PickedFile } from "@/lib/import/picked"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
-import { ImportDialog, type ImportTarget } from "./import-dialog"
-import { PasteMarkdownDialog } from "./paste-markdown-dialog"
+import type { ImportTarget } from "./import-dialog"
+
+// Loaded when first opened: reading zips and planning an import is code
+// that most visits to a project never need.
+const ImportDialog = dynamic(() => import("./import-dialog").then((module) => module.ImportDialog), { ssr: false })
+const PasteMarkdownDialog = dynamic(
+  () => import("./paste-markdown-dialog").then((module) => module.PasteMarkdownDialog),
+  { ssr: false }
+)
 
 const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
