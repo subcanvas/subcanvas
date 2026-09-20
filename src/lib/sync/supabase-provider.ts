@@ -27,6 +27,10 @@ import { fromBase64, fromBytea, toBase64, toBytea } from "./encoding"
 // batched. 100 ms is below what anyone notices.
 const BROADCAST_DELAY_MS = 100
 const PERSIST_DELAY_MS = 1000
+// Saving waits for a pause, but not forever: someone who edits without a
+// one-second break for minutes (dragging, arranging, a long paste) still has
+// their work in the database this often, whatever happens to the tab.
+const PERSIST_MAX_WAIT_MS = 5000
 const PERSIST_RETRY_MS = 5000
 // Covers a peer's persist delay: edits broadcast just before we joined are
 // in the database by the time we look again.
@@ -83,6 +87,8 @@ export class SupabaseProvider {
   private broadcastTimer: ReturnType<typeof setTimeout> | null = null
   private toPersist: Uint8Array[] = []
   private persistTimer: ReturnType<typeof setTimeout> | null = null
+  // When the oldest edit still waiting to be saved was made.
+  private unsavedSince = 0
   private persisting = false
 
   private chunks = new Map<string, { parts: string[]; received: number }>()
@@ -324,10 +330,15 @@ export class SupabaseProvider {
       this.broadcastTimer ??= setTimeout(this.flushBroadcast, BROADCAST_DELAY_MS)
     }
 
+    if (!this.toPersist.length) this.unsavedSince = Date.now()
     this.toPersist.push(update)
     this.setSaveStatus("saving")
     if (this.persistTimer) clearTimeout(this.persistTimer)
-    this.persistTimer = setTimeout(() => void this.persist(), PERSIST_DELAY_MS)
+    const waited = Date.now() - this.unsavedSince
+    this.persistTimer = setTimeout(
+      () => void this.persist(),
+      Math.max(0, Math.min(PERSIST_DELAY_MS, PERSIST_MAX_WAIT_MS - waited))
+    )
   }
 
   private flushBroadcast = () => {
