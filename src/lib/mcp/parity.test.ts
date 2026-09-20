@@ -26,6 +26,19 @@ const NOT_EXPOSED: Record<string, string> = {
   // returns that link is planned with the members tools.
   "[org]/(org)/settings/billing/actions.startCheckout": "returns a Stripe checkout link; paying needs a person",
   "[org]/(org)/settings/billing/actions.openPortal": "returns a Stripe portal link; paying needs a person",
+  // The org itself. Deleting an org cannot be undone and takes every
+  // project with it, leaving one changes who has access, and both are the
+  // kind of step one prompt-injected document should not be able to take.
+  // Renaming is harmless but belongs with them. Planned with the members
+  // tools, behind the same consent-screen choice.
+  "[org]/(org)/settings/general/actions.deleteOrg": "irreversible, and takes every project with it",
+  "[org]/(org)/settings/general/actions.leaveOrg": "changes who has access; a person's decision",
+  "[org]/(org)/settings/general/actions.renameOrg": "kept with the rest of org administration",
+  // Your own name and picture are how other people recognise you. An agent
+  // acts as you; it does not get to change who you appear to be.
+  "[org]/(org)/settings/profile/actions.updateDisplayName": "a person's identity is theirs to change",
+  "[org]/(org)/settings/profile/actions.updatePicture": "a person's identity is theirs to change",
+  "[org]/(org)/settings/profile/actions.adoptProviderPicture": "a person's identity is theirs to change",
   // An agent gets in through an org's member, so it cannot exist before the
   // first org does. Creating further orgs waits for the members tools,
   // since a new org is only useful once people can be invited to it.

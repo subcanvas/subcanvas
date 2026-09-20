@@ -66,7 +66,7 @@ Text is edited by block: `read_text_document` returns each top-level block with 
 
 ### Not exposed yet
 
-Members and invites, billing, creating an org, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting an org, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
 
 ## Security model
 
