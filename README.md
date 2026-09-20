@@ -2,11 +2,13 @@
 
 An open-source Notion/Excalidraw hybrid. Build whiteboards and text documents that nest inside each other: click a node on an architecture diagram to open that service's own diagram, or click an edge to read the protocol between two services.
 
-Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is being built and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and build order. What comes after v1 is in [docs/ROADMAP.md](docs/ROADMAP.md). To run your own, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). A public GitHub repository can be imported as a project; a [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to.
+Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is being built and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and build order. What comes after v1 is in [docs/ROADMAP.md](docs/ROADMAP.md). To run your own, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Agents connect over the Model Context Protocol and work as the person who connected them: see [docs/MCP.md](docs/MCP.md). A public GitHub repository can be imported as a project; a [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to.
 
 ## Stack
 
 Next.js · Supabase (Auth, Postgres, Realtime, Storage) · React Flow · BlockNote · Yjs · shadcn/ui · Stripe
+
+Subcanvas stands on open source work, with thanks: the whiteboard canvas is [React Flow](https://reactflow.dev) by xyflow (MIT), laid out with [dagre](https://github.com/dagrejs/dagre) (MIT); text documents are [BlockNote](https://www.blocknotejs.org) (MPL-2.0); live collaboration is [Yjs](https://yjs.dev) (MIT); the interface is built from [shadcn/ui](https://ui.shadcn.com) and [Base UI](https://base-ui.com) (MIT) with [Lucide](https://lucide.dev) icons (ISC). The canvas does not show React Flow's attribution badge, which its license allows; this paragraph is where the credit lives instead.
 
 ## Development
 

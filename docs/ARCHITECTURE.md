@@ -65,13 +65,16 @@ Notes:
 ```
 nodes: Y.Map<nodeId, Y.Map>     type: plain|text|group, position, width, height,
                                 parentId? (group membership, R3.10), title, description?,
-                                color, docId?, openMode: panel|navigate
+                                color, docId?, openMode: panel|navigate,
+                                shape? (plain nodes: rectangle|rounded|ellipse|diamond|
+                                hexagon|cylinder|parallelogram|document|cloud),
+                                icon? (a Lucide name), emoji? (one emoji)
 edges: Y.Map<edgeId, Y.Map>     source, target, sourceHandle, targetHandle,
                                 shape: spline|step, stroke: solid|dotted,
                                 direction: none|forward|reverse|both,
-                                color, label?, docId?, openMode
+                                color, label?, icon?, emoji?, docId?, openMode
 ```
-Maps keyed by id, with a nested map per object, so two users editing different properties of the same node merge cleanly. Groups are nodes with `type: group`; children point at them through `parentId`, which is how React Flow models sub-flows. Undo/redo (R3.14) uses `Y.UndoManager`, scoped to the local user.
+Maps keyed by id, with a nested map per object, so two users editing different properties of the same node merge cleanly. Groups are nodes with `type: group`; children point at them through `parentId`, which is how React Flow models sub-flows. A group is a frame with no fill: it takes the pointer on its border and label only, and dropping it over nodes takes in the ones wholly inside it (`lib/whiteboard/adopt.ts`). A shape's geometry (outline, where edges attach, where the title fits) is computed in one place, `lib/whiteboard/shapes.ts`, for both the canvas and the embed renderer; icons are drawn by both from `lib/whiteboard/icon-data.ts`, generated from lucide-react by `scripts/generate-whiteboard-icons.mjs`. Undo/redo (R3.14) uses `Y.UndoManager`, scoped to the local user.
 
 **Text doc:** the `Y.XmlFragment` that BlockNote's collaboration mode manages. The embedded-document block (R2.5) is a custom block with a `docId` prop.
 

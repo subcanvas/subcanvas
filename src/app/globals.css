@@ -210,15 +210,33 @@
   --xy-selection-background-color: color-mix(in oklch, var(--cobalt) 8%, transparent);
   --xy-selection-border: 1px solid var(--cobalt);
   --xy-connectionline-stroke: var(--cobalt);
-  --xy-attribution-background-color: transparent;
 }
 .react-flow__controls {
   overflow: hidden;
   border: 1px solid var(--rule);
   border-radius: 0.6rem;
 }
-.react-flow__attribution a {
-  color: var(--graphite);
+/* In view mode nothing on the canvas offers to be changed. The handles stay
+   in the layout, since arrows are drawn from where they are measured. */
+.react-flow[data-locked] .react-flow__resize-control {
+  display: none;
+}
+.react-flow[data-locked] .react-flow__handle {
+  visibility: hidden;
+  pointer-events: none;
+}
+/* A node takes the pointer where it is drawn, not across its whole box: the
+   empty corners of a diamond and the inside of a group (a frame with nothing
+   in it) belong to whatever is underneath. React Flow sets pointer-events on
+   the box inline, hence !important; the painted parts opt back in
+   (components/whiteboard/nodes.tsx), and so do the resize controls here. */
+.react-flow__node-wb-plain,
+.react-flow__node-wb-group {
+  pointer-events: none !important;
+}
+.react-flow__node-wb-plain .react-flow__resize-control,
+.react-flow__node-wb-group .react-flow__resize-control {
+  pointer-events: auto;
 }
 
 /* BlockNote's chrome, in our materials. Its own themes are a different

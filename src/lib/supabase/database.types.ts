@@ -664,6 +664,7 @@ export type Database = {
           role: Database["public"]["Enums"]["org_role"]
         }[]
       }
+      has_password: { Args: never; Returns: boolean }
       org_usage: {
         Args: { p_org_id: string }
         Returns: {

@@ -8,10 +8,12 @@ import {
   type EdgeProps,
 } from "@xyflow/react"
 
+import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
 import { COLORS } from "@/lib/whiteboard/schema"
 import type { FlowEdge } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
+import { WhiteboardIcon } from "./icon"
 import { DocumentMark } from "./nodes"
 
 export function WhiteboardEdge({
@@ -27,6 +29,9 @@ export function WhiteboardEdge({
   data,
 }: EdgeProps<FlowEdge>) {
   const wb = data?.wb
+  const hasIcon = Boolean(wb && iconNode(wb.icon))
+  // An icon or an emoji is a label too: the pill shows with no words in it.
+  const labelled = Boolean(wb && (wb.label || hasIcon || wb.emoji))
   const geometry = { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition }
   const [path, labelX, labelY] =
     wb?.shape === "step"
@@ -52,19 +57,30 @@ export function WhiteboardEdge({
           strokeLinecap: wb?.stroke === "dotted" ? "round" : undefined,
         }}
       />
-      {wb && (wb.label || wb.docId) && (
+      {wb && (labelled || wb.docId) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan pointer-events-none absolute flex items-center gap-1"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            {wb.label && (
+            {labelled && (
               <span
                 className={cn(
-                  "rounded-[5px] border border-rule bg-sheet px-1.5 py-px font-mono text-[11px] text-graphite",
+                  "flex h-5 items-center gap-1 rounded-[5px] border border-rule bg-sheet px-1.5 font-mono text-[11px] text-graphite",
                   selected && "border-cobalt text-ink"
                 )}
               >
+                {hasIcon && (
+                  <span
+                    role="img"
+                    aria-label={`Icon: ${iconLabel(wb.icon)}`}
+                    className="flex"
+                    style={{ color: wb.color === "default" ? undefined : COLORS[wb.color].text }}
+                  >
+                    <WhiteboardIcon name={wb.icon} className="size-3" />
+                  </span>
+                )}
+                {wb.emoji && <span className="font-sans leading-none">{wb.emoji}</span>}
                 {wb.label}
               </span>
             )}

@@ -36,6 +36,7 @@ export function ObjectDocument({
   docType,
   openMode,
   editable,
+  locked,
   context,
   user,
   onChange,
@@ -47,6 +48,8 @@ export function ObjectDocument({
   docType: DocType | null
   openMode: OpenMode
   editable: boolean
+  // In view mode by choice. The text is read-only, like everything else.
+  locked: boolean
   context: WhiteboardContext
   user: EditorUser
   onChange: (patch: DocumentPatch) => void
@@ -198,7 +201,8 @@ export function ObjectDocument({
               key={docId}
               documentId={docId}
               user={user}
-              editable={editable}
+              editable={editable || locked}
+              locked={locked}
               context={{
                 orgId: context.orgId,
                 projectId: context.projectId,

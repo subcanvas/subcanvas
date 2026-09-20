@@ -33,6 +33,8 @@ In the Supabase dashboard, under **Authentication**:
 
 **Set up email before inviting anyone.** Supabase's built-in mailer sends only a few emails an hour, which is enough to try things and not enough for a team. Under Authentication → Emails → SMTP Settings, add an SMTP provider (Resend, Postmark, Amazon SES), and add the DNS records that provider asks for to your domain.
 
+**Agents (optional).** To let people connect Claude, Cursor, and other MCP clients, turn on Supabase's OAuth server as described in [MCP.md](MCP.md#turning-it-on).
+
 **Google or GitHub sign-in (optional).** Create an OAuth app with each provider, using `https://<ref>.supabase.co/auth/v1/callback` as its redirect URI. Enable the provider under Sign In / Providers with the app's client id and secret, then list it in `NEXT_PUBLIC_AUTH_PROVIDERS` below.
 
 ## 4. Run the app

@@ -4,7 +4,7 @@ import { ChevronsUpDown, PanelLeftClose, Plus } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-import { AccountMenu, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
+import { AccountMenu, isCurrentPage, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,22 +36,19 @@ export function AppSidebar({
   org,
   orgs,
   user,
-  showBilling,
   children,
   footer,
 }: {
   org: Org
   orgs: Org[]
   user: SidebarUser
-  // False on a server with no paid plan to offer.
-  showBilling: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
 
-  const pages = orgPages(org.slug, showBilling)
+  const pages = orgPages(org.slug)
 
   return (
     <>
@@ -103,11 +100,11 @@ export function AppSidebar({
         <SidebarGroup>
           <nav aria-label="Org">
             <SidebarMenu>
-              {pages.map(({ href, label, icon: Icon }) => (
-                <SidebarMenuItem key={href}>
-                  <SidebarMenuButton isActive={pathname === href} render={<Link href={href} />}>
-                    <Icon className="text-graphite" />
-                    {label}
+              {pages.map((page) => (
+                <SidebarMenuItem key={page.href}>
+                  <SidebarMenuButton isActive={isCurrentPage(pathname, page)} render={<Link href={page.href} />}>
+                    <page.icon className="text-graphite" />
+                    {page.label}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -122,6 +119,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <AccountMenu
+              slug={org.slug}
               user={user}
               side="top"
               trigger={

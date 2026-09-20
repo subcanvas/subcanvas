@@ -41,7 +41,7 @@ export default async function MembersPage({
   ])
 
   return (
-    <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
+    <main id="main" className="flex w-full max-w-3xl flex-col gap-8">
       <PageHeader
         eyebrow={org.name}
         title="Members"

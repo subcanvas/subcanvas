@@ -3,32 +3,26 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { limitMessage } from "@/lib/billing/limit"
+import * as operations from "@/lib/documents/operations"
 import { createClient } from "@/lib/supabase/server"
 import type { Container, DocumentType } from "@/lib/tree"
 
-// Authorization is RLS. A write that a policy filters out changes no rows,
-// which is reported as "not allowed".
+// The work itself is in lib/documents/operations, shared with the MCP
+// server. An action adds what only the web app needs: the session from
+// cookies, revalidation, and redirects.
 
 export type ProjectRef = { slug: string; orgId: string; projectId: string }
 // `limit` marks the free-tier limit, so the client can offer the upgrade.
 export type ActionResult = { error: string; limit?: true } | { ok: true }
 
-const NOT_ALLOWED = { error: "You do not have permission to do that." }
-
-function fail(error: { code?: string; message: string }): ActionResult {
-  const limit = limitMessage(error.code)
-  if (limit) return { error: limit, limit: true }
-  return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
-}
-
 function refresh({ slug, projectId }: ProjectRef) {
   revalidatePath(`/${slug}/${projectId}`, "layout")
 }
 
-// New items go after their siblings.
-function nextPosition() {
-  return Date.now()
+// Revalidates when the operation worked, and passes its result on.
+function finish<T extends operations.OperationResult>(project: ProjectRef, result: T) {
+  if ("ok" in result) refresh(project)
+  return result
 }
 
 export async function createFolder(
@@ -36,21 +30,7 @@ export async function createFolder(
   parentFolderId: string | null
 ): Promise<ActionResult & { id?: string }> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("folders")
-    .insert({
-      org_id: project.orgId,
-      project_id: project.projectId,
-      parent_folder_id: parentFolderId,
-      name: "New folder",
-      position: nextPosition(),
-    })
-    .select("id")
-    .single()
-  if (error) return fail(error)
-
-  refresh(project)
-  return { ok: true, id: data.id }
+  return finish(project, await operations.createFolder(supabase, project, parentFolderId))
 }
 
 export async function createDocument(
@@ -63,23 +43,11 @@ export async function createDocument(
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data, error } = await supabase
-    .from("documents")
-    .insert({
-      org_id: project.orgId,
-      project_id: project.projectId,
-      type,
-      folder_id: container.kind === "folder" ? container.id : null,
-      parent_document_id: container.kind === "document" ? container.id : null,
-      position: nextPosition(),
-      created_by: user?.id,
-    })
-    .select("id")
-    .single()
-  if (error) return fail(error)
+  const result = await operations.createDocument(supabase, project, user?.id, type, container)
+  if ("error" in result) return result
 
   refresh(project)
-  redirect(`/${project.slug}/${project.projectId}/d/${data.id}`)
+  redirect(`/${project.slug}/${project.projectId}/d/${result.id}`)
 }
 
 export async function renameItem(
@@ -88,19 +56,8 @@ export async function renameItem(
   id: string,
   name: string
 ): Promise<ActionResult> {
-  const trimmed = name.trim()
-  if (!trimmed) return { error: "Enter a name." }
-
   const supabase = await createClient()
-  const { data, error } =
-    kind === "folder"
-      ? await supabase.from("folders").update({ name: trimmed }).eq("id", id).select("id")
-      : await supabase.from("documents").update({ title: trimmed }).eq("id", id).select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.renameItem(supabase, kind, id, name))
 }
 
 export async function moveItem(
@@ -109,97 +66,22 @@ export async function moveItem(
   id: string,
   target: Container
 ): Promise<ActionResult> {
-  if (kind === "folder" && target.kind === "document")
-    return { error: "A folder cannot go inside a document." }
-  if (target.kind !== "root" && target.id === id)
-    return { error: "An item cannot be moved inside itself." }
-
   const supabase = await createClient()
-  const { data, error } =
-    kind === "folder"
-      ? await supabase
-          .from("folders")
-          .update({
-            parent_folder_id: target.kind === "folder" ? target.id : null,
-            position: nextPosition(),
-          })
-          .eq("id", id)
-          .select("id")
-      : await supabase
-          .from("documents")
-          .update({
-            folder_id: target.kind === "folder" ? target.id : null,
-            parent_document_id: target.kind === "document" ? target.id : null,
-            // The link to a whiteboard object does not survive a move.
-            parent_object_id: null,
-            position: nextPosition(),
-          })
-          .eq("id", id)
-          .select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.moveItem(supabase, kind, id, target))
 }
 
-// The titles of documents that link to this one, for the warning shown
-// before it is trashed or deleted (R1.8).
 export async function listReferences(id: string): Promise<string[]> {
-  const supabase = await createClient()
-  const { data } = await supabase.rpc("document_references", { p_document_id: id })
-  return (data ?? []).map((row) => row.source_title)
+  return operations.listReferences(await createClient(), id)
 }
 
 export async function trashDocument(project: ProjectRef, id: string): Promise<ActionResult> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("documents")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id)
-    .select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.trashDocument(supabase, id))
 }
 
 export async function restoreDocument(project: ProjectRef, id: string): Promise<ActionResult> {
   const supabase = await createClient()
-
-  const { data: document } = await supabase
-    .from("documents")
-    .select("parent_document_id")
-    .eq("id", id)
-    .maybeSingle()
-  if (!document) return NOT_ALLOWED
-
-  // If the parent is in the trash too, restore to the project root rather
-  // than somewhere invisible.
-  let detach = false
-  if (document.parent_document_id) {
-    const { data: parent } = await supabase
-      .from("documents")
-      .select("deleted_at")
-      .eq("id", document.parent_document_id)
-      .maybeSingle()
-    detach = !parent || parent.deleted_at !== null
-  }
-
-  const { data, error } = await supabase
-    .from("documents")
-    .update({
-      deleted_at: null,
-      ...(detach ? { parent_document_id: null, parent_object_id: null } : {}),
-    })
-    .eq("id", id)
-    .select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.restoreDocument(supabase, id))
 }
 
 export async function deleteDocumentForever(
@@ -207,26 +89,12 @@ export async function deleteDocumentForever(
   id: string
 ): Promise<ActionResult> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("documents")
-    .delete()
-    .eq("id", id)
-    .not("deleted_at", "is", null)
-    .select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.deleteDocumentForever(supabase, id))
 }
 
 export async function deleteFolder(project: ProjectRef, id: string): Promise<ActionResult> {
   const supabase = await createClient()
-  const { error } = await supabase.rpc("delete_folder", { p_folder_id: id })
-  if (error) return fail(error)
-
-  refresh(project)
-  return { ok: true }
+  return finish(project, await operations.deleteFolder(supabase, id))
 }
 
 export async function setProjectVisibility(
@@ -234,14 +102,8 @@ export async function setProjectVisibility(
   visibility: "private" | "public"
 ): Promise<ActionResult> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("projects")
-    .update({ visibility })
-    .eq("id", project.projectId)
-    .select("id")
-  if (error) return fail(error)
-  if (!data.length) return NOT_ALLOWED
-
-  refresh(project)
-  return { ok: true }
+  return finish(
+    project,
+    await operations.setProjectVisibility(supabase, project.projectId, visibility)
+  )
 }

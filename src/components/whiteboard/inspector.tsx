@@ -1,7 +1,6 @@
 "use client"
 
 import { X } from "lucide-react"
-import { useRef, useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -17,28 +16,22 @@ import {
   type WbEdge,
   type WbNode,
 } from "@/lib/whiteboard/schema"
+import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
 import { cn } from "@/lib/utils"
 
 import { ObjectDocument } from "./object-document"
+import { EmojiField, IconField, ShapeField } from "./pickers"
 
 const KIND_LABELS = { plain: "Node", text: "Text", group: "Group" }
 
-const WIDTH_KEY = "subcanvas:panel-width"
-const MIN_WIDTH = 320
-const MAX_WIDTH = 800
-const DEFAULT_WIDTH = 440
-
-function storedWidth() {
-  const stored = Number(globalThis.localStorage?.getItem(WIDTH_KEY))
-  return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
-}
-
 // The panel that opens from the right when one object is selected (R4.3).
 // On a wide screen it sits beside the canvas, so nothing is hidden. On a
-// narrow one it rises from the bottom as a sheet over the canvas.
+// narrow one it rises from the bottom as a sheet over the canvas. Its width
+// there is the canvas's to give: see panel-resizer.tsx.
 export function Inspector({
   selection,
   editable,
+  locked,
   context,
   user,
   onNodeChange,
@@ -47,29 +40,20 @@ export function Inspector({
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
   editable: boolean
+  // In view mode by choice: this person may edit, but not right now.
+  locked: boolean
   context: WhiteboardContext
   user: EditorUser
   onNodeChange: (id: string, patch: Partial<Omit<WbNode, "id">>) => void
   onEdgeChange: (id: string, patch: Partial<Omit<WbEdge, "id">>) => void
   onClose: () => void
 }) {
-  const [width, setWidth] = useState(storedWidth)
-  const panel = useRef<HTMLElement>(null)
-
-  function resize(next: number) {
-    const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next)))
-    setWidth(clamped)
-    localStorage.setItem(WIDTH_KEY, String(clamped))
-  }
-
   const isNode = "node" in selection
   const name = isNode ? selection.node.title : selection.edge.label
 
   return (
     <aside
-      ref={panel}
       aria-label="Object settings"
-      style={{ ["--panel-width" as string]: `${width}px` }}
       className={cn(
         "z-20 flex flex-col overflow-y-auto border-rule bg-sheet",
         // Narrow: a bottom sheet over the canvas.
@@ -78,29 +62,6 @@ export function Inspector({
         "md:relative md:inset-auto md:max-h-none md:w-(--panel-width) md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
       )}
     >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize panel"
-        aria-valuemin={MIN_WIDTH}
-        aria-valuemax={MAX_WIDTH}
-        aria-valuenow={width}
-        tabIndex={0}
-        className="absolute inset-y-0 left-0 z-10 hidden w-1.5 cursor-col-resize outline-none hover:bg-cobalt/30 focus-visible:bg-cobalt/50 md:block"
-        onPointerDown={(event) => {
-          event.preventDefault()
-          event.currentTarget.setPointerCapture(event.pointerId)
-        }}
-        onPointerMove={(event) => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId) || !panel.current) return
-          resize(panel.current.getBoundingClientRect().right - event.clientX)
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft") resize(width + 24)
-          if (event.key === "ArrowRight") resize(width - 24)
-        }}
-      />
-
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
         <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
           {isNode ? KIND_LABELS[selection.node.kind] : "Arrow"}
@@ -130,6 +91,7 @@ export function Inspector({
           docType={selection.node.docType}
           openMode={selection.node.openMode}
           editable={editable}
+          locked={locked}
           context={context}
           user={user}
           onChange={(patch) => onNodeChange(selection.node.id, patch)}
@@ -144,6 +106,7 @@ export function Inspector({
           docType={selection.edge.docType}
           openMode={selection.edge.openMode}
           editable={editable}
+          locked={locked}
           context={context}
           user={user}
           onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
@@ -161,6 +124,20 @@ function NodeFields({
   node: WbNode
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
+  // A node still at the size its shape came in takes the new shape's size,
+  // around the same center: a diamond needs more room than a rectangle for
+  // the same words. A node somebody has sized keeps its size.
+  function changeShape(shape: NodeShape) {
+    const from = SHAPE_SIZE[node.shape]
+    const to = SHAPE_SIZE[shape]
+    const untouched = node.width === from.width && node.height === from.height
+    onChange(
+      untouched
+        ? { shape, ...to, x: node.x + (from.width - to.width) / 2, y: node.y + (from.height - to.height) / 2 }
+        : { shape }
+    )
+  }
+
   return (
     <>
       <Field label="Title" htmlFor="wb-title">
@@ -194,7 +171,10 @@ function NodeFields({
           )}
         </div>
       )}
+      {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
+      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
   )
 }
@@ -249,6 +229,8 @@ function EdgeFields({
         onChange={(direction) => onChange({ direction })}
       />
       <ColorField value={edge.color} onChange={(color) => onChange({ color })} />
+      <IconField value={edge.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={edge.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
   )
 }

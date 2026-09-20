@@ -1,9 +1,9 @@
 "use client"
 
-import { CreditCard, KeyRound, LayoutGrid, LogOut, Monitor, Moon, Sun, Users } from "lucide-react"
+import { Bot, LayoutGrid, LogOut, Settings, UserRound } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { THEME_OPTIONS } from "@/components/theme-options"
 import { createClient } from "@/lib/supabase/client"
 
 // What the open sidebar and its collapsed rail both show: the org's pages
@@ -22,12 +23,21 @@ import { createClient } from "@/lib/supabase/client"
 
 export type SidebarUser = { email: string; name: string | null; avatarUrl: string | null }
 
-export function orgPages(slug: string, showBilling: boolean) {
+// Members, billing, and the rest are sections of Settings, so this list does
+// not grow with them. `nested` marks a page that is current on every page
+// below it too.
+export function orgPages(slug: string) {
   return [
-    { href: `/${slug}`, label: "Projects", icon: LayoutGrid },
-    { href: `/${slug}/settings/members`, label: "Members", icon: Users },
-    ...(showBilling ? [{ href: `/${slug}/settings/billing`, label: "Billing", icon: CreditCard }] : []),
+    { href: `/${slug}`, label: "Projects", icon: LayoutGrid, nested: false },
+    // Connecting an AI agent over MCP: one click from anywhere, because the
+    // fewer steps it takes, the more people do it.
+    { href: `/${slug}/agents`, label: "Connect an agent", icon: Bot, nested: false },
+    { href: `/${slug}/settings`, label: "Settings", icon: Settings, nested: true },
   ]
+}
+
+export function isCurrentPage(pathname: string, page: { href: string; nested: boolean }) {
+  return pathname === page.href || (page.nested && pathname.startsWith(`${page.href}/`))
 }
 
 export function UserAvatar({ user, className }: { user: SidebarUser; className?: string }) {
@@ -39,18 +49,20 @@ export function UserAvatar({ user, className }: { user: SidebarUser; className?:
   )
 }
 
-// `trigger` is the button that opens it; the menu goes to its `side`.
+// `trigger` is the button that opens it; the menu goes to its `side`. The
+// profile lives in the settings of the org being looked at, hence `slug`.
 export function AccountMenu({
+  slug,
   user,
   trigger,
   side,
 }: {
+  slug: string
   user: SidebarUser
   trigger: React.ReactElement
   side: "top" | "right"
 }) {
   const router = useRouter()
-  const pathname = usePathname()
   const { theme, setTheme } = useTheme()
 
   async function signOut() {
@@ -69,13 +81,7 @@ export function AccountMenu({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-          {(
-            [
-              ["light", "Light", Sun],
-              ["dark", "Dark", Moon],
-              ["system", "Match my device", Monitor],
-            ] as const
-          ).map(([value, label, Icon]) => (
+          {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
             <DropdownMenuItem key={value} onClick={() => setTheme(value)}>
               <Icon />
               {label}
@@ -84,9 +90,9 @@ export function AccountMenu({
           ))}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href={`/auth/password?next=${encodeURIComponent(pathname)}`} />}>
-          <KeyRound />
-          Set a password
+        <DropdownMenuItem render={<Link href={`/${slug}/settings/profile`} />}>
+          <UserRound />
+          Your profile
         </DropdownMenuItem>
         <DropdownMenuItem onClick={signOut}>
           <LogOut />
