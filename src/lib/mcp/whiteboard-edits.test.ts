@@ -21,6 +21,24 @@ describe("whiteboard edits", () => {
     expect(nodeOf(doc, heading)).toMatchObject({ width: 240, height: null })
   })
 
+  it("gives a node a shape and badges, keeps shapes to plain nodes, and takes a badge off with null", () => {
+    const doc = new Y.Doc()
+    const [database, heading] = ids(
+      edits.addNodes(doc, [
+        { kind: "plain", title: "Orders", shape: "cylinder", icon: "database", emoji: "🐘" },
+        { kind: "text", title: "Heading", shape: "diamond" },
+      ])
+    ).ids
+    expect(nodeOf(doc, database)).toMatchObject({ shape: "cylinder", icon: "database", emoji: "🐘" })
+    expect(nodeOf(doc, heading).shape).toBe("rectangle")
+
+    edits.updateNodes(doc, [{ id: database, shape: "hexagon", emoji: null }])
+    expect(nodeOf(doc, database)).toMatchObject({ shape: "hexagon", icon: "database", emoji: null })
+
+    const [arrow] = ids(edits.connectNodes(doc, [{ source: database, target: heading, icon: "lock", label: "TLS" }])).ids
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!)).toMatchObject({ icon: "lock", emoji: null, label: "TLS" })
+  })
+
   it("places a batch without overlaps, beside the node it is near", () => {
     const doc = new Y.Doc()
     const [first] = ids(edits.addNodes(doc, [{ kind: "plain", title: "first", x: 100, y: 100 }])).ids

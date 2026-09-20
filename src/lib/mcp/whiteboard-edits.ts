@@ -16,6 +16,7 @@ import {
   type NodeKind,
   type WbNode,
 } from "@/lib/whiteboard/schema"
+import type { NodeShape } from "@/lib/whiteboard/shapes"
 
 import { findFreeSpot, type Box } from "./placement"
 
@@ -75,6 +76,9 @@ export type NewNode = {
   title: string
   description?: string
   color?: ColorKey
+  shape?: NodeShape
+  icon?: string
+  emoji?: string
   x?: number
   y?: number
   width?: number
@@ -131,6 +135,10 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
         title: node.title,
         description: node.description ?? "",
         color: node.color ?? "default",
+        // A shape belongs to plain nodes; a group or a text node has none.
+        shape: node.kind === "plain" ? node.shape : undefined,
+        icon: node.icon,
+        emoji: node.emoji,
       })
     )
     ids.push(id)
@@ -143,6 +151,10 @@ export type NodePatch = {
   title?: string
   description?: string
   color?: ColorKey
+  shape?: NodeShape
+  // Null takes the badge off.
+  icon?: string | null
+  emoji?: string | null
   x?: number
   y?: number
   width?: number
@@ -198,6 +210,9 @@ export type EdgeStyle = {
   shape?: EdgeShape
   stroke?: EdgeStroke
   color?: ColorKey
+  // Shown in the label's pill, before the text. Null takes it off.
+  icon?: string | null
+  emoji?: string | null
 }
 export type NewEdge = EdgeStyle & { source: string; target: string }
 
@@ -226,6 +241,8 @@ export function connectNodes(doc: Y.Doc, edges: NewEdge[]): EditResult<{ ids: st
         direction: edge.direction ?? "forward",
         color: edge.color ?? "default",
         label: edge.label || null,
+        icon: edge.icon,
+        emoji: edge.emoji,
       })
     )
     ids.push(id)

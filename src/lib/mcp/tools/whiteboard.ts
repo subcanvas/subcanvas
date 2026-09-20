@@ -1,7 +1,9 @@
 import { z } from "zod"
 
 import { loadDocument } from "@/lib/sync/server-document"
-import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode } from "@/lib/whiteboard/schema"
+import { ICON_CHOICES } from "@/lib/whiteboard/icons"
+import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
+import { NODE_SHAPES } from "@/lib/whiteboard/shapes"
 
 import { editDocument } from "../edit-document"
 import { documentUrl, findDocument, findTypedDocument, NO_DOCUMENT } from "../lookup"
@@ -13,6 +15,17 @@ import { writeInitialMarkdown } from "./documents"
 const whiteboardId = id("The whiteboard document.")
 const nodeId = (what: string) => z.string().min(1).describe(`${what} From \`read_whiteboard\` or the result of \`add_nodes\`.`)
 const color = z.enum(COLOR_KEYS).describe("A named color. Themes decide the exact shade.")
+const shape = z
+  .enum(NODE_SHAPES)
+  .describe("The outline of a plain node. By convention: cylinder for a database, diamond for a decision, cloud for something hosted elsewhere, document for a file, hexagon or parallelogram for a process or its input. Default rectangle.")
+// The names the app can draw: a curated part of Lucide, not all of it.
+const icon = z
+  .enum(ICON_CHOICES.map((choice) => choice.name) as [string, ...string[]])
+  .describe("A small icon shown as a badge: on a node's top-right corner, or before an arrow's label.")
+const emoji = z
+  .string()
+  .refine((value) => singleEmoji(value) !== null, "Exactly one emoji.")
+  .describe("One emoji, shown as a badge beside the icon.")
 const coordinate = (axis: string) =>
   z.number().describe(`The ${axis} of the top-left corner, in canvas units (roughly pixels at 100% zoom). For a node in a group it is relative to the group's top-left corner.`)
 const openMode = z
@@ -24,6 +37,8 @@ const edgeStyle = {
   shape: z.enum(["spline", "step"]).optional().describe("A curve, or right-angled steps. Default spline."),
   stroke: z.enum(["solid", "dotted"]).optional().describe("Default solid."),
   color: color.optional(),
+  icon: icon.nullable().optional().describe("An icon before the arrow's label. Null removes it."),
+  emoji: emoji.nullable().optional().describe("One emoji before the arrow's label. Null removes it."),
 }
 
 // Runs one edit on a whiteboard the caller names, and words the result.
@@ -69,6 +84,9 @@ export const whiteboardTools = [
           height: node.height,
           ...(node.parentId ? { group_id: node.parentId } : {}),
           ...(node.color !== "default" ? { color: node.color } : {}),
+          ...(node.shape !== "rectangle" ? { shape: node.shape } : {}),
+          ...(node.icon ? { icon: node.icon } : {}),
+          ...(node.emoji ? { emoji: node.emoji } : {}),
           ...(node.docId ? { doc_id: node.docId, doc_type: node.docType, open_mode: node.openMode } : {}),
           ...(node.path ? { repository_path: node.path } : {}),
         }
@@ -87,6 +105,8 @@ export const whiteboardTools = [
           ...(edge.shape !== "spline" ? { shape: edge.shape } : {}),
           ...(edge.stroke !== "solid" ? { stroke: edge.stroke } : {}),
           ...(edge.color !== "default" ? { color: edge.color } : {}),
+          ...(edge.icon ? { icon: edge.icon } : {}),
+          ...(edge.emoji ? { emoji: edge.emoji } : {}),
           ...(edge.docId ? { doc_id: edge.docId, doc_type: edge.docType, open_mode: edge.openMode } : {}),
         }))
 
@@ -116,6 +136,9 @@ export const whiteboardTools = [
             title: z.string().max(500).describe("The text shown on the node."),
             description: z.string().max(2000).optional().describe("A short plain-text note shown under the title. For anything longer, attach a text document with `attach_document`."),
             color: color.optional(),
+            shape: shape.optional(),
+            icon: icon.optional(),
+            emoji: emoji.optional(),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
             width: z.number().min(40).max(4000).optional(),
@@ -149,7 +172,7 @@ export const whiteboardTools = [
     title: "Update nodes",
     group: "Whiteboards",
     description:
-      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, change the description, or change how a click opens what the node holds. Only the fields you give change, so this merges with what people are doing to the same node. If any id is unknown, nothing changes.",
+      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape, set or remove the icon and emoji badges, change the description, or change how a click opens what the node holds. Only the fields you give change, so this merges with what people are doing to the same node. If any id is unknown, nothing changes.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
@@ -159,6 +182,9 @@ export const whiteboardTools = [
             title: z.string().max(500).optional(),
             description: z.string().max(2000).optional(),
             color: color.optional(),
+            shape: shape.optional(),
+            icon: icon.nullable().optional().describe("Null removes the icon."),
+            emoji: emoji.nullable().optional().describe("Null removes the emoji."),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
             width: z.number().min(40).max(4000).optional(),
@@ -226,7 +252,7 @@ export const whiteboardTools = [
     name: "update_edges",
     title: "Update arrows",
     group: "Whiteboards",
-    description: "Changes arrows in place: label, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
+    description: "Changes arrows in place: label, its icon and emoji, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
     input: {
       whiteboard_id: whiteboardId,
       edges: z.array(z.object({ id: nodeId("The edge to change."), ...edgeStyle, open_mode: openMode.optional() })).min(1).max(400),
