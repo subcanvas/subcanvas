@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { createFixtureProvider, FIXTURE_OWNER, fixturesFolder } from "@/lib/github/fixture-provider"
-import { createGitHubProvider } from "@/lib/github/github-provider"
+import { createGitHubProvider, gitHubAppCredentials } from "@/lib/github/github-provider"
 import { importRepository } from "@/lib/github/import-repository"
 import { parseRepositoryReference } from "@/lib/github/reference"
 import { getOrgContext } from "@/lib/orgs"
@@ -70,7 +70,7 @@ export async function importFromGitHub(
   const provider =
     fixtures && reference.owner === FIXTURE_OWNER
       ? createFixtureProvider(fixtures)
-      : createGitHubProvider(process.env.GITHUB_TOKEN || undefined)
+      : createGitHubProvider(gitHubAppCredentials())
 
   const outcome = await importRepository(supabase, provider, reference, {
     orgId: org.id,

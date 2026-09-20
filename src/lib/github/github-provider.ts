@@ -24,11 +24,26 @@ function resetTime(response: Response) {
   return `in ${minutes} ${minutes === 1 ? "minute" : "minutes"}`
 }
 
-// Without a token GitHub allows 60 requests an hour from one address, and an
-// import takes three. A token (GITHUB_TOKEN, any read-only one) raises that
-// to 5,000. It is used for the rate limit only: a private repository is
-// refused even when the token could read it.
-export function createGitHubProvider(token: string | undefined): RepositoryProvider {
+// An OAuth app's own id and secret, which GitHub accepts in place of a user
+// for reading public data. Anonymous, GitHub allows 60 requests an hour from
+// one address, and an import takes three; as an OAuth app it allows 5,000.
+// There is no token for anyone to create or rotate, and the credentials can
+// read nothing a stranger could not: a private repository is refused.
+export type GitHubAppCredentials = { clientId: string; clientSecret: string }
+
+// Reads OAUTH_CLIENT_ID_GITHUB and OAUTH_CLIENT_SECRET_GITHUB: the same app
+// that offers "Continue with GitHub", or any other. Both or neither.
+export function gitHubAppCredentials(): GitHubAppCredentials | undefined {
+  const clientId = process.env.OAUTH_CLIENT_ID_GITHUB
+  const clientSecret = process.env.OAUTH_CLIENT_SECRET_GITHUB
+  return clientId && clientSecret ? { clientId, clientSecret } : undefined
+}
+
+export function createGitHubProvider(credentials: GitHubAppCredentials | undefined): RepositoryProvider {
+  const authorization = credentials
+    ? `Basic ${Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString("base64")}`
+    : undefined
+
   async function api(path: string, accept = "application/vnd.github+json") {
     let response: Response
     try {
@@ -37,7 +52,7 @@ export function createGitHubProvider(token: string | undefined): RepositoryProvi
           accept,
           "x-github-api-version": "2022-11-28",
           "user-agent": "subcanvas",
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...(authorization ? { authorization } : {}),
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         cache: "no-store",
