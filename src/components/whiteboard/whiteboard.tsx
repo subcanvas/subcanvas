@@ -414,7 +414,9 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     }
     if (event.altKey || event.ctrlKey || event.metaKey) return
 
-    if (key === "escape") run(() => select(false))
+    // Only when there is a selection to clear: Escape has other jobs too.
+    if (key === "escape" && selectedNodes.length + selectedEdges.length) run(() => select(false))
+    else if (key === "escape") return
     else if (key === "e" && editable) run(() => changeMode(mode === "edit" ? "view" : "edit"))
     else if (key === "a" && event.shiftKey) run(arrangeSelection)
     else if (key === "backspace" || key === "delete") run(removeSelection)
