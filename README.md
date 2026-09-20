@@ -48,7 +48,9 @@ update public.projects set taken_down_at = now() where id = '<project id>';
 
 ### Embedding a diagram
 
-Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so.
+Whiteboards take pictures and videos: drop files on the canvas, paste a screenshot, or use **Media** in the toolbar, and point arrows at them like at any other node (PNG, JPEG, WebP, GIF, AVIF up to 10 MB; MP4, WebM, MOV up to 100 MB).
+
+Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so. Pictures and videos on the whiteboard show in the embed as captioned frames: the embed is one standalone image and never loads another file.
 
 ## Plans and billing
 

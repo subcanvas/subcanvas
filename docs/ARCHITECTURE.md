@@ -10,6 +10,7 @@ Companion to [REQUIREMENTS.md](../REQUIREMENTS.md). Requirement IDs in parenthes
 | Document **metadata**: title, type, parent, counts toward limit | Postgres `documents` row | The sidebar tree, breadcrumbs, and search need it without loading content |
 | Document **content**: whiteboard nodes/edges, BlockNote blocks | A Yjs document per Document, persisted to Postgres as binary | Conflict-free real-time editing (R5.1) |
 | Links between documents | Postgres `document_links`, mirrored in the node/edge/block data inside the Yjs document | "Referenced by" (R1.7) and delete warnings (R1.8) need a queryable index; the canvas needs the link locally to render |
+| Pictures and videos on whiteboards | Supabase Storage, two private buckets; the node in the Yjs document holds only the file's name | Files are large and never change; the document stays small (section 3) |
 | Cursors, selections, who is online | Supabase Realtime presence, never persisted | Ephemeral (R5.2) |
 
 The Next.js app holds no state. Everything is in Supabase, so the app runs on any Node host (R8.4).
@@ -63,18 +64,30 @@ Notes:
 
 **Whiteboard**
 ```
-nodes: Y.Map<nodeId, Y.Map>     type: plain|text|group, position, width, height,
+nodes: Y.Map<nodeId, Y.Map>     type: plain|text|group|media, position, width, height,
                                 parentId? (group membership, R3.10), title, description?,
                                 color, docId?, openMode: panel|navigate,
                                 shape? (plain nodes: rectangle|rounded|ellipse|diamond|
                                 hexagon|cylinder|parallelogram|document|cloud),
-                                icon? (a Lucide name), emoji? (one emoji)
+                                icon? (a Lucide name), emoji? (one emoji),
+                                media nodes: mediaPath (the file's name in Storage),
+                                mediaWidth, mediaHeight (the file's pixels), alt;
+                                the title is the caption
 edges: Y.Map<edgeId, Y.Map>     source, target, sourceHandle, targetHandle,
                                 shape: spline|step, stroke: solid|dotted,
                                 direction: none|forward|reverse|both,
                                 color, label?, icon?, emoji?, docId?, openMode
 ```
 Maps keyed by id, with a nested map per object, so two users editing different properties of the same node merge cleanly. Groups are nodes with `type: group`; children point at them through `parentId`, which is how React Flow models sub-flows. A group is a frame with no fill: it takes the pointer on its border and label only, and dropping it over nodes takes in the ones wholly inside it (`lib/whiteboard/adopt.ts`). A shape's geometry (outline, where edges attach, where the title fits) is computed in one place, `lib/whiteboard/shapes.ts`, for both the canvas and the embed renderer; icons are drawn by both from `lib/whiteboard/icon-data.ts`, generated from lucide-react by `scripts/generate-whiteboard-icons.mjs`. Undo/redo (R3.14) uses `Y.UndoManager`, scoped to the local user.
+
+**Media nodes.** A picture or a video is a node like any other (selection, groups, arrows on four sides, badges, copy and paste, Arrange, undo), whose box keeps the file's proportions when resized. What is stored:
+
+- *Where.* Two private buckets created by the migration `canvas_media`: `media-images` (PNG, JPEG, WebP, GIF, AVIF; 10 MB) and `media-videos` (MP4, WebM, MOV; 100 MB). Two, because a bucket has one size limit, and this way Storage itself enforces the size and the declared type of each kind; `lib/whiteboard/media.ts` repeats the numbers only to say no sooner. SVG is not taken: it can carry script, the files are served by Storage where the app sets no headers, and uploads never pass through a place that could sanitize one. Media counts toward no plan limit (R7 meters documents and editors, not bytes).
+- *Names and access.* A file is `<org>/<project>/<document>/<file id>.<ext>`. Policies on `storage.objects` read the document out of the name (`private.media_document`, which also checks that the org and project are that document's own) and apply the document's rules: whoever `private.can_read_document` lets read the whiteboard reads its files, so org members do and, while the project is public, so does anyone; editors and above upload; editors of the org in the name delete. Whether a node shows a picture or a video is read off the extension, so the node and the bucket cannot disagree.
+- *Getting in.* The toolbar, a drop on the canvas, or a paste of image data. The browser sends the file straight to Storage (never through the Next.js server, whose host may cap request bodies) and shows a placeholder with progress that exists on that screen only. The node is written to the Yjs document once the file has arrived, as one undo step, so nobody sees a picture that is not there yet and a failed upload leaves nothing behind. Remote addresses are not accepted: no hot-linking, and nothing for the server to fetch.
+- *Getting out.* The canvas asks Storage for signed addresses (one hour) with the reader's own session, or with none on a public page, all files of a whiteboard in one request per bucket. Row-level security is the only check, as on the rest of the read path, and Storage serves the bytes itself, byte ranges included, so a video scrubs and no file passes through the app. An address that stops working is replaced once, and a video carries on from where it was. `/api/media/<name>` is the address that stays the same, for the panel's "Open the file" and for agents: it signs as whoever is asking and redirects, 404 otherwise.
+- *Copies and deletion.* A copy of a media node shows the same file. Pasted onto another whiteboard it gets a file of its own there first, because a file is read by the readers of the whiteboard it is filed under. Deleting a node never deletes the file: the copy may still show it, and undo must be able to bring the node back. There is no reference count to keep right. Files are removed when their whiteboard is deleted for good (`lib/documents/media-cleanup.ts`: list what the delete orphans through `media_objects`, delete the rows, then remove the files through the Storage API) and when their org is. Files of nodes deleted from a living whiteboard stay; sweeping them safely needs a server-side pass that reads every whiteboard, and is not built.
+- *Readers that are not the canvas.* The embed image (`render-svg.ts`) draws a media node as a frame with an icon and its caption. It must stay one standalone image: a reference to another file is not followed inside an `<img>` or by GitHub's image proxy, and inlining the bytes would put megabytes, and for a moment a private bucket's content, into a response cached by anyone. Agents get the node with its caption, alt text, pixel size and the `/api/media` address (docs/MCP.md).
 
 **Text doc:** the `Y.XmlFragment` that BlockNote's collaboration mode manages. The embedded-document block (R2.5) is a custom block with a `docId` prop.
 
