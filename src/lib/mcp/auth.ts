@@ -21,7 +21,11 @@ export type Caller = {
   expiresAt: number | undefined
 }
 
-const issuer = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!}/auth/v1`
+const issuer = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "")}/auth/v1`
+
+// One client checks every token, so the project's signing keys are fetched
+// once per server instance and not once per request. It holds no session.
+let verifier: ReturnType<typeof createAnonymousClient> | undefined
 
 // Where Supabase Auth publishes its OAuth metadata (RFC 8414).
 export const authorizationServer = issuer
@@ -37,7 +41,8 @@ export function bearerToken(request: Request) {
 // a project still on a shared signing secret is asked instead, since this
 // server does not hold that secret.
 export async function identify(token: string): Promise<Caller | null> {
-  const { data, error } = await createAnonymousClient().auth.getClaims(token)
+  verifier ??= createAnonymousClient()
+  const { data, error } = await verifier.auth.getClaims(token)
   if (error || !data) return null
 
   const { claims } = data
