@@ -18,6 +18,9 @@ const wbNode = (id: string, x: number, y: number, parentId: string | null = null
   docType: null,
   openMode: "panel",
   path: null,
+  shape: "rectangle",
+  icon: null,
+  emoji: null,
 })
 
 const source = (wb: WbNode, absolute = { x: wb.x, y: wb.y }): ClipSource => ({
@@ -41,6 +44,8 @@ const wbEdge = (source: string, target: string, label = ""): WbEdge => ({
   docId: null,
   docType: null,
   openMode: "panel",
+  icon: null,
+  emoji: null,
 })
 
 describe("collectClip", () => {

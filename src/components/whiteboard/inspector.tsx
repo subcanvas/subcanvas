@@ -16,9 +16,11 @@ import {
   type WbEdge,
   type WbNode,
 } from "@/lib/whiteboard/schema"
+import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
 import { cn } from "@/lib/utils"
 
 import { ObjectDocument } from "./object-document"
+import { EmojiField, IconField, ShapeField } from "./pickers"
 
 const KIND_LABELS = { plain: "Node", text: "Text", group: "Group" }
 
@@ -122,6 +124,20 @@ function NodeFields({
   node: WbNode
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
+  // A node still at the size its shape came in takes the new shape's size,
+  // around the same center: a diamond needs more room than a rectangle for
+  // the same words. A node somebody has sized keeps its size.
+  function changeShape(shape: NodeShape) {
+    const from = SHAPE_SIZE[node.shape]
+    const to = SHAPE_SIZE[shape]
+    const untouched = node.width === from.width && node.height === from.height
+    onChange(
+      untouched
+        ? { shape, ...to, x: node.x + (from.width - to.width) / 2, y: node.y + (from.height - to.height) / 2 }
+        : { shape }
+    )
+  }
+
   return (
     <>
       <Field label="Title" htmlFor="wb-title">
@@ -155,7 +171,10 @@ function NodeFields({
           )}
         </div>
       )}
+      {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
+      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
   )
 }
@@ -210,6 +229,8 @@ function EdgeFields({
         onChange={(direction) => onChange({ direction })}
       />
       <ColorField value={edge.color} onChange={(color) => onChange({ color })} />
+      <IconField value={edge.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={edge.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
   )
 }

@@ -27,6 +27,7 @@ import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { reconcileLinks } from "@/lib/document-links"
 import { documentHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
@@ -200,9 +201,10 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
     selectOnly([wb.addNode(kind, { x: center.x + step, y: center.y + step })])
   }
 
-  // The innermost group under a point, leaving out the ones `skip` names.
+  // The innermost group under a point, leaving out the ones `skip` names and
+  // any no larger than `largerThan`.
   const groupAt = useCallback(
-    (point: { x: number; y: number }, skip: (groupId: string) => boolean) => {
+    (point: { x: number; y: number }, skip: (groupId: string) => boolean, largerThan = 0) => {
       let found: { id: string; x: number; y: number; area: number } | null = null
       for (const other of flow.getNodes()) {
         if (other.type !== "wb-group" || skip(other.id)) continue
@@ -211,7 +213,9 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
         const { x, y } = group.internals.positionAbsolute
         const width = group.measured.width ?? 0
         const height = group.measured.height ?? 0
-        const contains = point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height
+        const contains =
+          width * height > largerThan &&
+          point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height
         if (contains && (!found || width * height < found.area))
           found = { id: other.id, x, y, area: width * height }
       }
@@ -246,8 +250,11 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           x: abs.x + (internal.measured.width ?? 0) / 2,
           y: abs.y + (internal.measured.height ?? 0) / 2,
         }
-        // A group cannot go inside itself, or inside what it holds.
-        const target = groupAt(center, (id) => id === node.id || isInside(id, node.id))
+        // A group cannot go inside itself, or inside what it holds, and only
+        // goes into something larger: a group dropped over a smaller one
+        // takes it in (below), it does not go inside it.
+        const area = (internal.measured.width ?? 0) * (internal.measured.height ?? 0)
+        const target = groupAt(center, (id) => id === node.id || isInside(id, node.id), area)
 
         if ((target?.id ?? null) === (node.parentId ?? null)) continue
         wb.updateNode(node.id, {
@@ -256,6 +263,24 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           y: abs.y - (target?.y ?? 0),
         })
       }
+
+      // The other way round: a group dropped over nodes takes in the ones
+      // that lie wholly inside it.
+      const placed = flow.getNodes().flatMap((node) => {
+        const internal = flow.getInternalNode(node.id)
+        if (!internal) return []
+        const { x, y } = internal.internals.positionAbsolute
+        const { width = 0, height = 0 } = internal.measured
+        return [{ id: node.id, parentId: node.parentId ?? null, x, y, width, height }]
+      })
+      wb.updateNodes(
+        dragged
+          .filter((node) => node.type === "wb-group")
+          .flatMap((group) => adoptions(group.id, placed))
+          // A node dragged along with the group was placed by the loop above.
+          .filter((adoption) => !draggedIds.has(adoption.id))
+          .map(({ id, ...patch }) => ({ id, patch }))
+      )
     },
     [canEdit, flow, groupAt, wb]
   )

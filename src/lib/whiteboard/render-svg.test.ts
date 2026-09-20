@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { renderMessageSvg, renderWhiteboardSvg } from "./render-svg"
 import type { WbEdge, WbNode } from "./schema"
+import { NODE_SHAPES, shapeGeometry } from "./shapes"
 
 const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   kind: "plain",
@@ -18,6 +19,9 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   docType: null,
   openMode: "panel",
   path: null,
+  shape: "rectangle",
+  icon: null,
+  emoji: null,
   ...fields,
 })
 
@@ -29,6 +33,8 @@ const edge = (fields: Partial<WbEdge> & { id: string; source: string; target: st
   direction: "forward",
   color: "default",
   label: "",
+  icon: null,
+  emoji: null,
   docId: null,
   docType: null,
   openMode: "panel",
@@ -47,6 +53,11 @@ function parse(svg: string) {
 }
 
 const all = (root: XmlElement, tag: string) => Array.from(root.getElementsByTagName(tag))
+
+// The lines of the edges: the only paths that are stroked and never filled
+// at that width. Node outlines are paths too.
+const edgeLines = (root: XmlElement) =>
+  all(root, "path").filter((path) => path.getAttribute("stroke-width") === "1.5")
 
 const render = (nodes: WbNode[], edges: WbEdge[] = [], theme: "light" | "dark" = "light") =>
   renderWhiteboardSvg({ nodes, edges, theme, title: "Test board" })
@@ -92,12 +103,14 @@ describe("renderWhiteboardSvg", () => {
       node({ id: "child", parentId: "group", x: 40, y: 50, width: 100, height: 40 }),
       node({ id: "group", kind: "group", x: 1000, y: 2000, title: "Backend" }),
     ])
-    const rects = all(parse(svg), "rect")
-    const child = rects.find((rect) => rect.getAttribute("width") === "99" && rect.getAttribute("height") === "39")!
-    expect(child.getAttribute("x")).toBe("1040.5")
-    expect(child.getAttribute("y")).toBe("2050.5")
-    const group = rects.find((rect) => rect.getAttribute("width") === "359")!
-    expect(rects.indexOf(group)).toBeLessThan(rects.indexOf(child))
+    const root = parse(svg)
+    // The child's outline starts on its top edge, after the corner's radius.
+    const child = all(root, "path").find((path) => path.getAttribute("d")!.startsWith("M1048 2050.5H"))!
+    const group = all(root, "rect").find((rect) => rect.getAttribute("width") === "359")!
+    // Beneath: earlier in the document.
+    const order = Array.from(root.childNodes)
+    expect(order.indexOf(child)).toBeGreaterThan(order.indexOf(group))
+    expect(order.indexOf(group)).toBeGreaterThan(-1)
   })
 
   it("survives a parent cycle and a missing parent", () => {
@@ -133,7 +146,7 @@ describe("renderWhiteboardSvg", () => {
   })
 
   it("draws an edge between the facing sides of two nodes", () => {
-    const paths = all(parse(render(two, [edge({ id: "e", source: "a", target: "b" })])), "path")
+    const paths = edgeLines(parse(render(two, [edge({ id: "e", source: "a", target: "b" })])))
     expect(paths).toHaveLength(1)
     // From the middle of a's right side to the middle of b's left side.
     expect(paths[0].getAttribute("d")).toMatch(/^M160 32C.* 400 32$/)
@@ -141,7 +154,7 @@ describe("renderWhiteboardSvg", () => {
 
   it("attaches to the sides the edge remembers", () => {
     const svg = render(two, [edge({ id: "e", source: "a", target: "b", sourceHandle: "bottom", targetHandle: "top" })])
-    expect(all(parse(svg), "path")[0].getAttribute("d")).toMatch(/^M80 64C.* 480 0$/)
+    expect(edgeLines(parse(svg))[0].getAttribute("d")).toMatch(/^M80 64C.* 480 0$/)
   })
 
   it("draws a step edge with right angles only", () => {
@@ -149,7 +162,7 @@ describe("renderWhiteboardSvg", () => {
       [node({ id: "a" }), node({ id: "b", x: 400, y: 300 })],
       [edge({ id: "e", source: "a", target: "b", shape: "step" })]
     )
-    expect(all(parse(svg), "path")[0].getAttribute("d")).toBe("M160 32L280 32L280 332L400 332")
+    expect(edgeLines(parse(svg))[0].getAttribute("d")).toBe("M160 32L280 32L280 332L400 332")
   })
 
   it("keeps a step edge square whichever sides it joins", () => {
@@ -161,7 +174,7 @@ describe("renderWhiteboardSvg", () => {
             [node({ id: "a" }), node({ id: "b", x, y })],
             [edge({ id: "e", source: "a", target: "b", shape: "step", sourceHandle, targetHandle })]
           )
-          const points = all(parse(svg), "path")[0]
+          const points = edgeLines(parse(svg))[0]
             .getAttribute("d")!
             .split(/[ML]/)
             .filter(Boolean)
@@ -173,12 +186,12 @@ describe("renderWhiteboardSvg", () => {
   })
 
   it("skips an edge whose node is gone", () => {
-    expect(all(parse(render(two, [edge({ id: "e", source: "a", target: "gone" })])), "path")).toHaveLength(0)
+    expect(edgeLines(parse(render(two, [edge({ id: "e", source: "a", target: "gone" })])))).toHaveLength(0)
   })
 
   it("dots the line only when the edge is dotted", () => {
     const line = (stroke: WbEdge["stroke"]) =>
-      all(parse(render(two, [edge({ id: "e", source: "a", target: "b", stroke })])), "path")[0]
+      edgeLines(parse(render(two, [edge({ id: "e", source: "a", target: "b", stroke })])))[0]
     expect(line("dotted").getAttribute("stroke-dasharray")).toBe("2 6")
     expect(line("solid").hasAttribute("stroke-dasharray")).toBe(false)
   })
@@ -200,15 +213,129 @@ describe("renderWhiteboardSvg", () => {
   })
 
   it("stacks sheets behind a node that holds a whiteboard, and only there", () => {
-    const rects = (docType: WbNode["docType"]) =>
-      all(parse(render([node({ id: "a", docId: docType && "d", docType })])), "rect").filter(
-        // Not the ones inside the mark's icon.
-        (rect) => rect.parentNode?.nodeName === "svg"
-      ).length
-    // The background and the box; then the document mark; then two sheets.
-    expect(rects(null)).toBe(2)
-    expect(rects("text")).toBe(3)
-    expect(rects("whiteboard")).toBe(5)
+    const drawn = (docType: WbNode["docType"]) => {
+      const root = parse(render([node({ id: "a", docId: docType && "d", docType })]))
+      // Not the ones inside the mark's icon.
+      const direct = (tag: string) => all(root, tag).filter((shape) => shape.parentNode?.nodeName === "svg").length
+      return { rects: direct("rect"), paths: direct("path") }
+    }
+    // The background, and the node's outline; then the document mark; then
+    // two sheets.
+    expect(drawn(null)).toEqual({ rects: 1, paths: 1 })
+    expect(drawn("text")).toEqual({ rects: 2, paths: 1 })
+    expect(drawn("whiteboard")).toEqual({ rects: 2, paths: 3 })
+  })
+
+  it("draws every shape, alone and as a stack of sheets, as a standalone image", () => {
+    for (const shape of NODE_SHAPES) {
+      const svg = render([
+        node({ id: "plain", shape, width: 180, height: 110, color: "blue" }),
+        node({ id: "stack", shape, x: 300, width: 180, height: 110, docId: "d", docType: "whiteboard" }),
+      ])
+      const root = parse(svg)
+      const outlines = all(root, "path").filter((path) => path.parentNode?.nodeName === "svg")
+      // The outline of each node, and two sheets behind the second.
+      expect(outlines.length, shape).toBeGreaterThanOrEqual(4)
+      expect(outlines[0].getAttribute("d"), shape).toBe(shapeGeometry(shape, { x: 0, y: 0, width: 180, height: 110 }).outline)
+      expect(svg, shape).not.toMatch(/NaN|undefined|<script|<foreignObject|<style|<image|<use|href=|url\(|@import/i)
+    }
+  })
+
+  it("keeps a title inside the safe area of its shape", () => {
+    const root = parse(render([node({ id: "a", shape: "diamond", width: 184, height: 112, title: "Should we cache this response or not?" })]))
+    const { text } = shapeGeometry("diamond", { x: 0, y: 0, width: 184, height: 112 })
+    const lines = all(root, "text").filter((line) => line.getAttribute("text-anchor") === "middle")
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) {
+      expect(Number(line.getAttribute("x"))).toBe(92)
+      const baseline = Number(line.getAttribute("y"))
+      expect(baseline).toBeGreaterThan(text.y)
+      expect(baseline).toBeLessThan(text.y + text.height)
+    }
+  })
+
+  it("attaches an edge to the outline of a shape, not to its box", () => {
+    const svg = render(
+      [
+        node({ id: "a", shape: "parallelogram", width: 200, height: 100 }),
+        node({ id: "b", shape: "cloud", x: 400, width: 200, height: 100 }),
+      ],
+      [edge({ id: "e", source: "a", target: "b", sourceHandle: "right", targetHandle: "left" })]
+    )
+    const { left } = shapeGeometry("cloud", { x: 400, y: 0, width: 200, height: 100 }).anchors
+    expect(left.x).toBeGreaterThan(400)
+    const d = edgeLines(parse(svg))[0].getAttribute("d")!
+    // Half the lean in from the parallelogram's right side.
+    expect(d.startsWith("M180 50C")).toBe(true)
+    expect(d.endsWith(` ${Math.round(left.x * 100) / 100} 50`)).toBe(true)
+  })
+
+  it("draws a node's icon and emoji as badges, beside the document mark", () => {
+    const badges = (fields: Partial<WbNode>) => {
+      const root = parse(render([node({ id: "a", ...fields })]))
+      return {
+        chips: all(root, "rect").filter((rect) => rect.getAttribute("width") === "19" && rect.parentNode?.nodeName === "svg"),
+        icons: all(root, "g").filter((group) => group.getAttribute("stroke-linecap") === "round").length,
+        emoji: all(root, "text").filter((text) => text.getAttribute("font-family")?.includes("Emoji")).map((text) => text.textContent),
+      }
+    }
+    expect(badges({})).toMatchObject({ chips: [], icons: 0, emoji: [] })
+    expect(badges({ icon: "database" })).toMatchObject({ icons: 1, emoji: [] })
+    expect(badges({ emoji: "🐘" })).toMatchObject({ icons: 0, emoji: ["🐘"] })
+
+    const three = badges({ icon: "database", emoji: "👨‍👩‍👧‍👦", docId: "d", docType: "text" })
+    expect(three).toMatchObject({ icons: 2, emoji: ["👨‍👩‍👧‍👦"] })
+    // Side by side, never on top of each other; the mark is the last one.
+    const lefts = three.chips.map((chip) => Number(chip.getAttribute("x"))).sort((a, b) => a - b)
+    expect(lefts).toHaveLength(3)
+    expect(lefts[1] - lefts[0]).toBeGreaterThanOrEqual(20)
+    expect(lefts[2] - lefts[1]).toBeGreaterThanOrEqual(20)
+
+    for (const kind of ["text", "group"] as const)
+      expect(parse(render([node({ id: "a", kind, icon: "server", emoji: "🚀" })])).textContent).toContain("🚀")
+  })
+
+  it("ignores an icon it does not know and an emoji that is not one", () => {
+    const hostile = `"/><script>alert(1)</script>`
+    const svg = render(
+      [node({ id: "a", icon: hostile, emoji: hostile }), node({ id: "b", x: 400, icon: "constructor", emoji: "not an emoji" })],
+      [edge({ id: "e", source: "a", target: "b", icon: hostile, emoji: hostile })]
+    )
+    const root = parse(svg)
+    expect(all(root, "script")).toHaveLength(0)
+    expect(svg).not.toContain("alert")
+    expect(svg).not.toContain("not an emoji")
+    // No badge, and no pill on the edge: there is nothing to put in either.
+    expect(all(root, "rect")).toHaveLength(1)
+  })
+
+  it("gives an edge a pill for an icon or an emoji alone, and puts them before the words", () => {
+    const pill = (fields: Partial<WbEdge>) => {
+      const root = parse(render(two, [edge({ id: "e", source: "a", target: "b", ...fields })]))
+      return all(root, "rect").filter((rect) => rect.getAttribute("height") === "19" && rect.getAttribute("width") !== "19")
+    }
+    expect(pill({})).toHaveLength(0)
+    expect(pill({ icon: "lock" })).toHaveLength(1)
+    expect(pill({ emoji: "🔒" })).toHaveLength(1)
+
+    const root = parse(render(two, [edge({ id: "e", source: "a", target: "b", icon: "lock", emoji: "🔒", label: "TLS" })]))
+    const icon = all(root, "g").find((group) => group.getAttribute("stroke-linecap") === "round")!
+    const x = (element: XmlElement) => Number(/translate\(([-\d.]+)/.exec(element.getAttribute("transform") ?? "")?.[1] ?? element.getAttribute("x"))
+    const emoji = all(root, "text").find((text) => text.textContent === "🔒")!
+    const words = all(root, "text").find((text) => text.textContent === "TLS")!
+    expect(x(icon)).toBeLessThan(x(emoji))
+    expect(x(emoji)).toBeLessThan(x(words))
+    // All of it inside the pill.
+    const [frame] = pill({ icon: "lock", emoji: "🔒", label: "TLS" })
+    expect(x(icon)).toBeGreaterThan(Number(frame.getAttribute("x")))
+  })
+
+  it("draws a group as a frame with nothing in it", () => {
+    const root = parse(render([node({ id: "g", kind: "group", color: "purple", docId: "d", docType: "whiteboard" })]))
+    const frame = all(root, "rect").find((rect) => rect.getAttribute("width") === "359")!
+    expect(frame.getAttribute("fill")).toBe("none")
+    // The two sheets behind it are bands around its right and bottom.
+    expect(all(root, "path").filter((path) => path.parentNode?.nodeName === "svg")).toHaveLength(2)
   })
 
   it("keeps a long title inside its box", () => {

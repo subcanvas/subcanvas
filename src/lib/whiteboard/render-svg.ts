@@ -1,5 +1,7 @@
 import { COLORS } from "./colors"
-import { DEFAULT_SIZE, type ColorKey, type WbEdge, type WbNode } from "./schema"
+import { iconNode } from "./icons"
+import { DEFAULT_SIZE, singleEmoji, type ColorKey, type WbEdge, type WbNode } from "./schema"
+import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./shapes"
 
 // A whiteboard drawn as a standalone SVG string: no browser, no React Flow.
 // It is what an embed in a README shows (docs/ROADMAP.md, section 4), so it
@@ -65,6 +67,9 @@ const PALETTES: Record<SvgTheme, Palette> = {
 }
 
 const SANS = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+// An image cannot bring a font along, so an emoji is drawn by whatever emoji
+// font the viewer has: the same emoji, in their system's style.
+const EMOJI = "'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif"
 const MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
 // Space around the content, and the strip under it that holds the mark.
@@ -72,6 +77,8 @@ const PADDING = 32
 const FOOTER = 20
 // How far the sheets behind a node peek out (--stack-offset).
 const STACK_OFFSET = 4
+// The furthest the two sheets behind any shape reach (shapes.ts, stackStep).
+const STACK_REACH = 10
 // The distance a step edge travels straight out of a node before it turns.
 const STEP_GAP = 20
 
@@ -82,10 +89,6 @@ const MAX_COORDINATE = 100_000
 const MAX_NODE_SIZE = 4000
 const MAX_TEXT_LINES = 40
 const MAX_IMAGE_SIDE = 4000
-
-type Side = "top" | "right" | "bottom" | "left"
-type Point = { x: number; y: number }
-type Box = { x: number; y: number; width: number; height: number }
 
 const SIDES: readonly Side[] = ["top", "right", "bottom", "left"]
 const NORMALS: Record<Side, Point> = {
@@ -206,7 +209,7 @@ function textLines(
 
 // --- Layout ---------------------------------------------------------------
 
-const PLAIN_TEXT = { fontSize: 13, lineHeight: 17.875, paddingX: 13, paddingY: 9, maxLines: 3 }
+const PLAIN_TEXT = { fontSize: 13, lineHeight: 17.875, maxLines: 3 }
 // The folder path under a repository node's name (10px mono on the canvas).
 const PATH_TEXT = { fontSize: 10, lineHeight: 12.5, gap: 2 }
 const HEADING = { fontSize: 18, lineHeight: 22.5 }
@@ -284,67 +287,134 @@ function placeNodes(nodes: WbNode[]) {
 const wordColor = (color: ColorKey, uncolored: string, palette: Palette) =>
   color === "default" ? uncolored : palette.pencilText[color]
 
-// The signature: two sheets peeking out behind anything that holds a
-// whiteboard. Same geometry as the `sheet-stack` utility in globals.css.
+// The signature: two sheets peeking out behind a group that holds a
+// whiteboard. Same geometry as the `sheet-stack` utility in globals.css. A
+// group has no fill to hide the sheets behind, so each is drawn as only what
+// sticks out: a band around the right and the bottom, whose inner edge
+// follows the group's own border.
 function sheetStack(box: Box, radius: number, edge: string, palette: Palette) {
+  const left = box.x + 0.5
+  const top = box.y + 0.5
+  const right = box.x + box.width - 0.5
+  const bottom = box.y + box.height - 0.5
   return [2, 1]
     .map((sheet) => {
       const offset = STACK_OFFSET * sheet
-      return `<rect x="${n(box.x + offset + 0.5)}" y="${n(box.y + offset + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="${radius}" fill="${palette.sheet}" stroke="${edge}"/>`
+      // How far along a corner of the group the sheet's edge crosses it.
+      const reach = Math.sqrt(radius * radius - (radius - offset) * (radius - offset))
+      const corner = `A${radius} ${radius} 0 0`
+      return (
+        `<path d="M${n(right - radius + reach)} ${n(top + offset)}H${n(right + offset - radius)}${corner} 1 ${n(right + offset)} ${n(top + offset + radius)}` +
+        `V${n(bottom + offset - radius)}${corner} 1 ${n(right + offset - radius)} ${n(bottom + offset)}` +
+        `H${n(left + offset + radius)}${corner} 1 ${n(left + offset)} ${n(bottom + offset - radius)}` +
+        `V${n(bottom - radius + reach)}${corner} 0 ${n(left + radius)} ${n(bottom)}` +
+        `H${n(right - radius)}${corner} 0 ${n(right)} ${n(bottom - radius)}` +
+        `V${n(top + radius)}${corner} 0 ${n(right - radius + reach)} ${n(top + offset)}Z" fill="${palette.sheet}" stroke="${edge}"/>`
+      )
     })
     .join("")
 }
 
-// Lucide's "workflow" and "file-text" (ISC), the icons the canvas uses.
-const MARK_ICONS = {
-  whiteboard:
-    '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
-  text: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+// One of the whiteboard's icons (Lucide, ISC) drawn `size` wide with its
+// top left corner at `x`, `y`. Nothing, for a name this version does not
+// have. The data is ours (icon-data.ts), and it is escaped all the same.
+function drawIcon(name: string | null, x: number, y: number, size: number, color: string) {
+  const node = iconNode(name)
+  if (!node) return ""
+  const shapes = node
+    .map(
+      ([tag, attributes]) =>
+        `<${tag} ${Object.entries(attributes)
+          .map(([key, value]) => `${key}="${escapeXml(value)}"`)
+          .join(" ")}/>`
+    )
+    .join("")
+  return `<g transform="translate(${n(x)} ${n(y)}) scale(${n(size / 24)})" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${shapes}</g>`
 }
+
+const emojiText = (emoji: string, x: number, y: number, fontSize: number) =>
+  `<text x="${n(x)}" y="${n(y + fontSize * 0.36)}" font-family="${EMOJI}" font-size="${fontSize}" text-anchor="middle">${escapeXml(emoji)}</text>`
+
 const MARK_SIZE = 20
+const MARK_GAP = 3
+
+// A small square sheet centered on `at`: the frame of a badge.
+function chip(at: Point, palette: Palette) {
+  return `<rect x="${n(at.x - MARK_SIZE / 2 + 0.5)}" y="${n(at.y - MARK_SIZE / 2 + 0.5)}" width="${MARK_SIZE - 1}" height="${MARK_SIZE - 1}" rx="5" fill="${palette.sheet}" stroke="${palette.rule}"/>`
+}
 
 // The small square that says an object holds a document, centered on `at`.
 function documentMark(at: Point, docType: "text" | "whiteboard", palette: Palette) {
-  const x = at.x - MARK_SIZE / 2
-  const y = at.y - MARK_SIZE / 2
-  return (
-    `<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${MARK_SIZE - 1}" height="${MARK_SIZE - 1}" rx="5" fill="${palette.sheet}" stroke="${palette.rule}"/>` +
-    `<g transform="translate(${n(x + 4)} ${n(y + 4)}) scale(0.5)" fill="none" stroke="${palette.graphite}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${MARK_ICONS[docType]}</g>`
-  )
+  return chip(at, palette) + drawIcon(docType === "whiteboard" ? "workflow" : "file-text", at.x - 6, at.y - 6, 12, palette.graphite)
 }
 
-// On a node the mark hangs off the top right corner.
-const cornerMark = ({ node, box }: Placed, palette: Palette) =>
-  node.docId && node.docType
-    ? documentMark({ x: box.x + box.width + 2.5 - MARK_SIZE / 2, y: box.y - 2.5 + MARK_SIZE / 2 }, node.docType, palette)
-    : ""
+// What hangs on a node's corner, right to left from `at`: the document
+// mark where it has always been, then the emoji, then the icon.
+function cornerBadges({ node }: Placed, at: Point, palette: Palette) {
+  let drawn = ""
+  let x = at.x
+  if (node.docId && node.docType) {
+    drawn += documentMark({ x, y: at.y }, node.docType, palette)
+    x -= MARK_SIZE + MARK_GAP
+  }
+  const emoji = singleEmoji(node.emoji)
+  if (emoji) {
+    drawn += chip({ x, y: at.y }, palette) + emojiText(emoji, x, at.y, 12)
+    x -= MARK_SIZE + MARK_GAP
+  }
+  if (iconNode(node.icon))
+    drawn += chip({ x, y: at.y }, palette) + drawIcon(node.icon, x - 6, at.y - 6, 12, wordColor(node.color, palette.ink, palette))
+  return drawn
+}
+
+// How many badges that is, for whoever has to leave them room.
+const badgeCount = (node: WbNode) =>
+  (node.docId && node.docType ? 1 : 0) + (singleEmoji(node.emoji) ? 1 : 0) + (iconNode(node.icon) ? 1 : 0)
+
+// A text node and a group wear them on the top right corner of their box.
+const boxCorner = (box: Box): Point => ({ x: box.x + box.width, y: box.y })
 
 function plainNode(placed: Placed, palette: Palette) {
   const { node, box } = placed
   const tinted = node.color !== "default"
   const stroke = tinted ? COLORS[node.color].stroke : mix(palette.ink, 55, palette.sheet)
   const fill = tinted ? mix(COLORS[node.color].stroke, 9, palette.sheet) : palette.sheet
+  const geometry = shapeGeometry(node.shape, box)
+  const area = geometry.text
 
-  const inner = Math.max(box.width - PLAIN_TEXT.paddingX * 2, PLAIN_TEXT.fontSize)
+  const inner = Math.max(area.width, PLAIN_TEXT.fontSize)
   // A node that stands for a repository folder says which one under its
   // name, as on the canvas: the name gives way first (two lines, not three),
   // and the path is one truncated line.
   const path = node.path ? truncate(node.path, inner, PATH_TEXT.fontSize, true) : null
   const pathRoom = path ? PATH_TEXT.lineHeight + PATH_TEXT.gap : 0
-  const room = Math.floor((box.height - PLAIN_TEXT.paddingY * 2 - pathRoom) / PLAIN_TEXT.lineHeight)
   const lines = clampLines(
     wrap(node.title || "Untitled", inner, PLAIN_TEXT.fontSize),
-    clamp(room, 1, path ? 2 : PLAIN_TEXT.maxLines),
+    linesThatFit(area.height - pathRoom, PLAIN_TEXT.lineHeight, path ? 2 : PLAIN_TEXT.maxLines),
     inner,
     PLAIN_TEXT.fontSize
   )
-  const top = box.y + (box.height - lines.length * PLAIN_TEXT.lineHeight - pathRoom) / 2
+  const middle = area.x + area.width / 2
+  const top = area.y + (area.height - lines.length * PLAIN_TEXT.lineHeight - pathRoom) / 2
+
+  // The signature: a node that holds a whiteboard is a stack of sheets, each
+  // one the node's own outline moved a step.
+  const stack =
+    node.docType === "whiteboard"
+      ? [2, 1]
+          .map((sheet) => {
+            const behind = { ...box, x: box.x + geometry.stackStep.x * sheet, y: box.y + geometry.stackStep.y * sheet }
+            return `<path d="${shapeGeometry(node.shape, behind).outline}" fill="${palette.sheet}" stroke="${tinted ? stroke : palette.blueline}" stroke-linejoin="round"/>`
+          })
+          .join("")
+      : ""
 
   return (
-    (node.docType === "whiteboard" ? sheetStack(box, 8, tinted ? stroke : palette.blueline, palette) : "") +
-    `<rect x="${n(box.x + 0.5)}" y="${n(box.y + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="8" fill="${fill}" stroke="${stroke}"/>` +
+    stack +
+    `<path d="${geometry.outline}" fill="${fill}" stroke="${stroke}" stroke-linejoin="round"/>` +
+    (geometry.detail ? `<path d="${geometry.detail}" fill="none" stroke="${stroke}"/>` : "") +
     textLines(lines, {
-      x: box.x + box.width / 2,
+      x: middle,
       top,
       lineHeight: PLAIN_TEXT.lineHeight,
       fontSize: PLAIN_TEXT.fontSize,
@@ -352,14 +422,14 @@ function plainNode(placed: Placed, palette: Palette) {
     }) +
     (path
       ? textLines([path], {
-          x: box.x + box.width / 2,
+          x: middle,
           top: top + lines.length * PLAIN_TEXT.lineHeight + PATH_TEXT.gap,
           lineHeight: PATH_TEXT.lineHeight,
           fontSize: PATH_TEXT.fontSize,
           attributes: `text-anchor="middle" font-family="${MONO}" letter-spacing="-0.25" fill="${palette.graphite}"`,
         })
       : "") +
-    cornerMark(placed, palette)
+    cornerBadges(placed, geometry.badge, palette)
   )
 }
 
@@ -381,7 +451,7 @@ function textNode(placed: Placed, palette: Palette) {
       ...BODY,
       attributes: `fill="${palette.graphite}"`,
     }) +
-    cornerMark(placed, palette)
+    cornerBadges(placed, boxCorner(box), palette)
   )
 }
 
@@ -391,14 +461,15 @@ function groupNode(placed: Placed, palette: Palette) {
   const { node, box } = placed
   const tinted = node.color !== "default"
   const pencil = tinted ? COLORS[node.color].stroke : ""
-  const border = tinted ? mix(pencil, 45, palette.sheet) : palette.rule
-  const fill = tinted ? mix(pencil, 5, palette.paper) : mix(palette.ink, 3, palette.paper)
+  const border = tinted ? mix(pencil, 60, palette.sheet) : palette.rule
 
   let tab = ""
   if (node.title) {
     // A tab on the top edge, like the label on a folder.
-    // It stops short of the document mark on the far corner.
-    const room = box.width - TAB.inset * 2 - TAB.paddingX * 2 - (node.docId ? MARK_SIZE / 2 : 0)
+    // It stops short of the badges on the far corner.
+    const badges = badgeCount(node)
+    const room =
+      box.width - TAB.inset * 2 - TAB.paddingX * 2 - (badges ? badges * (MARK_SIZE + MARK_GAP) - MARK_SIZE / 2 : 0)
     const label = truncate(node.title.toUpperCase(), Math.max(room, TAB.fontSize), TAB.fontSize, true)
     const width = textWidth(label, TAB.fontSize, true) + [...label].length * TAB.tracking + TAB.paddingX * 2
     const x = box.x + TAB.inset
@@ -409,10 +480,13 @@ function groupNode(placed: Placed, palette: Palette) {
   }
 
   return (
-    (node.docType === "whiteboard" ? sheetStack(box, 11, tinted ? pencil : palette.blueline, palette) : "") +
-    `<rect x="${n(box.x + 0.5)}" y="${n(box.y + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="11" fill="${fill}" stroke="${border}"/>` +
+    (node.docType === "whiteboard"
+      ? sheetStack(box, 11, tinted ? pencil : palette.blueline, palette)
+      : "") +
+    // A frame, not a surface: what is inside it shows on the paper.
+    `<rect x="${n(box.x + 0.5)}" y="${n(box.y + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="11" fill="none" stroke="${border}"/>` +
     tab +
-    cornerMark(placed, palette)
+    cornerBadges(placed, boxCorner(box), palette)
   )
 }
 
@@ -422,7 +496,10 @@ const isSide = (value: string | null): value is Side => SIDES.includes(value as 
 
 const center = (box: Box): Point => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 })
 
-function sidePoint(box: Box, side: Side): Point {
+// Where an edge meets a node on one side: on the outline of a shaped node,
+// which is not always the middle of the box's side.
+function sidePoint({ node, box }: Placed, side: Side): Point {
+  if (node.kind === "plain") return shapeGeometry(node.shape, box).anchors[side]
   const middle = center(box)
   return {
     x: middle.x + (NORMALS[side].x * box.width) / 2,
@@ -548,16 +625,16 @@ function arrowhead(tip: Point, side: Side, color: string) {
   return `<polygon points="${n(tip.x)},${n(tip.y)} ${corner(1)} ${corner(-1)}" fill="${color}" stroke="${color}" stroke-linejoin="round"/>`
 }
 
-const PILL = { fontSize: 11, height: 20, paddingX: 6 }
+const PILL = { fontSize: 11, height: 20, paddingX: 6, gap: 4, icon: 12, emoji: 14 }
 
 type DrawnEdge = { line: string; label: string; reach: Box[] }
 
 function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): DrawnEdge | null {
-  const source = placed.get(edge.source)?.box
-  const target = placed.get(edge.target)?.box
+  const source = placed.get(edge.source)
+  const target = placed.get(edge.target)
   if (!source || !target) return null
 
-  const facing = facingSides(source, target)
+  const facing = facingSides(source.box, target.box)
   const fromSide = isSide(edge.sourceHandle) ? edge.sourceHandle : facing[0]
   const toSide = isSide(edge.targetHandle) ? edge.targetHandle : facing[1]
   const from = sidePoint(source, fromSide)
@@ -573,19 +650,39 @@ function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): 
     (edge.direction === "reverse" || edge.direction === "both" ? arrowhead(from, fromSide, color) : "")
 
   // The label and the document mark share the middle of the line, side by
-  // side, as they do on the canvas.
+  // side, as they do on the canvas. Inside the label: the icon, the emoji,
+  // then the words, whichever of them there are.
   const text = edge.label ? truncate(edge.label.replace(/\s+/g, " "), 240, PILL.fontSize, true) : ""
-  const pillWidth = text ? textWidth(text, PILL.fontSize, true) + PILL.paddingX * 2 : 0
+  // Whoever calls this read the document defensively (schema.ts); an emoji
+  // is checked again all the same, since this is where it becomes an image.
+  const emoji = singleEmoji(edge.emoji)
+  const parts = [
+    iconNode(edge.icon) ? PILL.icon : 0,
+    emoji ? PILL.emoji : 0,
+    text ? textWidth(text, PILL.fontSize, true) : 0,
+  ].filter(Boolean)
+  const pillWidth = parts.length
+    ? parts.reduce((sum, part) => sum + part, 0) + (parts.length - 1) * PILL.gap + PILL.paddingX * 2
+    : 0
   const markWidth = edge.docId && edge.docType ? MARK_SIZE : 0
   const total = pillWidth + markWidth + (pillWidth && markWidth ? 4 : 0)
   const left = route.label.x - total / 2
 
   let label = ""
-  if (text) {
+  if (pillWidth) {
     const y = route.label.y - PILL.height / 2
-    label +=
-      `<rect x="${n(left + 0.5)}" y="${n(y + 0.5)}" width="${n(pillWidth - 1)}" height="${PILL.height - 1}" rx="5" fill="${palette.sheet}" stroke="${palette.rule}"/>` +
-      `<text x="${n(left + pillWidth / 2)}" y="${n(route.label.y + PILL.fontSize * 0.35)}" font-family="${MONO}" font-size="${PILL.fontSize}" text-anchor="middle" fill="${palette.graphite}">${escapeXml(text)}</text>`
+    label += `<rect x="${n(left + 0.5)}" y="${n(y + 0.5)}" width="${n(pillWidth - 1)}" height="${PILL.height - 1}" rx="5" fill="${palette.sheet}" stroke="${palette.rule}"/>`
+    let x = left + PILL.paddingX
+    if (iconNode(edge.icon)) {
+      label += drawIcon(edge.icon, x, route.label.y - PILL.icon / 2, PILL.icon, wordColor(edge.color, palette.graphite, palette))
+      x += PILL.icon + PILL.gap
+    }
+    if (emoji) {
+      label += emojiText(emoji, x + PILL.emoji / 2, route.label.y, PILL.fontSize)
+      x += PILL.emoji + PILL.gap
+    }
+    if (text)
+      label += `<text x="${n(x)}" y="${n(route.label.y + PILL.fontSize * 0.35)}" font-family="${MONO}" font-size="${PILL.fontSize}" fill="${palette.graphite}">${escapeXml(text)}</text>`
   }
   if (edge.docId && edge.docType)
     label += documentMark({ x: left + total - MARK_SIZE / 2, y: route.label.y }, edge.docType, palette)
@@ -670,8 +767,8 @@ export function renderWhiteboardSvg({
     ...all.map(({ box }) => ({
       x: box.x,
       y: box.y - MARK_SIZE / 2,
-      width: box.width + MARK_SIZE / 2 + STACK_OFFSET * 2,
-      height: box.height + MARK_SIZE / 2 + STACK_OFFSET * 2,
+      width: box.width + STACK_REACH,
+      height: box.height + MARK_SIZE / 2 + STACK_REACH,
     })),
     ...drawn.flatMap((edge) => edge.reach),
   ]
