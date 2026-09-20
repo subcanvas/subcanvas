@@ -162,7 +162,7 @@ export const projectTools = [
       visibility: visibility.default("private"),
     },
     kind: "write",
-    covers: ["(org)/actions.createProject"],
+    covers: ["[org]/(org)/actions.createProject"],
     run: async (context, { org_id, name, visibility: wanted }) => {
       const result = await operations.createProject(context.supabase, {
         orgId: org_id,
@@ -187,7 +187,7 @@ export const projectTools = [
       "Changes who can read a project. Public means anyone with the address can read every document in it, without signing in; ask the person before making something public. Making a project private can fail on the free plan when it would hold more private documents than the plan allows.",
     input: { project_id: id("The project."), visibility },
     kind: "idempotent-write",
-    covers: ["tree-actions.setProjectVisibility"],
+    covers: ["[org]/[project]/tree-actions.setProjectVisibility"],
     run: async (context, { project_id, visibility: wanted }) => {
       const result = await operations.setProjectVisibility(context.supabase, project_id, wanted)
       if ("error" in result) return result

@@ -54,7 +54,7 @@ export const documentTools = [
       markdown: z.string().optional().describe("For a text document: its first content, as Markdown."),
     },
     kind: "write",
-    covers: ["tree-actions.createDocument"],
+    covers: ["[org]/[project]/tree-actions.createDocument"],
     run: async (context, { project_id, type, title, place: where, markdown }) => {
       if (markdown !== undefined && type !== "text")
         return { error: "Only a text document takes Markdown. Add nodes to a whiteboard with `add_nodes`." }
@@ -101,7 +101,7 @@ export const documentTools = [
       parent_folder_id: id("The folder to create it in. Leave out for the top level.").optional(),
     },
     kind: "write",
-    covers: ["tree-actions.createFolder"],
+    covers: ["[org]/[project]/tree-actions.createFolder"],
     run: async (context, { project_id, name, parent_folder_id }) => {
       const project = await findProject(context, project_id)
       if (!project) return NO_PROJECT
@@ -127,7 +127,7 @@ export const documentTools = [
       name: z.string().min(1).max(200).describe("The new title."),
     },
     kind: "idempotent-write",
-    covers: ["tree-actions.renameItem"],
+    covers: ["[org]/[project]/tree-actions.renameItem"],
     run: async (context, { kind, id: itemId, name }) => {
       const result = await operations.renameItem(context.supabase, kind, itemId, name)
       if ("error" in result) return result
@@ -147,7 +147,7 @@ export const documentTools = [
       to: container,
     },
     kind: "idempotent-write",
-    covers: ["tree-actions.moveItem"],
+    covers: ["[org]/[project]/tree-actions.moveItem"],
     run: async (context, { kind, id: itemId, to }) => {
       const result = await operations.moveItem(context.supabase, kind, itemId, to)
       if ("error" in result) return result
@@ -163,7 +163,7 @@ export const documentTools = [
       "Moves a document to its project's trash, along with everything nested inside it. Nothing is destroyed: `restore_document` brings it back. Call `list_references` first when other documents may link to it, since those links will show it as trashed.",
     input: { document_id: id("The document.") },
     kind: "destructive",
-    covers: ["tree-actions.trashDocument"],
+    covers: ["[org]/[project]/tree-actions.trashDocument"],
     run: async (context, { document_id }) => {
       const result = await operations.trashDocument(context.supabase, document_id)
       if ("error" in result) return result
@@ -179,7 +179,7 @@ export const documentTools = [
       "Takes a document out of the trash and puts it back where it was. If its parent document is still in the trash, it is restored to the top level of the project instead. Can fail on the free plan when restoring would exceed the private-document allowance.",
     input: { document_id: id("A document that is in the trash (see `get_project` with `include_trash`).") },
     kind: "idempotent-write",
-    covers: ["tree-actions.restoreDocument"],
+    covers: ["[org]/[project]/tree-actions.restoreDocument"],
     run: async (context, { document_id }) => {
       const result = await operations.restoreDocument(context.supabase, document_id)
       if ("error" in result) return result
@@ -195,7 +195,7 @@ export const documentTools = [
       "Permanently deletes a document that is already in the trash, with everything nested inside it. This cannot be undone, so only do it when the person asked for exactly this. A document that is not in the trash is refused: trash it first.",
     input: { document_id: id("A document that is in the trash.") },
     kind: "destructive",
-    covers: ["tree-actions.deleteDocumentForever"],
+    covers: ["[org]/[project]/tree-actions.deleteDocumentForever"],
     run: async (context, { document_id }) => {
       const result = await operations.deleteDocumentForever(context.supabase, document_id)
       if ("error" in result) return result
@@ -211,7 +211,7 @@ export const documentTools = [
       "Deletes an empty folder. A folder that still holds folders or documents is refused: move or trash what is in it first. Documents of that folder that are already in the trash move to the top level, so they can still be restored.",
     input: { folder_id: id("The folder.") },
     kind: "destructive",
-    covers: ["tree-actions.deleteFolder"],
+    covers: ["[org]/[project]/tree-actions.deleteFolder"],
     run: async (context, { folder_id }) => {
       const result = await operations.deleteFolder(context.supabase, folder_id)
       if ("error" in result) return result
@@ -227,7 +227,7 @@ export const documentTools = [
       "Lists the titles of the documents that link to this one from somewhere else (a whiteboard object that opens it, or a link block in a text document). Check this before trashing or deleting a document.",
     input: { document_id: id("The document.") },
     kind: "read",
-    covers: ["tree-actions.listReferences"],
+    covers: ["[org]/[project]/tree-actions.listReferences"],
     run: async (context, { document_id }) => {
       if (!(await findDocument(context, document_id))) return NO_DOCUMENT
       const titles = await operations.listReferences(context.supabase, document_id)

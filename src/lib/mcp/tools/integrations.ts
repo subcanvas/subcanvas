@@ -21,7 +21,7 @@ export const integrationTools = [
     },
     kind: "write",
     openWorld: true,
-    covers: ["(org)/actions.importFromGitHub"],
+    covers: ["[org]/(org)/actions.importFromGitHub"],
     run: async (context, { org_id, repository, make_public }) => {
       const outcome = await importFromReference(context.supabase, {
         orgId: org_id,
