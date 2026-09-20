@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 
+import type { Arrangement } from "./arrange"
 import {
   COLORS,
   DEFAULT_SIZE,
@@ -165,10 +166,21 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     [doc, editable]
   )
 
+  // Something done in one stroke (a paste, a cut, an arrangement) is one step
+  // to undo, never merged with whatever was done just before or after it.
+  const transactAsOneStep = useCallback(
+    (fn: () => void) => {
+      undoManager.current?.stopCapturing()
+      transact(fn)
+      undoManager.current?.stopCapturing()
+    },
+    [transact]
+  )
+
   // Removing a node also removes what is inside it and its edges.
-  const removeNodes = useCallback(
-    (ids: string[]) => {
-      const doomed = new Set(ids)
+  const removeObjects = useCallback(
+    (nodeIds: string[], edgeIds: string[] = []) => {
+      const doomed = new Set(nodeIds)
       let grew = true
       while (grew) {
         grew = false
@@ -178,14 +190,15 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
             grew = true
           }
       }
-      transact(() => {
+      transactAsOneStep(() => {
         for (const id of doomed) yNodes.delete(id)
+        for (const id of edgeIds) yEdges.delete(id)
         for (const [id, map] of yEdges)
           if (doomed.has(map.get("source") as string) || doomed.has(map.get("target") as string))
             yEdges.delete(id)
       })
     },
-    [transact, yNodes, yEdges]
+    [transactAsOneStep, yNodes, yEdges]
   )
 
   const onNodesChange = useCallback(
@@ -200,7 +213,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
       if (!editable) return
 
       const removed = changes.flatMap((change) => (change.type === "remove" ? [change.id] : []))
-      if (removed.length) removeNodes(removed)
+      if (removed.length) removeObjects(removed)
 
       const now = Date.now()
       const dragging = changes.some((change) => change.type === "position" && change.dragging)
@@ -222,7 +235,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
         }
       })
     },
-    [editable, removeNodes, transact, yNodes]
+    [editable, removeObjects, transact, yNodes]
   )
 
   const onEdgesChange = useCallback(
@@ -301,27 +314,23 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     [transact, yEdges]
   )
 
-  // Inserts copies with fresh ids. Parents and edge ends inside the copied
-  // set are remapped; anything pointing outside it is dropped.
+  // Inserts copies with fresh ids, placed where the caller put them. Parents
+  // and edge ends inside the copied set are remapped. A parent outside it is
+  // kept if it is on this whiteboard, so a copy can stay in its group.
   const insertCopies = useCallback(
-    (copiedNodes: WbNode[], copiedEdges: WbEdge[], offset: number) => {
+    (copiedNodes: WbNode[], copiedEdges: WbEdge[]) => {
       const ids = new Map(copiedNodes.map((node) => [node.id, crypto.randomUUID()]))
-      transact(() => {
+      transactAsOneStep(() => {
         for (const node of copiedNodes) {
           const { id, ...fields } = node
-          const inside = node.parentId !== null && ids.has(node.parentId)
+          const parentId =
+            node.parentId === null
+              ? null
+              : (ids.get(node.parentId) ?? (yNodes.has(node.parentId) ? node.parentId : null))
           yNodes.set(
             ids.get(id)!,
-            toYMap({
-              ...fields,
-              // Links are not duplicated: a document has one home (R1.4).
-              docId: null,
-              docType: null,
-              // Keep a parent outside the copied set, so a copy stays in its group.
-              parentId: inside ? ids.get(node.parentId!) : node.parentId,
-              x: inside ? node.x : node.x + offset,
-              y: inside ? node.y : node.y + offset,
-            })
+            // Links are not duplicated: a document has one home (R1.4).
+            toYMap({ ...fields, docId: null, docType: null, parentId })
           )
         }
         for (const edge of copiedEdges) {
@@ -336,7 +345,34 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
       })
       return [...ids.values()]
     },
-    [transact, yNodes, yEdges]
+    [transactAsOneStep, yNodes, yEdges]
+  )
+
+  // Arrow keys. Repeated presses merge into one step to undo, like typing.
+  const moveNodes = useCallback(
+    (ids: string[], dx: number, dy: number) =>
+      transact(() => {
+        for (const id of ids) {
+          const map = yNodes.get(id)
+          if (map) patchYMap(map, { x: readNode(id, map).x + dx, y: readNode(id, map).y + dy })
+        }
+      }),
+    [transact, yNodes]
+  )
+
+  const applyArrangement = useCallback(
+    (arrangement: Arrangement) =>
+      transactAsOneStep(() => {
+        for (const [id, patch] of arrangement.nodes) {
+          const map = yNodes.get(id)
+          if (map) patchYMap(map, patch)
+        }
+        for (const [id, patch] of arrangement.edges) {
+          const map = yEdges.get(id)
+          if (map) patchYMap(map, patch)
+        }
+      }),
+    [transactAsOneStep, yNodes, yEdges]
   )
 
   return {
@@ -350,9 +386,12 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     addNode,
     updateNode,
     updateEdge,
-    removeNodes,
+    removeObjects,
     insertCopies,
-    undo: () => undoManager.current?.undo(),
-    redo: () => undoManager.current?.redo(),
+    moveNodes,
+    applyArrangement,
+    // Not while looking only: undo would change the whiteboard too.
+    undo: () => editable && undoManager.current?.undo(),
+    redo: () => editable && undoManager.current?.redo(),
   }
 }

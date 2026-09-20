@@ -1,7 +1,6 @@
 "use client"
 
 import { X } from "lucide-react"
-import { useRef, useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -23,22 +22,14 @@ import { ObjectDocument } from "./object-document"
 
 const KIND_LABELS = { plain: "Node", text: "Text", group: "Group" }
 
-const WIDTH_KEY = "subcanvas:panel-width"
-const MIN_WIDTH = 320
-const MAX_WIDTH = 800
-const DEFAULT_WIDTH = 440
-
-function storedWidth() {
-  const stored = Number(globalThis.localStorage?.getItem(WIDTH_KEY))
-  return stored >= MIN_WIDTH && stored <= MAX_WIDTH ? stored : DEFAULT_WIDTH
-}
-
 // The panel that opens from the right when one object is selected (R4.3).
 // On a wide screen it sits beside the canvas, so nothing is hidden. On a
-// narrow one it rises from the bottom as a sheet over the canvas.
+// narrow one it rises from the bottom as a sheet over the canvas. Its width
+// there is the canvas's to give: see panel-resizer.tsx.
 export function Inspector({
   selection,
   editable,
+  locked,
   context,
   user,
   onNodeChange,
@@ -47,29 +38,20 @@ export function Inspector({
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
   editable: boolean
+  // In view mode by choice: this person may edit, but not right now.
+  locked: boolean
   context: WhiteboardContext
   user: EditorUser
   onNodeChange: (id: string, patch: Partial<Omit<WbNode, "id">>) => void
   onEdgeChange: (id: string, patch: Partial<Omit<WbEdge, "id">>) => void
   onClose: () => void
 }) {
-  const [width, setWidth] = useState(storedWidth)
-  const panel = useRef<HTMLElement>(null)
-
-  function resize(next: number) {
-    const clamped = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(next)))
-    setWidth(clamped)
-    localStorage.setItem(WIDTH_KEY, String(clamped))
-  }
-
   const isNode = "node" in selection
   const name = isNode ? selection.node.title : selection.edge.label
 
   return (
     <aside
-      ref={panel}
       aria-label="Object settings"
-      style={{ ["--panel-width" as string]: `${width}px` }}
       className={cn(
         "z-20 flex flex-col overflow-y-auto border-rule bg-sheet",
         // Narrow: a bottom sheet over the canvas.
@@ -78,29 +60,6 @@ export function Inspector({
         "md:relative md:inset-auto md:max-h-none md:w-(--panel-width) md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
       )}
     >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize panel"
-        aria-valuemin={MIN_WIDTH}
-        aria-valuemax={MAX_WIDTH}
-        aria-valuenow={width}
-        tabIndex={0}
-        className="absolute inset-y-0 left-0 z-10 hidden w-1.5 cursor-col-resize outline-none hover:bg-cobalt/30 focus-visible:bg-cobalt/50 md:block"
-        onPointerDown={(event) => {
-          event.preventDefault()
-          event.currentTarget.setPointerCapture(event.pointerId)
-        }}
-        onPointerMove={(event) => {
-          if (!event.currentTarget.hasPointerCapture(event.pointerId) || !panel.current) return
-          resize(panel.current.getBoundingClientRect().right - event.clientX)
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft") resize(width + 24)
-          if (event.key === "ArrowRight") resize(width - 24)
-        }}
-      />
-
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
         <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
           {isNode ? KIND_LABELS[selection.node.kind] : "Arrow"}
@@ -130,6 +89,7 @@ export function Inspector({
           docType={selection.node.docType}
           openMode={selection.node.openMode}
           editable={editable}
+          locked={locked}
           context={context}
           user={user}
           onChange={(patch) => onNodeChange(selection.node.id, patch)}
@@ -144,6 +104,7 @@ export function Inspector({
           docType={selection.edge.docType}
           openMode={selection.edge.openMode}
           editable={editable}
+          locked={locked}
           context={context}
           user={user}
           onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
