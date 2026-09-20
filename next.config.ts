@@ -8,8 +8,10 @@ const nextConfig: NextConfig = {
   // Bundled into a server action they would load under the server-components
   // build of React, which has no createContext. Left to Node, they load the
   // ordinary one. Yjs goes with them: a document made by one copy of Yjs
-  // cannot be written to by another.
-  serverExternalPackages: ["@blocknote/server-util", "yjs"],
+  // cannot be written to by another. So does BlockNote's core, where the
+  // server's copy of the editor schema is defined: a block made by one copy
+  // is not a block to the other.
+  serverExternalPackages: ["@blocknote/server-util", "@blocknote/core", "yjs"],
 };
 
 export default nextConfig;

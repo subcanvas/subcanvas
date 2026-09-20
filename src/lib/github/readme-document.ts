@@ -1,20 +1,16 @@
 import "server-only"
 
-import { ServerBlockNoteEditor } from "@blocknote/server-util"
 import type * as Y from "yjs"
 
 import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
+import { serverEditor as editor, type ServerBlocks as Blocks } from "@/lib/text/server-editor"
 
 import type { Repository } from "./provider"
 import { resolveReadmeUrl, stripFrontMatter } from "./readme"
 
 // Markdown into the content of a text document, on the server. BlockNote's
 // own converter does the work, so an imported README is made of exactly the
-// blocks the editor would have made from the same text pasted in. It runs
-// the editor headless, on jsdom.
-const editor = ServerBlockNoteEditor.create()
-
-type Blocks = Awaited<ReturnType<typeof editor.tryParseMarkdownToBlocks>>
+// blocks the editor would have made from the same text pasted in.
 // Only what URL rewriting touches. BlockNote's own block type is a union
 // over every block with read-only props, which cannot be written through.
 type Rewritable = {
