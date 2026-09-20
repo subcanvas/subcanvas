@@ -8,6 +8,8 @@ Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is be
 
 Next.js · Supabase (Auth, Postgres, Realtime, Storage) · React Flow · BlockNote · Yjs · shadcn/ui · Stripe
 
+Subcanvas stands on open source work, with thanks: the whiteboard canvas is [React Flow](https://reactflow.dev) by xyflow (MIT), laid out with [dagre](https://github.com/dagrejs/dagre) (MIT); text documents are [BlockNote](https://www.blocknotejs.org) (MPL-2.0); live collaboration is [Yjs](https://yjs.dev) (MIT); the interface is built from [shadcn/ui](https://ui.shadcn.com) and [Base UI](https://base-ui.com) (MIT) with [Lucide](https://lucide.dev) icons (ISC). The canvas does not show React Flow's attribution badge, which its license allows; this paragraph is where the credit lives instead.
+
 ## Development
 
 Requires Node 22+, pnpm, Docker, and the [Supabase CLI](https://supabase.com/docs/guides/local-development).
