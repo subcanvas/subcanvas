@@ -9,7 +9,12 @@ import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./
 //
 // The result is served as an image, to anyone, from user input. So every
 // piece of text is escaped, and nothing here emits a script, a
-// foreignObject, a stylesheet, or a reference to another file.
+// foreignObject, a stylesheet, or a reference to another file. That last
+// rule is why a picture on the whiteboard is drawn as a frame and not shown:
+// an image inside an image is either a reference, which GitHub's image proxy
+// and a browser showing an <img> both refuse to follow, or the file's bytes
+// inlined, which would put megabytes and a private bucket's content into a
+// response meant to be small and cached by anyone.
 
 export type SvgTheme = "light" | "dark"
 
@@ -455,6 +460,41 @@ function textNode(placed: Placed, palette: Palette) {
   )
 }
 
+const CAPTION = { fontSize: 12, lineHeight: 16.5, gap: 6, maxLines: 2 }
+
+const captionLines = (node: WbNode, width: number) =>
+  node.title ? clampLines(wrap(node.title, width, CAPTION.fontSize), CAPTION.maxLines, width, CAPTION.fontSize) : []
+
+// How far a media node's caption hangs below its box.
+const captionReach = ({ node, box }: Placed) => {
+  const lines = node.kind === "media" ? captionLines(node, box.width).length : 0
+  return lines ? CAPTION.gap + lines * CAPTION.lineHeight : 0
+}
+
+// A picture or a video, as a frame that says which and carries its caption.
+// The file itself is not in the image: see the top of this file.
+function mediaNode(placed: Placed, palette: Palette) {
+  const { node, box } = placed
+  const frame = (offset: number, stroke: string) =>
+    `<rect x="${n(box.x + offset + 0.5)}" y="${n(box.y + offset + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="6" fill="${palette.sheet}" stroke="${stroke}"/>`
+  const icon = Math.min(24, box.width / 2, box.height / 2)
+  const middle = center(box)
+
+  return (
+    (node.docType === "whiteboard" ? [2, 1].map((sheet) => frame(STACK_OFFSET * sheet, palette.blueline)).join("") : "") +
+    frame(0, palette.rule) +
+    drawIcon(node.mediaType === "video" ? "video" : "image", middle.x - icon / 2, middle.y - icon / 2, icon, palette.graphite) +
+    textLines(captionLines(node, box.width), {
+      x: middle.x,
+      top: box.y + box.height + CAPTION.gap,
+      lineHeight: CAPTION.lineHeight,
+      fontSize: CAPTION.fontSize,
+      attributes: `text-anchor="middle" fill="${palette.graphite}"`,
+    }) +
+    cornerBadges(placed, boxCorner(box), palette)
+  )
+}
+
 const TAB = { fontSize: 10, height: 17, paddingX: 6, inset: 12, tracking: 0.25 }
 
 function groupNode(placed: Placed, palette: Palette) {
@@ -762,13 +802,14 @@ export function renderWhiteboardSvg({
   const drawn = edges.slice(0, MAX_OBJECTS).flatMap((edge) => drawEdge(edge, placed, palette) ?? [])
 
   // Everything that must be in view: each node with whatever hangs off it
-  // (the sheets behind, the mark and the tab above), and each edge.
+  // (the sheets behind, the mark and the tab above, a caption below), and
+  // each edge.
   const extents = [
-    ...all.map(({ box }) => ({
-      x: box.x,
-      y: box.y - MARK_SIZE / 2,
-      width: box.width + STACK_REACH,
-      height: box.height + MARK_SIZE / 2 + STACK_REACH,
+    ...all.map((placed) => ({
+      x: placed.box.x,
+      y: placed.box.y - MARK_SIZE / 2,
+      width: placed.box.width + STACK_REACH,
+      height: placed.box.height + MARK_SIZE / 2 + Math.max(STACK_REACH, captionReach(placed)),
     })),
     ...drawn.flatMap((edge) => edge.reach),
   ]
@@ -789,10 +830,11 @@ export function renderWhiteboardSvg({
   // then lines, then nodes, then the labels that ride on the lines.
   const groups = all.filter(({ node }) => node.kind === "group").sort((a, b) => a.depth - b.depth)
   const others = all.filter(({ node }) => node.kind !== "group")
+  const draw = { plain: plainNode, text: textNode, media: mediaNode, group: groupNode }
   const body =
     groups.map((group) => groupNode(group, palette)).join("") +
     drawn.map((edge) => edge.line).join("") +
-    others.map((other) => (other.node.kind === "text" ? textNode(other, palette) : plainNode(other, palette))).join("") +
+    others.map((other) => draw[other.node.kind](other, palette)).join("") +
     drawn.map((edge) => edge.label).join("")
 
   return frame(view, body, { palette, title: title || "Whiteboard", caption: title, host })

@@ -22,6 +22,11 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   shape: "rectangle",
   icon: null,
   emoji: null,
+  mediaPath: null,
+  mediaType: null,
+  mediaWidth: null,
+  mediaHeight: null,
+  alt: "",
   ...fields,
 })
 
@@ -365,6 +370,33 @@ describe("renderWhiteboardSvg", () => {
     const svg = renderWhiteboardSvg({ nodes: two, edges: [], theme: "light", title: "T", host: "draw.example.org" })
     expect(parse(svg).textContent).toContain("draw.example.org")
     expect(parse(render(two)).textContent).toContain("subcanvas.app")
+  })
+})
+
+describe("media nodes", () => {
+  const file =
+    "00000000-0000-4000-8000-0000000000a1/00000000-0000-4000-8000-0000000000b1/00000000-0000-4000-8000-0000000000d1/00000000-0000-4000-8000-0000000000f1.png"
+  const picture = node({
+    id: "m", kind: "media", width: 320, height: 200, title: "The <login> page", mediaPath: file, mediaType: "image",
+  })
+
+  it("draws a frame with the caption under it, and never the file", () => {
+    const svg = render([picture, node({ ...picture, id: "v", x: 400, mediaType: "video", mediaPath: file.replace(".png", ".mp4") })])
+    expect(svg).not.toMatch(/<image|<use|href=|url\(|00000000-0000-4000/i)
+    const root = parse(svg)
+    expect(all(root, "rect").filter((rect) => rect.getAttribute("width") === "319")).toHaveLength(2)
+    const caption = all(root, "text").find((text) => text.textContent === "The <login> page")!
+    expect(Number(caption.getAttribute("y"))).toBeGreaterThan(200)
+  })
+
+  it("makes room for the caption at the bottom of the image", () => {
+    const height = (nodes: WbNode[]) => Number(parse(render(nodes)).getAttribute("viewBox")!.split(" ")[3])
+    expect(height([picture])).toBeGreaterThan(height([{ ...picture, title: "" }]))
+  })
+
+  it("ends an arrow on the frame", () => {
+    const svg = render([picture, node({ id: "b", x: 500, y: 68 })], [edge({ id: "e", source: "b", target: "m", sourceHandle: "left", targetHandle: "right" })])
+    expect(svg).toContain("320 100")
   })
 })
 
