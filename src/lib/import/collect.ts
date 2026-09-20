@@ -23,12 +23,20 @@ export function pickedFromInput(files: Iterable<File>): PickedFile[] {
 // What was dropped, folders walked to their files. The entries must be
 // taken from the event before anything is awaited: the browser empties the
 // drop's data once the handler returns.
-export function pickedFromDrop(data: DataTransfer): Promise<PickedFile[]> {
-  const entries = [...data.items]
-    .filter((item) => item.kind === "file")
-    .map((item) => item.webkitGetAsEntry())
-    .filter((entry): entry is FileSystemEntry => entry !== null)
-  return walk(entries)
+export async function pickedFromDrop(data: DataTransfer): Promise<PickedFile[]> {
+  const entries: FileSystemEntry[] = []
+  const loose: PickedFile[] = []
+  for (const item of data.items) {
+    if (item.kind !== "file") continue
+    const entry = item.webkitGetAsEntry()
+    if (entry) entries.push(entry)
+    else {
+      // No entry means no folders, but the file itself can still be had.
+      const file = item.getAsFile()
+      if (file) loose.push({ path: file.name, file })
+    }
+  }
+  return [...loose, ...(await walk(entries))]
 }
 
 async function walk(entries: FileSystemEntry[]): Promise<PickedFile[]> {

@@ -1,3 +1,4 @@
+import { importLocalImage } from "./images"
 import { baseName, kindOf, resolveRelative, withoutExtension } from "./paths"
 
 // Notes link to each other by file: `[text](./other.md)` in Markdown,
@@ -11,6 +12,9 @@ export type LinkTargets = {
   // The same for a note named the way Obsidian names them: by file name,
   // with or without folders in front, wherever the note is.
   byName: (name: string, fromPath: string) => string | null
+  // The path of a file that is not a note, such as an image, named the way
+  // Obsidian names them: by file name alone, wherever it is.
+  fileNamed: (name: string) => string | null
 }
 
 export type Rewritten = {
@@ -96,6 +100,15 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
     return path ? targets.byPath(path) : null
   }
 
+  // An image among the import's files: shown from where it was put, or, left
+  // behind, replaced by the words that described it.
+  const localImage = (path: string | null, alt: string, fallback: string) => {
+    const image = importLocalImage(path)
+    if (image.status === "imported") return `![${alt}](${image.url})`
+    localImages++
+    return alt || withoutExtension(baseName(fallback))
+  }
+
   const rewritten = outsideCode(markdown, (prose) =>
     prose
       .replace(DEFINITION, "")
@@ -110,9 +123,10 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
         return `${quote}**${name}**`
       })
       .replace(IMAGE_ONLY, (whole, _bang, alt: string, address: string) => {
-        if (isElsewhere(unwrap(address))) return whole
-        localImages++
-        return alt || withoutExtension(baseName(pathOf(unwrap(address))))
+        const url = unwrap(address)
+        if (isElsewhere(url)) return whole
+        const inline = /^data:/i.test(url)
+        return localImage(inline ? null : resolveRelative(fromPath, pathOf(url)), alt, inline ? "image" : pathOf(url))
       })
       .replace(INLINE_LINK, (whole, bang: string, text: string, address: string) => {
         const url = unwrap(address)
@@ -126,10 +140,9 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
       .replace(WIKI_LINK, (whole, embed: string, inner: string) => {
         const [target, alias] = inner.split("|").map((part) => part.trim())
         const name = target.replace(/#.*$/, "").trim()
-        if (embed && kindOf(name) === "image") {
-          localImages++
-          return alias && !/^\d+(x\d+)?$/.test(alias) ? alias : withoutExtension(baseName(name))
-        }
+        // After the bar of an embedded image comes its width, not a caption.
+        if (embed && kindOf(name) === "image")
+          return localImage(targets.fileNamed(name), alias && !/^\d+(x\d+)?$/.test(alias) ? alias : "", name)
         const href = name ? targets.byName(name, fromPath) : null
         // A link to a note that was not imported stays as it was written.
         return href ? `[${linkText(alias || target)}](${href})` : whole

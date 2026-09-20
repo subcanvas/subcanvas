@@ -47,6 +47,8 @@ export type ImportPlan = {
 export type PlanOptions = {
   // Whether the chosen place is a document. Folders cannot go inside one.
   intoDocument: boolean
+  // The import's files that are not notes, which notes may show or link to.
+  attachments?: string[]
   newId: () => string
   hrefFor: (documentId: string) => string
 }
@@ -62,7 +64,7 @@ export function tooManyDocuments(count: number) {
     : null
 }
 
-export function planImport(files: SourceFile[], { intoDocument, newId, hrefFor }: PlanOptions): ImportPlan {
+export function planImport(files: SourceFile[], { intoDocument, attachments = [], newId, hrefFor }: PlanOptions): ImportPlan {
   const skipped: Skipped[] = []
   const paths = new Set(files.map((file) => file.path))
 
@@ -127,7 +129,10 @@ export function planImport(files: SourceFile[], { intoDocument, newId, hrefFor }
   }
   const hrefOf = (path: string | undefined) => (path ? hrefFor(ids.get(path)!) : null)
 
+  const attachmentByName = new Map(attachments.map((path) => [key(baseName(path)), path]))
+
   const targets: LinkTargets = {
+    fileNamed: (name) => attachmentByName.get(key(baseName(name))) ?? null,
     // A link may leave the extension off, as wikis do.
     byPath: (path) => hrefOf(byPath.get(key(path)) ?? byPath.get(key(`${path}.md`))),
     byName: (name, fromPath) => {

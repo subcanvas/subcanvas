@@ -2,7 +2,9 @@
 
 import {
   ChevronRight,
+  ClipboardPaste,
   FileText,
+  FileUp,
   Folder,
   FolderPlus,
   MoreHorizontal,
@@ -54,11 +56,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { pickedFromDrop, type PickedFile } from "@/lib/import/collect"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
+import { ImportDialog, type ImportTarget } from "./import-dialog"
+import { PasteMarkdownDialog } from "./paste-markdown-dialog"
+
 const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
+// What a drag from the desktop carries: files, folders, a zip.
+const FILES_TYPE = "Files"
+const carries = (event: React.DragEvent) =>
+  event.dataTransfer.types.includes(DRAG_TYPE) || event.dataTransfer.types.includes(FILES_TYPE)
 
 export function ProjectTree({
   project,
@@ -90,6 +100,13 @@ export function ProjectTree({
     id: string
     name: string
     references: string[]
+  } | null>(null)
+  // An open import or paste dialog. The key makes each opening a fresh one.
+  const [bringingIn, setBringingIn] = useState<{
+    key: number
+    how: "import" | "paste"
+    target: ImportTarget
+    dropped: Promise<PickedFile[]> | null
   } | null>(null)
 
   // Reveal the open document.
@@ -168,11 +185,19 @@ export function ProjectTree({
     })
   }
 
-  function drop(event: React.DragEvent, target: Container) {
+  function bringIn(how: "import" | "paste", container: Container, name: string, dropped: Promise<PickedFile[]> | null = null) {
+    if (container.kind !== "root") setExpanded((current) => new Set(current).add(container.id))
+    setBringingIn((current) => ({ key: (current?.key ?? 0) + 1, how, target: { container, name }, dropped }))
+  }
+
+  function drop(event: React.DragEvent, target: Container, name: string) {
     event.preventDefault()
     event.stopPropagation()
     setDropTarget(null)
     const raw = event.dataTransfer.getData(DRAG_TYPE)
+    // Files from the desktop are an import into where they were dropped.
+    if (!raw && event.dataTransfer.types.includes(FILES_TYPE))
+      return bringIn("import", target, name, pickedFromDrop(event.dataTransfer))
     if (!raw) return
     const dragged = JSON.parse(raw) as Dragged
     if (target.kind !== "root") setExpanded((current) => new Set(current).add(target.id))
@@ -199,13 +224,13 @@ export function ProjectTree({
             event.dataTransfer.effectAllowed = "move"
           },
           onDragOver: (event: React.DragEvent) => {
-            if (!event.dataTransfer.types.includes(DRAG_TYPE)) return
+            if (!carries(event)) return
             event.preventDefault()
             event.stopPropagation()
             setDropTarget(node.id)
           },
           onDragLeave: () => setDropTarget((current) => (current === node.id ? null : current)),
-          onDrop: (event: React.DragEvent) => drop(event, container),
+          onDrop: (event: React.DragEvent) => drop(event, container, node.name),
         }
       : {}
 
@@ -282,6 +307,7 @@ export function ProjectTree({
                 inside
                 allowFolder={node.kind === "folder"}
                 onCreate={(type) => create(type, container)}
+                onBringIn={(how) => bringIn(how, container, node.name)}
               />
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setRenamingId(node.id)}>
@@ -327,13 +353,32 @@ export function ProjectTree({
     <SidebarGroup
       className="flex-1"
       onDragOver={(event) => {
-        if (!canEdit || !event.dataTransfer.types.includes(DRAG_TYPE)) return
+        if (!canEdit || !carries(event)) return
         event.preventDefault()
         setDropTarget("root")
       }}
       onDragLeave={() => setDropTarget((current) => (current === "root" ? null : current))}
-      onDrop={(event) => canEdit && drop(event, { kind: "root" })}
+      onDrop={(event) => canEdit && drop(event, { kind: "root" }, projectName)}
     >
+      {bringingIn?.how === "import" && (
+        <ImportDialog
+          key={bringingIn.key}
+          project={project}
+          target={bringingIn.target}
+          dropped={bringingIn.dropped}
+          canUpgrade={canUpgrade}
+          onClose={() => setBringingIn(null)}
+        />
+      )}
+      {bringingIn?.how === "paste" && (
+        <PasteMarkdownDialog
+          key={bringingIn.key}
+          project={project}
+          target={bringingIn.target}
+          canUpgrade={canUpgrade}
+          onClose={() => setBringingIn(null)}
+        />
+      )}
       <Dialog open={confirmTrash !== null} onOpenChange={(open) => !open && setConfirmTrash(null)}>
         <DialogContent>
           <DialogHeader>
@@ -391,7 +436,11 @@ export function ProjectTree({
             }
           />
           <DropdownMenuContent align="start" className="min-w-52">
-            <CreateItems allowFolder onCreate={(type) => create(type, { kind: "root" })} />
+            <CreateItems
+              allowFolder
+              onCreate={(type) => create(type, { kind: "root" })}
+              onBringIn={(how) => bringIn(how, { kind: "root" }, projectName)}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -402,7 +451,7 @@ export function ProjectTree({
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
           <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
-            {canEdit ? "No documents yet. Use + to add a whiteboard or a page of notes." : "No documents yet."}
+            {canEdit ? "No documents yet. Use + to add a whiteboard or a page of notes, or drop Markdown files here." : "No documents yet."}
           </p>
         )}
       </SidebarGroupContent>
@@ -414,10 +463,12 @@ function CreateItems({
   inside = false,
   allowFolder,
   onCreate,
+  onBringIn,
 }: {
   inside?: boolean
   allowFolder: boolean
   onCreate: (type: DocumentType | "folder") => void
+  onBringIn: (how: "import" | "paste") => void
 }) {
   const suffix = inside ? " inside" : ""
   return (
@@ -436,6 +487,15 @@ function CreateItems({
           New folder{suffix}
         </DropdownMenuItem>
       )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => onBringIn("import")}>
+        <FileUp />
+        Import files{suffix}…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => onBringIn("paste")}>
+        <ClipboardPaste />
+        Paste Markdown{suffix}…
+      </DropdownMenuItem>
     </>
   )
 }

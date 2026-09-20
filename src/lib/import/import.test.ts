@@ -111,6 +111,7 @@ describe("link rewriting", () => {
   const targets = {
     byPath: (path: string) => (path === "notes/other.md" ? "/d/other" : null),
     byName: (name: string) => (name === "Other" ? "/d/other" : null),
+    fileNamed: () => null,
   }
   const rewrite = (markdown: string) => rewriteLinks(markdown, "notes/this.md", targets)
 
