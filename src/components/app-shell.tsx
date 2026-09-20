@@ -31,18 +31,14 @@ export async function AppShell({
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
   ])
 
+  const showBilling = billingConfigured()
+  const sidebarUser = {
+    email: user.email ?? "",
+    name: profile?.display_name ?? null,
+    avatarUrl: profile?.avatar_url ?? null,
+  }
   const contents = (
-    <AppSidebar
-      org={org}
-      orgs={orgs ?? []}
-      showBilling={billingConfigured()}
-      user={{
-        email: user.email ?? "",
-        name: profile?.display_name ?? null,
-        avatarUrl: profile?.avatar_url ?? null,
-      }}
-      footer={footer}
-    >
+    <AppSidebar org={org} orgs={orgs ?? []} showBilling={showBilling} user={sidebarUser} footer={footer}>
       {tree}
     </AppSidebar>
   )
@@ -56,7 +52,9 @@ export async function AppShell({
       <MobileTree label="Menu" title={title ?? org.name} description="Pages, documents, and your account.">
         {contents}
       </MobileTree>
-      <DesktopSidebar>{contents}</DesktopSidebar>
+      <DesktopSidebar slug={org.slug} showBilling={showBilling} user={sidebarUser}>
+        {contents}
+      </DesktopSidebar>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>
     </SidebarProvider>
   )
