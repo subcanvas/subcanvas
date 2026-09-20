@@ -81,6 +81,54 @@ export async function createDocument(
   return { ok: true, id: data.id }
 }
 
+// Many folders and text documents at once, for an import. The caller chose
+// the ids, so that what it sends can already refer to them; a parent has to
+// come before what it holds. Each call is one statement: at a plan limit,
+// or without permission, none of its rows are made.
+export async function createFolders(
+  supabase: Client,
+  project: ProjectScope,
+  folders: { id: string; name: string; parentFolderId: string | null }[]
+): Promise<OperationResult> {
+  if (!folders.length) return { ok: true }
+  const first = nextPosition()
+  const { error } = await supabase.from("folders").insert(
+    folders.map((folder, index) => ({
+      id: folder.id,
+      org_id: project.orgId,
+      project_id: project.projectId,
+      parent_folder_id: folder.parentFolderId,
+      name: folder.name,
+      position: first + index,
+    }))
+  )
+  return error ? fail(error) : { ok: true }
+}
+
+export async function createTextDocuments(
+  supabase: Client,
+  project: ProjectScope,
+  userId: string | undefined,
+  documents: { id: string; title: string; container: Container }[]
+): Promise<OperationResult> {
+  if (!documents.length) return { ok: true }
+  const first = nextPosition()
+  const { error } = await supabase.from("documents").insert(
+    documents.map(({ id, title, container }, index) => ({
+      id,
+      org_id: project.orgId,
+      project_id: project.projectId,
+      type: "text" as const,
+      title,
+      folder_id: container.kind === "folder" ? container.id : null,
+      parent_document_id: container.kind === "document" ? container.id : null,
+      position: first + index,
+      created_by: userId,
+    }))
+  )
+  return error ? fail(error) : { ok: true }
+}
+
 export async function renameItem(
   supabase: Client,
   kind: "folder" | "document",

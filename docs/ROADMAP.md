@@ -18,6 +18,8 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 1. Linked documents (Google, Slack, anything with a URL)
 
+**Status.** Account connectors (Google Drive, Slack, Notion over OAuth) are deferred. What exists instead is file import: Markdown files, folders, and the zips that Notion, Obsidian, and wikis export become documents in a project. See [IMPORTING.md](IMPORTING.md).
+
 **What.** Today, what is inside a node, edge, or group is a Subcanvas document: a whiteboard or a page of text. Add a third option: **a link to a document that lives elsewhere**. The node on the diagram is ours; the page behind it is the team's existing Google Doc, Slack canvas, Notion page, or Figma file.
 
 **How it works.**
