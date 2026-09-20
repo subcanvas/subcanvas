@@ -23,6 +23,7 @@ import { limitMessage } from "@/lib/billing/limit"
 import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
 import { createClient } from "@/lib/supabase/client"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
 import type { DocumentType } from "@/lib/tree"
 
 import {
@@ -32,9 +33,6 @@ import {
 } from "./document-link-block"
 
 export type EditorUser = { id: string; name: string; color: string }
-
-// The BlockNote content of a text document lives in this fragment.
-export const TEXT_FRAGMENT = "blocknote"
 
 const schema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, documentLink: createDocumentLink() },

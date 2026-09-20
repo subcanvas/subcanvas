@@ -1,6 +1,6 @@
 # Subcanvas: Roadmap
 
-What comes after v1 ([REQUIREMENTS.md](../REQUIREMENTS.md)). Nothing here is built yet. Each section says what we want, what it takes, and what is still undecided. Where a question is open, a recommendation is given so there is something concrete to agree or disagree with.
+What comes after v1 ([REQUIREMENTS.md](../REQUIREMENTS.md)). Nothing here is built yet, except where a section says so. Each section says what we want, what it takes, and what is still undecided. Where a question is open, a recommendation is given so there is something concrete to agree or disagree with.
 
 | | Item | Size | Why |
 |---|---|---|---|
@@ -71,6 +71,8 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 3. GitHub integration
 
+**Status.** Built: a one-time import of a public repository from the Projects page ("Import from GitHub"), automatic folder mapping, [`.subcanvas` files](SUBCANVAS_FILE.md), arrows with their documents, automatic layout, and READMEs as read-only documents. Not built: the GitHub App, private repositories, sync on push, pull requests, remembering deleted paths, and the Developers tab.
+
 **What.** A **Developers** tab on the home page. Connect a repository and Subcanvas draws its system diagram: **one node per folder**, each node's document is that folder's `README.md`, and folders inside folders become whiteboards inside nodes. This is the product's own idea (a box on the architecture diagram opens that service's own diagram) filled in from what the repository already says about itself. A free-tier user sees it working on their own code before they have drawn anything.
 
 **The model.**
@@ -119,6 +121,8 @@ ignore:
 ---
 
 ## 4. Embeds: a live diagram in a README
+
+Status: built (image embeds); interactive iframe embeds not yet.
 
 **What.** Any whiteboard in a public project can be embedded in Markdown. The Share popover gains **Copy embed**, which gives a snippet to paste into a README, a wiki, or a docs site. On GitHub the reader sees the diagram as a picture that is always current, and clicking it opens the real thing at `/p/<project>/d/<document>`, where every box opens.
 

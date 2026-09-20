@@ -1,0 +1,5 @@
+title: Whiteboard model
+description: The shape of a whiteboard inside its Yjs document. Maps of nodes and edges keyed by id, flat fields, read defensively. Also the palette and undo.
+connects:
+  - to: src/lib/sync
+    label: lives in a synced Y.Doc

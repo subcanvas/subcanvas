@@ -1,0 +1,4 @@
+title: Shop
+description: An online shop in five services. Payments are taken by card, written to a ledger, and customers hear about it by email.
+ignore:
+  - platform/cloud/legacy

@@ -1,0 +1,6 @@
+title: Public projects
+description: Read-only pages for projects an admin made public. Anyone with the link can read, nobody can edit, and visitors are shown as a count.
+connects:
+  - to: src/lib/sync
+    label: read-only sync
+    description: Visitors hold no Realtime connection. They re-read the document's snapshot and update log every 20 seconds while the tab is visible, and the same request is their heartbeat for the "N watching" count.

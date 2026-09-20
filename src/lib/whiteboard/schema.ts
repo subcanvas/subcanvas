@@ -28,6 +28,10 @@ export type WbNode = {
   // A document never changes type.
   docType: DocType | null
   openMode: OpenMode
+  // The repository folder this node stands for, when it came from an import
+  // ("services/payments"). It is the node's identity there: the title can be
+  // changed freely and the node still follows the folder.
+  path: string | null
 }
 
 export type WbEdge = {
@@ -114,6 +118,7 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
       ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
       : null,
     openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
+    path: textOrNull(map, "path"),
   }
 }
 

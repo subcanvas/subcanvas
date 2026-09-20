@@ -193,7 +193,7 @@ export function ObjectDocument({
             </div>
           )}
           {/* A narrower gutter than the full page, leaving room for block handles. */}
-          <div className="[&_.bn-editor]:px-11! [&_.px-13]:px-11!">
+          <div className="[&_.bn-editor]:px-11! [&_.mx-13]:mx-11! [&_.px-13]:px-11!">
             <TextDocument
               key={docId}
               documentId={docId}
@@ -206,6 +206,7 @@ export function ObjectDocument({
                 via: [...context.via, context.whiteboardId],
               }}
               autoFocus={justCreated}
+              source={meta.source}
             />
           </div>
         </>

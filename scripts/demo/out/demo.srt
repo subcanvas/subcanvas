@@ -1,0 +1,31 @@
+1
+00:00:00,405 --> 00:00:02,905
+Your repository already knows its own design.
+
+2
+00:00:06,699 --> 00:00:08,699
+Paste a public repository. No app to install.
+
+3
+00:00:12,588 --> 00:00:15,588
+One box per folder, with the folder's path under its name.
+
+4
+00:00:16,014 --> 00:00:18,514
+Arrows come from .subcanvas files in the repository.
+
+5
+00:00:21,040 --> 00:00:24,540
+Click an arrow, read the protocol.
+
+6
+00:00:25,397 --> 00:00:27,397
+Folders inside folders are whiteboards inside boxes.
+
+7
+00:00:35,094 --> 00:00:38,594
+Go as deep as the code goes. Then move things, delete things, draw what is missing.
+
+8
+00:00:41,572 --> 00:00:43,072
+Copy the embed, paste it in your README. The picture stays current.

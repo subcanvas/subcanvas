@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, Globe, Lock } from "lucide-react"
+import { Check, Code, Copy, Globe, Lock } from "lucide-react"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
@@ -24,22 +24,28 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { embedSnippet } from "@/lib/embed"
 import { publicProjectPath } from "@/lib/public-route"
 
 // Who can see the project, in one place: the button says it, the popover
 // holds the link and lets an admin change it. Going public always asks
 // first: "public" means the whole internet.
+//
+// On a whiteboard's page it is given that whiteboard, and once the project
+// is public it also offers the snippet that embeds it in a README.
 export function ShareProject({
   project,
   visibility,
   canChange,
+  whiteboard,
 }: {
   project: ProjectRef
   visibility: "private" | "public"
   canChange: boolean
+  whiteboard?: { docId: string; title: string }
 }) {
   const [confirming, setConfirming] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<"link" | "embed" | null>(null)
   const [pending, startTransition] = useTransition()
   const isPublic = visibility === "public"
   const Icon = isPublic ? Globe : Lock
@@ -55,10 +61,10 @@ export function ShareProject({
     })
   }
 
-  async function copy() {
-    await navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copy(what: "link" | "embed", text: string) {
+    await navigator.clipboard.writeText(text)
+    setCopied(what)
+    setTimeout(() => setCopied(null), 2000)
   }
 
   return (
@@ -90,9 +96,29 @@ export function ShareProject({
                 className="h-8 font-mono text-xs"
                 onFocus={(event) => event.currentTarget.select()}
               />
-              <Button variant="outline" size="sm" onClick={copy}>
-                {copied ? <Check /> : <Copy />}
-                {copied ? "Copied" : "Copy"}
+              <Button variant="outline" size="sm" onClick={() => copy("link", link)}>
+                {copied === "link" ? <Check /> : <Copy />}
+                {copied === "link" ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          )}
+          {isPublic && whiteboard && (
+            <div className="flex items-center gap-3">
+              <p className="flex-1 text-xs text-muted-foreground">
+                A picture for a README that stays current.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  copy(
+                    "embed",
+                    embedSnippet({ origin: window.location.origin, projectId: project.projectId, ...whiteboard })
+                  )
+                }
+              >
+                {copied === "embed" ? <Check /> : <Code />}
+                {copied === "embed" ? "Copied" : "Copy embed"}
               </Button>
             </div>
           )}

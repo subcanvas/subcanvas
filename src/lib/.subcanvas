@@ -1,0 +1,5 @@
+title: Core libraries
+description: What the app knows how to do, apart from how it looks. Sync, the whiteboard model, Supabase clients, roles, and billing.
+connects:
+  - to: supabase
+    label: as the signed-in user

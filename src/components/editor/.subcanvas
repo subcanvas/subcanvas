@@ -1,0 +1,6 @@
+title: Text editor
+description: Pages of text (BlockNote). Headings, lists, code, images, and a block that embeds another document. Carets and selections of other people show live.
+connects:
+  - to: src/lib/sync
+    label: Yjs collaboration
+    description: BlockNote edits a Yjs XmlFragment. The sync provider carries its updates and the awareness protocol (carets and selections) over the document's Realtime channel.

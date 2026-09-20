@@ -1,0 +1,8 @@
+title: Application
+description: The Next.js app. Routes render the interface; the libraries under it talk to Supabase and Stripe.
+connects:
+  - to: supabase
+    label: Auth, data, Realtime
+    description: Every request goes to Supabase as the signed-in user, never with a secret key, so row-level security decides what can be read and written. Documents sync over Supabase Realtime and are stored as Yjs updates in Postgres.
+ignore:
+  - hooks

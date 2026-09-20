@@ -1,0 +1,5 @@
+title: Interface
+description: React components. The whiteboard and the text editor are the two document types. The tree and the sidebar are how you move between them.
+connects:
+  - to: src/lib
+    label: models and sync

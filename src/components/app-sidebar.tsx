@@ -1,24 +1,11 @@
 "use client"
 
-import {
-  ChevronsUpDown,
-  CreditCard,
-  KeyRound,
-  LayoutGrid,
-  LogOut,
-  Monitor,
-  Moon,
-  PanelLeftClose,
-  Plus,
-  Sun,
-  Users,
-} from "lucide-react"
-import { useTheme } from "next-themes"
+import { ChevronsUpDown, PanelLeftClose, Plus } from "lucide-react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 
+import { AccountMenu, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
 import { LogoMark } from "@/components/logo"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -39,7 +26,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { createClient } from "@/lib/supabase/client"
 
 type Org = { name: string; slug: string }
 
@@ -56,28 +42,16 @@ export function AppSidebar({
 }: {
   org: Org
   orgs: Org[]
-  user: { email: string; name: string | null; avatarUrl: string | null }
+  user: SidebarUser
   // False on a server with no paid plan to offer.
   showBilling: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
-  const router = useRouter()
   const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
   const { toggleSidebar } = useSidebar()
 
-  async function signOut() {
-    await createClient().auth.signOut()
-    router.push("/login")
-    router.refresh()
-  }
-
-  const pages = [
-    { href: `/${org.slug}`, label: "Projects", icon: LayoutGrid },
-    { href: `/${org.slug}/settings/members`, label: "Members", icon: Users },
-    ...(showBilling ? [{ href: `/${org.slug}/settings/billing`, label: "Billing", icon: CreditCard }] : []),
-  ]
+  const pages = orgPages(org.slug, showBilling)
 
   return (
     <>
@@ -147,53 +121,17 @@ export function AppSidebar({
         {footer}
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <SidebarMenuButton aria-label="Account menu">
-                    <Avatar className="size-5">
-                      {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt="" />}
-                      <AvatarFallback className="text-[10px]">
-                        {(user.name ?? user.email).charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="truncate">{user.name ?? user.email}</span>
-                    <ChevronsUpDown className="ml-auto text-graphite" />
-                  </SidebarMenuButton>
-                }
-              />
-              <DropdownMenuContent side="top" align="start" className="min-w-52">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-                  {(
-                    [
-                      ["light", "Light", Sun],
-                      ["dark", "Dark", Moon],
-                      ["system", "Match my device", Monitor],
-                    ] as const
-                  ).map(([value, label, Icon]) => (
-                    <DropdownMenuItem key={value} onClick={() => setTheme(value)}>
-                      <Icon />
-                      {label}
-                      {theme === value && <span className="ml-auto text-xs text-muted-foreground">On</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem render={<Link href={`/auth/password?next=${encodeURIComponent(pathname)}`} />}>
-                  <KeyRound />
-                  Set a password
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={signOut}>
-                  <LogOut />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu
+              user={user}
+              side="top"
+              trigger={
+                <SidebarMenuButton aria-label="Account menu">
+                  <UserAvatar user={user} className="size-5" />
+                  <span className="truncate">{user.name ?? user.email}</span>
+                  <ChevronsUpDown className="ml-auto text-graphite" />
+                </SidebarMenuButton>
+              }
+            />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

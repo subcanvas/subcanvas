@@ -19,7 +19,7 @@ function uuidBytes(uuid: string) {
 }
 
 // A name-based UUID (RFC 4122 version 5) under a namespace UUID.
-async function uuidV5(namespace: string, name: string) {
+export async function uuidV5(namespace: string, name: string) {
   const data = new Uint8Array([...uuidBytes(namespace), ...new TextEncoder().encode(name)])
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-1", data)).slice(0, 16)
   hash[6] = (hash[6] & 0x0f) | 0x50
