@@ -42,10 +42,10 @@ function parentsFirst(nodes: WbNode[]) {
     seen.add(node.id)
     return depth(parent, seen) + 1
   }
-  return [...nodes].sort((a, b) => depth(a) - depth(b))
+  return nodes.map((wb) => ({ wb, depth: depth(wb) })).sort((a, b) => a.depth - b.depth)
 }
 
-function toFlowNode(wb: WbNode, existing: FlowNode | undefined, known: Set<string>): FlowNode {
+function toFlowNode(wb: WbNode, depth: number, existing: FlowNode | undefined, known: Set<string>): FlowNode {
   // A parent that no longer exists (deleted by someone else) is ignored.
   const parentId = wb.parentId && known.has(wb.parentId) ? wb.parentId : undefined
   return {
@@ -57,8 +57,9 @@ function toFlowNode(wb: WbNode, existing: FlowNode | undefined, known: Set<strin
     parentId,
     width: wb.width ?? undefined,
     height: wb.height ?? undefined,
-    // Groups sit behind what they contain.
-    zIndex: wb.kind === "group" ? -1 : 0,
+    // Groups sit behind every node, inner groups over outer ones. Far enough
+    // down that React Flow lifting a selected group still leaves it there.
+    zIndex: wb.kind === "group" ? depth - 2000 : 0,
     // What a screen reader announces: what it is, what it is called, and
     // whether there is something inside to open.
     ariaLabel: [
@@ -132,7 +133,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
         const existing = new Map(current.map((node) => [node.id, node]))
         const all = [...yNodes.entries()].map(([id, map]) => readNode(id, map))
         const known = new Set(all.map((node) => node.id))
-        return parentsFirst(all).map((wb) => toFlowNode(wb, existing.get(wb.id), known))
+        return parentsFirst(all).map(({ wb, depth }) => toFlowNode(wb, depth, existing.get(wb.id), known))
       })
     const titleOf = (nodeId: string) => (yNodes.get(nodeId)?.get("title") as string) || "untitled"
     const syncEdges = () =>
@@ -293,6 +294,18 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     [transact, yNodes]
   )
 
+  // Several nodes changed as one step: one transaction, so one undo.
+  const updateNodes = useCallback(
+    (patches: { id: string; patch: Partial<Omit<WbNode, "id">> }[]) =>
+      transact(() => {
+        for (const { id, patch } of patches) {
+          const map = yNodes.get(id)
+          if (map) patchYMap(map, patch)
+        }
+      }),
+    [transact, yNodes]
+  )
+
   const updateEdge = useCallback(
     (id: string, patch: Partial<Omit<WbEdge, "id">>) => {
       const map = yEdges.get(id)
@@ -349,6 +362,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     onConnect,
     addNode,
     updateNode,
+    updateNodes,
     updateEdge,
     removeNodes,
     insertCopies,

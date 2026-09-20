@@ -25,6 +25,7 @@ import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { reconcileLinks } from "@/lib/document-links"
 import { documentHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { adoptions } from "@/lib/whiteboard/adopt"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
@@ -204,7 +205,10 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           const { x, y } = group.internals.positionAbsolute
           const width = group.measured.width ?? 0
           const height = group.measured.height ?? 0
+          // Only into something larger: a group dropped over a smaller one
+          // takes it in (below), it does not go inside it.
           const contains =
+            width * height > (internal.measured.width ?? 0) * (internal.measured.height ?? 0) &&
             center.x >= x && center.x <= x + width && center.y >= y && center.y <= y + height
           if (contains && (!target || width * height < target.area))
             target = { id: other.id, x, y, area: width * height }
@@ -217,6 +221,24 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           y: abs.y - (target?.y ?? 0),
         })
       }
+
+      // The other way round: a group dropped over nodes takes in the ones
+      // that lie wholly inside it.
+      const placed = flow.getNodes().flatMap((node) => {
+        const internal = flow.getInternalNode(node.id)
+        if (!internal) return []
+        const { x, y } = internal.internals.positionAbsolute
+        const { width = 0, height = 0 } = internal.measured
+        return [{ id: node.id, parentId: node.parentId ?? null, x, y, width, height }]
+      })
+      wb.updateNodes(
+        dragged
+          .filter((node) => node.type === "wb-group")
+          .flatMap((group) => adoptions(group.id, placed))
+          // A node dragged along with the group was placed by the loop above.
+          .filter((adoption) => !draggedIds.has(adoption.id))
+          .map(({ id, ...patch }) => ({ id, patch }))
+      )
     },
     [editable, flow, wb]
   )
