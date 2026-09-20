@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
+import { GitHubIcon, GoogleIcon } from "@/components/provider-icons"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,9 +20,9 @@ import { createClient } from "@/lib/supabase/client"
 
 type Provider = "google" | "github"
 
-const PROVIDER_LABELS: Record<Provider, string> = {
-  google: "Google",
-  github: "GitHub",
+const PROVIDERS: Record<Provider, { label: string; Icon: (props: React.ComponentProps<"svg">) => React.JSX.Element }> = {
+  google: { label: "Google", Icon: GoogleIcon },
+  github: { label: "GitHub", Icon: GitHubIcon },
 }
 
 // One card, four things to do with it. "link" and "reset" need only an email.
@@ -177,11 +178,15 @@ export function LoginForm({
         {withPassword && providers.length > 0 && (
           <>
             <div className="flex flex-col gap-2">
-              {providers.map((provider) => (
-                <Button key={provider} variant="outline" onClick={() => signInWith(provider)}>
-                  Continue with {PROVIDER_LABELS[provider]}
-                </Button>
-              ))}
+              {providers.map((provider) => {
+                const { label, Icon } = PROVIDERS[provider]
+                return (
+                  <Button key={provider} variant="outline" onClick={() => signInWith(provider)}>
+                    <Icon />
+                    Continue with {label}
+                  </Button>
+                )
+              })}
             </div>
             <div className="flex items-center gap-3 text-xs text-graphite">
               <span className="h-px flex-1 bg-rule" />
