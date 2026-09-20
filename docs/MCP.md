@@ -32,6 +32,7 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `create_project` | Create a project | writes |
 | `set_project_visibility` | Make a project public or private | writes |
 | `create_document` | Create a document | writes |
+| `import_markdown_documents` | Import Markdown files as documents | writes |
 | `create_folder` | Create a folder | writes |
 | `rename_document` | Rename a document or folder | writes |
 | `move_document` | Move a document or folder | writes |
