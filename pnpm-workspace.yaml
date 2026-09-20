@@ -1,3 +1,11 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# BlockNote's server utilities run the editor on jsdom. jsdom 27 and later
+# `require()` packages that are ES modules only, which works where Node allows
+# that and fails on Vercel's functions with ERR_REQUIRE_ESM: the MCP endpoint
+# and Import from GitHub both answered 500 in production. 26 is the last line
+# that needs nothing of the kind.
+overrides:
+  jsdom: 26.1.0
