@@ -4,6 +4,8 @@ import { limitMessage } from "@/lib/billing/limit"
 import type { Database } from "@/lib/supabase/database.types"
 import type { Container, DocumentType } from "@/lib/tree"
 
+import { listMedia, removeMedia } from "./media-cleanup"
+
 // What can be done to a project's folders and documents, as plain functions
 // over the caller's Supabase client. The server actions and the MCP tools
 // both call these, so a person and an agent get the same checks and the same
@@ -186,6 +188,11 @@ export async function restoreDocument(supabase: Client, id: string): Promise<Ope
 }
 
 export async function deleteDocumentForever(supabase: Client, id: string): Promise<OperationResult> {
+  // The pictures and videos on it, and on the whiteboards inside it, which
+  // the delete cascades to (media-cleanup.ts).
+  const { data: doomed } = await supabase.from("documents").select("org_id").eq("id", id).maybeSingle()
+  const media = doomed ? await listMedia(supabase, doomed.org_id, id) : []
+
   const { data, error } = await supabase
     .from("documents")
     .delete()
@@ -194,6 +201,7 @@ export async function deleteDocumentForever(supabase: Client, id: string): Promi
     .select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
+  await removeMedia(supabase, media)
   return { ok: true }
 }
 
