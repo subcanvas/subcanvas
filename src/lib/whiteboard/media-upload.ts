@@ -1,6 +1,13 @@
 import { createClient } from "@/lib/supabase/client"
 
-import { MEDIA_BUCKETS, mediaPath, mediaTypeOf, UNKNOWN_MEDIA_SIZE, type MediaHome } from "./media"
+import {
+  MEDIA_BUCKETS,
+  mediaPath,
+  mediaTypeOf,
+  storageFullMessage,
+  UNKNOWN_MEDIA_SIZE,
+  type MediaHome,
+} from "./media"
 
 // A file goes from the browser straight to Storage. It never passes through
 // this app's server, whose host may cap a request at a few megabytes, and
@@ -42,13 +49,19 @@ export async function uploadMedia(
 
 // Storage has answered 400 to everything and put the real status in the
 // body; newer versions use the status line. Both are read.
-function uploadError(request: XMLHttpRequest) {
+export function uploadError(request: Pick<XMLHttpRequest, "status" | "responseText">) {
   let status = request.status
+  let message: unknown
   try {
-    status = Number((JSON.parse(request.responseText) as { statusCode?: string }).statusCode) || status
+    const body = JSON.parse(request.responseText) as { statusCode?: string; message?: unknown }
+    status = Number(body.statusCode) || status
+    message = body.message
   } catch {
     // Not JSON: the status line is all there is.
   }
+  // Refused like row-level security, so it is told apart by its words.
+  const full = storageFullMessage(message)
+  if (full) return full
   if (status === 413) return "It is larger than this server accepts."
   if (status === 415) return "This server does not take that kind of file."
   // What Storage answers when row-level security says no.
@@ -59,11 +72,14 @@ function uploadError(request: XMLHttpRequest) {
 // A picture pasted from another whiteboard gets a file of its own here: a
 // file is read by the readers of the whiteboard it is filed under, and those
 // may not be this one's. Null when it cannot be copied, which is what
-// happens when the person pasting cannot read the original.
-export async function copyMediaTo(home: MediaHome, path: string) {
+// happens when the person pasting cannot read the original, or `full` with
+// what to tell them when the copy would take the org past its storage cap.
+export async function copyMediaTo(home: MediaHome, path: string): Promise<string | null | { full: string }> {
   const copy = mediaPath(home, crypto.randomUUID(), path.slice(path.lastIndexOf(".") + 1))
   const { error } = await createClient().storage.from(MEDIA_BUCKETS[mediaTypeOf(path)]).copy(path, copy)
-  return error ? null : copy
+  if (!error) return copy
+  const full = storageFullMessage(error.message)
+  return full ? { full } : null
 }
 
 // A file's own size in pixels, read by letting the browser open it.

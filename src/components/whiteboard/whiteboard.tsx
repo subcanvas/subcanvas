@@ -370,15 +370,19 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   // Pictures copied on another whiteboard get files of their own on this
   // one first (media-upload.ts). One that cannot be copied is left out.
   async function withMediaHere(clip: Clip): Promise<Clip> {
+    let full: string | null = null
     const nodes = await Promise.all(
       clip.nodes.map(async (node) => {
         if (!node.mediaPath || mediaDocumentId(node.mediaPath) === context.whiteboardId) return node
         const mediaPath = await copyMediaTo(mediaHome, node.mediaPath)
-        return mediaPath ? { ...node, mediaPath } : null
+        if (typeof mediaPath === "string") return { ...node, mediaPath }
+        if (mediaPath) full = mediaPath.full
+        return null
       })
     )
     const kept = nodes.filter((node) => node !== null)
-    if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
+    if (full) toast.error(`Pictures and videos were left out. ${full}`)
+    else if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
     return { ...clip, nodes: kept }
   }
 

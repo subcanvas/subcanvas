@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea for something Subcanvas should do.
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: What you imagine, if you have something in mind.

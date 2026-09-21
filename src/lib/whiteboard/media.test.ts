@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   classifyMedia,
   fitMedia,
+  formatBytes,
+  storageFullMessage,
   layoutMedia,
   MEDIA_MAX_BYTES,
   mediaDocumentId,
@@ -76,5 +78,37 @@ describe("layoutMedia", () => {
     const boxes = layoutMedia(sizes, { x: 0, y: 0 }).map((place, i) => ({ ...place, ...sizes[i] }))
     for (const [i, a] of boxes.entries()) for (const b of boxes.slice(i + 1)) expect(overlap(a, b)).toBe(false)
     expect(new Set(boxes.map((box) => box.y)).size).toBeGreaterThan(1)
+  })
+})
+
+describe("formatBytes", () => {
+  it("says a size in the units the per-file limits use", () => {
+    expect(formatBytes(0)).toBe("0 bytes")
+    expect(formatBytes(1)).toBe("1 byte")
+    expect(formatBytes(1536)).toBe("1.5 KB")
+    expect(formatBytes(MEDIA_MAX_BYTES.image)).toBe("10 MB")
+    expect(formatBytes(1024 ** 3)).toBe("1 GB")
+    expect(formatBytes(2.25 * 1024 ** 3)).toBe("2.3 GB")
+  })
+
+  it("never says 1024 of a unit", () => {
+    expect(formatBytes(1024 * 1024 - 100)).toBe("1 MB")
+  })
+})
+
+describe("storageFullMessage", () => {
+  // The messages raised by private.enforce_media_storage_limit().
+  const free =
+    "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left."
+  const paid = "This file does not fit in what is left of this org's 50 GB of storage for pictures and videos."
+
+  it("passes on the database's refusal, and says where to look", () => {
+    expect(storageFullMessage(free)).toBe(`${free} Settings, under General, shows how much it keeps.`)
+    expect(storageFullMessage(paid)).toBe(`${paid} Settings, under General, shows how much it keeps.`)
+  })
+
+  it("is null for any other refusal", () => {
+    expect(storageFullMessage("new row violates row-level security policy")).toBeNull()
+    expect(storageFullMessage(undefined)).toBeNull()
   })
 })

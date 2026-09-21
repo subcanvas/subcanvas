@@ -65,6 +65,10 @@ A deployment that sells subscriptions turns on two things:
    Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
 2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `stripe listen --forward-to localhost:3000/api/stripe/webhook` instead.
 
+## Contributing and security
+
+Bug reports and ideas are welcome as issues; code contributions are not accepted yet: see [CONTRIBUTING.md](CONTRIBUTING.md). To report a security problem, email security@subcanvas.app ([SECURITY.md](SECURITY.md)).
+
 ## License
 
 Copyright (C) 2026 Trevin Lee

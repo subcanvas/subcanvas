@@ -39,6 +39,39 @@ export function classifyMedia(file: { type: string; size: number }): MediaFormat
   return format
 }
 
+// --- How much an org keeps --------------------------------------------------
+
+// A deployment may cap the bytes an org keeps across both buckets, one cap
+// for free orgs and one for paid (migration `media_storage_limit`). The
+// database refuses a file that would not fit with a message written for the
+// person uploading, which Storage passes on to the browser. Both messages
+// contain this.
+const STORAGE_FULL = "storage for pictures and videos"
+
+// What to tell the person, when the refusal was the storage cap; null when
+// it was something else.
+export function storageFullMessage(message: unknown) {
+  if (typeof message !== "string" || !message.includes(STORAGE_FULL)) return null
+  return `${message} Settings, under General, shows how much it keeps.`
+}
+
+// A size in words, in the same units as the per-file limits above
+// (1 MB = 1024 × 1024 bytes).
+export function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} ${bytes === 1 ? "byte" : "bytes"}`
+  const units = ["KB", "MB", "GB", "TB"]
+  let value = bytes / 1024
+  let unit = 0
+  // 1023.7 KB would round to "1024 KB": it is 1 MB.
+  while (value >= 1023.5 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  // One decimal while it says something, and never "1.0".
+  const rounded = value < 10 ? Math.round(value * 10) / 10 : Math.round(value)
+  return `${rounded} ${units[unit]}`
+}
+
 // --- Where a file is kept ---------------------------------------------------
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"

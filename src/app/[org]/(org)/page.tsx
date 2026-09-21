@@ -29,7 +29,10 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
         eyebrow={org.name}
         title="Projects"
         action={
-          canEdit && (
+          // With nothing here yet, the two ways to start sit in the middle of
+          // the page instead, where a new person is looking.
+          canEdit &&
+          Boolean(projects?.length) && (
             <div className="flex flex-wrap justify-end gap-2">
               <ImportProject slug={org.slug} />
               <NewProject slug={org.slug} orgId={org.id} />
@@ -70,13 +73,22 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           })}
         </ul>
       ) : (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-rule px-6 py-16 text-center">
-          <p className="font-heading text-xl font-semibold">No projects yet</p>
-          <p className="max-w-sm text-sm text-graphite">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-rule px-6 py-16 text-center">
+          <p className="font-heading text-xl font-semibold">{canEdit ? "Start with a project" : "No projects yet"}</p>
+          <p className="max-w-md text-sm leading-relaxed text-graphite">
             {canEdit
-              ? "A project is a set of whiteboards and documents that nest inside each other. Create one to start."
+              ? "A project holds whiteboards and pages that nest inside each other. Import a public GitHub repository to get its system diagram in a minute, or start from an empty whiteboard."
               : "When someone creates a project, it will show up here."}
           </p>
+          {canEdit && (
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <ImportProject slug={org.slug} />
+              <NewProject slug={org.slug} orgId={org.id} />
+            </div>
+          )}
+          {canEdit && (
+            <p className="text-xs text-graphite">Notes from Notion, Obsidian, or a folder of Markdown come in from inside a project.</p>
+          )}
         </div>
       )}
     </main>
