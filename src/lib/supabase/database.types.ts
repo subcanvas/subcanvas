@@ -672,6 +672,13 @@ export type Database = {
           name: string
         }[]
       }
+      org_media_usage: {
+        Args: { p_org_id: string }
+        Returns: {
+          limit_bytes: number
+          used_bytes: number
+        }[]
+      }
       org_usage: {
         Args: { p_org_id: string }
         Returns: {

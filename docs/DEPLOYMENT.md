@@ -100,9 +100,21 @@ Environment secrets, unlike repository secrets, are released only to approved ru
 - **Invites are links.** An admin creates an invite and sends the link themselves; the app does not email it.
 - **Your providers' limits are yours to check.** Supabase's free plan pauses a project after a week without activity, and caps real-time connections and messages. Vercel's Hobby plan does not allow commercial use.
 - **Back up the database.** Supabase's paid plans take daily backups. On any plan, `supabase db dump` writes a copy you can keep.
-- **Pictures and videos are files, not rows.** They live in Supabase Storage, which `supabase db dump` does not copy: back the two `media-` buckets up separately if they matter to you (they speak S3). They do not count toward any plan limit. Deleting a node never deletes its file, because a copy of the node may show the same file and undo must be able to bring it back; files are removed when their whiteboard is deleted from the trash for good. What that leaves behind is the files of nodes deleted from whiteboards that still exist, and, on a server without `SUPABASE_SECRET_KEY`, the files of deleted orgs. To list the second kind: `select bucket_id, name from storage.objects where bucket_id like 'media-%' and split_part(name, '/', 1)::uuid not in (select id from public.orgs);` and remove them in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
+- **Pictures and videos are files, not rows.** They live in Supabase Storage, which `supabase db dump` does not copy: back the two `media-` buckets up separately if they matter to you (they speak S3). They do not count toward the plan limits; how much each org may keep is capped only if you set a limit ([below](#limiting-storage-optional)). Deleting a node never deletes its file, because a copy of the node may show the same file and undo must be able to bring it back; files are removed when their whiteboard is deleted from the trash for good. What that leaves behind is the files of nodes deleted from whiteboards that still exist, and, on a server without `SUPABASE_SECRET_KEY`, the files of deleted orgs. To list the second kind: `select bucket_id, name from storage.objects where bucket_id like 'media-%' and split_part(name, '/', 1)::uuid not in (select id from public.orgs);` and remove them in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
 - **Public projects.** An admin can make a project readable by anyone with the link. Reports and takedowns are described in the [README](../README.md#public-projects-and-moderation); they are SQL for now.
 - **There is no published Docker image.** The repository has a `Dockerfile` (section 4), and the image has to be built with your own Supabase URL and key, so a public one would be of little use.
+
+## Limiting storage (optional)
+
+Anyone who can sign up can upload pictures and videos, and a server open to the public is otherwise free file hosting. To cap how much each org keeps, across both `media-` buckets, set a number of bytes:
+
+```sql
+update private.config set media_storage_limit_bytes = 1073741824;  -- 1 GB per org
+```
+
+Set it back to `null` to remove the cap, which is where a new server starts. The database enforces it, whatever the client: an upload that would take its org past the cap is refused and its bytes are removed, and people see why in the whiteboard. It applies to every org, paid or not. Settings → General shows each org how much it uses while a cap is set. Lowering the cap below what an org already keeps deletes nothing; it only refuses new files until the org is back under it. A file counts until its whiteboard is deleted from the trash, including the files of nodes deleted from a whiteboard that still exists (see [Things to know](#things-to-know)).
+
+The deploy workflow can keep it set for you: add the repository variable `MEDIA_STORAGE_LIMIT_BYTES` (a whole number of bytes, or `none`). Leave it unset to leave the database as it is.
 
 ## Selling subscriptions (optional)
 
