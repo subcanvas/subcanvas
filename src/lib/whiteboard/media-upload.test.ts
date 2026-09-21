@@ -13,10 +13,10 @@ describe("uploadError", () => {
     const full = answer(400, {
       statusCode: "403",
       error: "Unauthorized",
-      message: "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.",
+      message: "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left.",
     })
     expect(uploadError(full)).toBe(
-      "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it. Settings, under General, shows how much it keeps."
+      "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left. Settings, under General, shows how much it keeps."
     )
     expect(uploadError(answer(400, { statusCode: "403", message: "new row violates row-level security policy" }))).toBe(
       "You cannot add files to this whiteboard."

@@ -156,7 +156,7 @@ begin
         using errcode = '42501',
               hint = 'Delete whiteboards with pictures or videos you no longer need, then empty them from the trash.';
     end if;
-    raise exception 'The free plan includes % of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
+    raise exception 'The free plan includes % of storage for pictures and videos, and this file does not fit in what is left.',
       private.media_size_words(v_limit)
       using errcode = '42501',
             hint = 'Upgrade, or delete whiteboards with pictures or videos you no longer need and empty them from the trash.';

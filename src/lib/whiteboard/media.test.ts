@@ -99,7 +99,7 @@ describe("formatBytes", () => {
 describe("storageFullMessage", () => {
   // The messages raised by private.enforce_media_storage_limit().
   const free =
-    "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it."
+    "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left."
   const paid = "This file does not fit in what is left of this org's 50 GB of storage for pictures and videos."
 
   it("passes on the database's refusal, and says where to look", () => {

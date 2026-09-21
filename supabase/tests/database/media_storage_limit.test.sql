@@ -100,7 +100,7 @@ update private.config set free_media_storage_limit_bytes = 1000, paid_media_stor
 select lives_ok(pg_temp.stored('a', 2, 600), 'a file that fits is stored');
 select lives_ok(pg_temp.stored('a', 3, 300, 'mp4'), 'a video counts in the same total');
 select throws_ok(pg_temp.stored('a', 4, 200), '42501',
-  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
+  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left.',
   'a file that would go over the limit is refused, with a message the app recognises');
 select lives_ok(pg_temp.stored('a', 5, 100), 'a file that exactly fills it is stored');
 select is(private.media_bytes(:orga), 1000::bigint, 'the org is at its limit');
@@ -177,7 +177,7 @@ select pg_temp.logout();
 -- An org that stops paying is back under the free limit.
 update public.subscriptions set status = 'canceled' where org_id = :orgc;
 select throws_ok(pg_temp.stored('c', 5, 1), '42501',
-  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
+  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left.',
   'a lapsed org is refused past the free limit');
 
 -- Unset again, nothing is refused --------------------------------------------
