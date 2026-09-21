@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/client"
 
 import {
-  isStorageFullError,
   MEDIA_BUCKETS,
   mediaPath,
   mediaTypeOf,
-  STORAGE_FULL_MESSAGE,
+  storageFullMessage,
   UNKNOWN_MEDIA_SIZE,
   type MediaHome,
 } from "./media"
@@ -61,7 +60,8 @@ export function uploadError(request: Pick<XMLHttpRequest, "status" | "responseTe
     // Not JSON: the status line is all there is.
   }
   // Refused like row-level security, so it is told apart by its words.
-  if (isStorageFullError(message)) return STORAGE_FULL_MESSAGE
+  const full = storageFullMessage(message)
+  if (full) return full
   if (status === 413) return "It is larger than this server accepts."
   if (status === 415) return "This server does not take that kind of file."
   // What Storage answers when row-level security says no.
@@ -72,13 +72,14 @@ export function uploadError(request: Pick<XMLHttpRequest, "status" | "responseTe
 // A picture pasted from another whiteboard gets a file of its own here: a
 // file is read by the readers of the whiteboard it is filed under, and those
 // may not be this one's. Null when it cannot be copied, which is what
-// happens when the person pasting cannot read the original, or "full" when
-// the copy would take the org past its storage limit.
-export async function copyMediaTo(home: MediaHome, path: string): Promise<string | null | "full"> {
+// happens when the person pasting cannot read the original, or `full` with
+// what to tell them when the copy would take the org past its storage cap.
+export async function copyMediaTo(home: MediaHome, path: string): Promise<string | null | { full: string }> {
   const copy = mediaPath(home, crypto.randomUUID(), path.slice(path.lastIndexOf(".") + 1))
   const { error } = await createClient().storage.from(MEDIA_BUCKETS[mediaTypeOf(path)]).copy(path, copy)
   if (!error) return copy
-  return isStorageFullError(error.message) ? "full" : null
+  const full = storageFullMessage(error.message)
+  return full ? { full } : null
 }
 
 // A file's own size in pixels, read by letting the browser open it.

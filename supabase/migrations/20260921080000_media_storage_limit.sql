@@ -1,15 +1,47 @@
 -- A cap on how much an org can keep in pictures and videos, across both
 -- media buckets, so a free server cannot be used as unlimited file hosting.
 --
--- Like the plan limits (billing migration), the cap is data, not schema: it
--- is off unless a deployment sets it, so a self-hosted server stores as much
--- as its Storage allows. A deployment turns it on with, for example, 1 GB:
---   update private.config set media_storage_limit_bytes = 1073741824;
--- It applies to every org, paid or not: a subscription pays for editors, and
--- the cap is what keeps one org from filling the project's Storage.
+-- Like the other plan limits (billing migration), the caps are data, not
+-- schema: both are off unless a deployment sets them, so a self-hosted
+-- server stores as much as its Storage allows. Which one applies is decided
+-- by private.org_is_paid, as for the other limits. A deployment that sells
+-- subscriptions sets, for example, 1 GB free and 50 GB paid:
+--   update private.config
+--   set free_media_storage_limit_bytes = 1073741824,
+--       paid_media_storage_limit_bytes = 53687091200;
+-- Unlike the other limits, a paid org can have a cap too: a subscription
+-- pays for editors, and without one a paid org could still fill the
+-- project's Storage.
 
 alter table private.config
-  add column media_storage_limit_bytes bigint check (media_storage_limit_bytes >= 0);
+  add column free_media_storage_limit_bytes bigint check (free_media_storage_limit_bytes >= 0),
+  add column paid_media_storage_limit_bytes bigint check (paid_media_storage_limit_bytes >= 0);
+
+-- The cap that applies to an org under its current plan, or null for none.
+create function private.media_storage_limit(p_org_id uuid)
+returns bigint
+language sql stable security definer set search_path = ''
+as $$
+  select case when private.org_is_paid(p_org_id)
+    then c.paid_media_storage_limit_bytes
+    else c.free_media_storage_limit_bytes
+  end
+  from private.config c;
+$$;
+
+-- A size in words for a message: whole gigabytes or megabytes when it is
+-- one (the caps usually are), otherwise Postgres's own rendering. Same units
+-- as the app (1 GB = 1024^3 bytes).
+create function private.media_size_words(p_bytes bigint)
+returns text
+language sql immutable set search_path = ''
+as $$
+  select case
+    when p_bytes >= 1073741824 and p_bytes % 1073741824 = 0 then (p_bytes / 1073741824) || ' GB'
+    when p_bytes >= 1048576 and p_bytes % 1048576 = 0 then (p_bytes / 1048576) || ' MB'
+    else pg_size_pretty(p_bytes)
+  end;
+$$;
 
 -- The size of one object: what Storage measured once it has the file, or,
 -- before that, the length the uploader declared. Unknown counts as nothing.
@@ -72,8 +104,10 @@ $$;
 --
 -- The error is 42501 with a message of our own: Storage turns that code
 -- into a 403 and passes the message through, where a code of our own (like
--- the plan limits' GN001) would reach the browser only as a bare 500. The
--- upload code in the app recognises the message (src/lib/whiteboard/media.ts).
+-- the plan limits' GN001) would reach the browser only as a bare 500. Both
+-- messages contain "storage for pictures and videos", which is how the app
+-- tells them from any other refusal (src/lib/whiteboard/media.ts), and are
+-- shown to the person uploading as they are.
 create function private.enforce_media_storage_limit()
 returns trigger
 language plpgsql security definer set search_path = ''
@@ -88,9 +122,12 @@ begin
   if new.bucket_id not in ('media-images', 'media-videos') then
     return new;
   end if;
-  select media_storage_limit_bytes into v_limit from private.config;
   v_org_id := private.media_org(new.name);
-  if v_limit is null or v_org_id is null then
+  if v_org_id is null then
+    return new;
+  end if;
+  v_limit := private.media_storage_limit(v_org_id);
+  if v_limit is null then
     return new;
   end if;
 
@@ -113,9 +150,16 @@ begin
 
   -- An org already at the cap is refused even a file of unknown size.
   if v_before >= v_limit or v_before + v_new > v_limit then
-    raise exception 'This org has used its storage for pictures and videos (% of % bytes).', v_before, v_limit
+    if private.org_is_paid(v_org_id) then
+      raise exception 'This file does not fit in what is left of this org''s % of storage for pictures and videos.',
+        private.media_size_words(v_limit)
+        using errcode = '42501',
+              hint = 'Delete whiteboards with pictures or videos you no longer need, then empty them from the trash.';
+    end if;
+    raise exception 'The free plan includes % of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
+      private.media_size_words(v_limit)
       using errcode = '42501',
-            hint = 'Delete whiteboards with pictures or videos you no longer need, then empty them from the trash.';
+            hint = 'Upgrade, or delete whiteboards with pictures or videos you no longer need and empty them from the trash.';
   end if;
   return new;
 end;
@@ -125,14 +169,13 @@ create trigger enforce_media_storage_limit
 before insert or update of bucket_id, name, metadata on storage.objects
 for each row execute function private.enforce_media_storage_limit();
 
--- What the settings page shows: the bytes the org keeps and the cap, which is
--- null when there is none. Any member may see it.
+-- What the settings page shows: the bytes the org keeps and the cap its plan
+-- gives it, which is null when there is none. Any member may see it.
 create function public.org_media_usage(p_org_id uuid)
 returns table (used_bytes bigint, limit_bytes bigint)
 language sql stable security definer set search_path = ''
 as $$
-  select private.media_bytes(p_org_id), c.media_storage_limit_bytes
-  from private.config c
+  select private.media_bytes(p_org_id), private.media_storage_limit(p_org_id)
   where private.has_org_role(p_org_id, 'viewer');
 $$;
 

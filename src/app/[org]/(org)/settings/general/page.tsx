@@ -1,7 +1,9 @@
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
+import { formatBytes } from "@/lib/whiteboard/media"
 
 import { SettingsSection } from "../settings-section"
 import { DeleteOrg, LeaveOrg, RenameOrgForm } from "./general-forms"
@@ -46,7 +48,7 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       supabase.from("subscriptions").select("cancel_at_period_end").eq("org_id", org.id).maybeSingle(),
       supabase.rpc("org_media_usage", { p_org_id: org.id }).maybeSingle(),
     ])
-  // Shown only on a server that caps it; without a cap there is nothing to watch.
+  // Shown only when the org's plan has a cap; without one there is nothing to watch.
   const storage = media?.limit_bytes != null ? { used: media.used_bytes, limit: media.limit_bytes } : null
 
   const onlyOwner = isOwner && owners === 1
@@ -96,7 +98,13 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
         <SettingsSection
           id="general-storage"
           title="Storage"
-          description="This server limits how much the org keeps in pictures and videos."
+          description={
+            !billingConfigured()
+              ? "This server limits how much the org keeps in pictures and videos."
+              : plan?.paid
+                ? `Your plan includes ${formatBytes(storage.limit)} for pictures and videos.`
+                : `The free plan includes ${formatBytes(storage.limit)} for pictures and videos. Upgrading raises it.`
+          }
         >
           <StorageMeter used={storage.used} limit={storage.limit} />
         </SettingsSection>
