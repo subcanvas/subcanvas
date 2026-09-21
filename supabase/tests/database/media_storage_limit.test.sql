@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(31);
 
 -- The caps on an org's pictures and videos (migration media_storage_limit):
 -- one for free orgs, one for paid orgs.
@@ -179,6 +179,24 @@ update public.subscriptions set status = 'canceled' where org_id = :orgc;
 select throws_ok(pg_temp.stored('c', 5, 1), '42501',
   'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left.',
   'a lapsed org is refused past the free limit');
+
+-- A cap agreed with one org replaces its plan's ------------------------------
+
+-- Org c keeps 50,000,004,500 bytes; give it 500 more than that.
+insert into private.org_media_storage_limits (org_id, limit_bytes, note)
+values (:orgc, 50000005000, 'pgTAP');
+select lives_ok(pg_temp.stored('c', 6, 400), 'an agreed cap replaces the plan''s, even for a free org');
+select throws_like(pg_temp.stored('c', 7, 200),
+  'This file does not fit in what is left of this org''s % of storage for pictures and videos.',
+  'past the agreed cap it is refused, with the org''s own message');
+select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
+select is((select limit_bytes from public.org_media_usage(:orgc)), 50000005000::bigint,
+  'the org reads its agreed cap');
+select pg_temp.logout();
+delete from private.org_media_storage_limits where org_id = :orgc;
+select throws_ok(pg_temp.stored('c', 8, 1), '42501',
+  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left.',
+  'without the agreed cap the plan''s applies again');
 
 -- Unset again, nothing is refused --------------------------------------------
 

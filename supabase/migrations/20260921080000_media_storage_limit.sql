@@ -5,10 +5,10 @@
 -- schema: both are off unless a deployment sets them, so a self-hosted
 -- server stores as much as its Storage allows. Which one applies is decided
 -- by private.org_is_paid, as for the other limits. A deployment that sells
--- subscriptions sets, for example, 1 GB free and 50 GB paid:
+-- subscriptions sets, for example, 1 GB free and 100 GB paid:
 --   update private.config
 --   set free_media_storage_limit_bytes = 1073741824,
---       paid_media_storage_limit_bytes = 53687091200;
+--       paid_media_storage_limit_bytes = 107374182400;
 -- Unlike the other limits, a paid org can have a cap too: a subscription
 -- pays for editors, and without one a paid org could still fill the
 -- project's Storage.
@@ -17,16 +17,33 @@ alter table private.config
   add column free_media_storage_limit_bytes bigint check (free_media_storage_limit_bytes >= 0),
   add column paid_media_storage_limit_bytes bigint check (paid_media_storage_limit_bytes >= 0);
 
--- The cap that applies to an org under its current plan, or null for none.
+-- A cap agreed with one org, above its plan's (for example a larger
+-- storage allowance sold to an enterprise). It replaces the plan's cap for
+-- as long as the row exists, paid or not, so remove it when the agreement
+-- ends. Set by hand:
+--   insert into private.org_media_storage_limits (org_id, limit_bytes, note)
+--   values ('<org id>', 536870912000, '500 GB, agreed 2026-10-01');
+create table private.org_media_storage_limits (
+  org_id uuid primary key references public.orgs (id) on delete cascade,
+  limit_bytes bigint not null check (limit_bytes >= 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+-- The cap that applies to an org: its own agreed cap if it has one,
+-- otherwise its plan's, or null for none.
 create function private.media_storage_limit(p_org_id uuid)
 returns bigint
 language sql stable security definer set search_path = ''
 as $$
-  select case when private.org_is_paid(p_org_id)
-    then c.paid_media_storage_limit_bytes
-    else c.free_media_storage_limit_bytes
-  end
-  from private.config c;
+  select coalesce(
+    (select l.limit_bytes from private.org_media_storage_limits l where l.org_id = p_org_id),
+    (select case when private.org_is_paid(p_org_id)
+       then c.paid_media_storage_limit_bytes
+       else c.free_media_storage_limit_bytes
+     end
+     from private.config c)
+  );
 $$;
 
 -- A size in words for a message: whole gigabytes or megabytes when it is
@@ -150,7 +167,9 @@ begin
 
   -- An org already at the cap is refused even a file of unknown size.
   if v_before >= v_limit or v_before + v_new > v_limit then
-    if private.org_is_paid(v_org_id) then
+    if private.org_is_paid(v_org_id)
+       or exists (select 1 from private.org_media_storage_limits where org_id = v_org_id)
+    then
       raise exception 'This file does not fit in what is left of this org''s % of storage for pictures and videos.',
         private.media_size_words(v_limit)
         using errcode = '42501',
@@ -159,7 +178,7 @@ begin
     raise exception 'The free plan includes % of storage for pictures and videos, and this file does not fit in what is left.',
       private.media_size_words(v_limit)
       using errcode = '42501',
-            hint = 'Upgrade, or delete whiteboards with pictures or videos you no longer need and empty them from the trash.';
+            hint = 'Delete whiteboards with pictures or videos you no longer need, then empty them from the trash.';
   end if;
   return new;
 end;

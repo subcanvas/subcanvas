@@ -111,12 +111,19 @@ Anyone who can sign up can upload pictures and videos, and a server open to the 
 ```sql
 update private.config
 set free_media_storage_limit_bytes = 1073741824,   -- 1 GB for a free org
-    paid_media_storage_limit_bytes = 53687091200;  -- 50 GB for a paid one
+    paid_media_storage_limit_bytes = 107374182400; -- 100 GB for a paid one
 ```
 
-Either can be `null`, meaning no cap, which is where a new server starts. The database enforces them, whatever the client: an upload that would take its org past its plan's cap is refused and its bytes are removed, and people see why in the whiteboard (a free org is told that upgrading raises it). Settings → General shows each org how much it uses while its plan has a cap. Lowering a cap below what an org already keeps, or an org that stops paying and is back on the free cap, deletes nothing; new files are refused until the org is back under it. A file counts until its whiteboard is deleted from the trash, including the files of nodes deleted from a whiteboard that still exists (see [Things to know](#things-to-know)).
+Either can be `null`, meaning no cap, which is where a new server starts. The database enforces them, whatever the client: an upload that would take its org past its plan's cap is refused and its bytes are removed, and people see why in the whiteboard. Settings → General shows each org how much it uses while its plan has a cap. Lowering a cap below what an org already keeps, or an org that stops paying and is back on the free cap, deletes nothing; new files are refused until the org is back under it. A file counts until its whiteboard is deleted from the trash, including the files of nodes deleted from a whiteboard that still exists (see [Things to know](#things-to-know)).
 
 The deploy workflow can keep them set for you: add the repository variables `FREE_MEDIA_STORAGE_LIMIT_BYTES` and `PAID_MEDIA_STORAGE_LIMIT_BYTES` (a whole number of bytes, or `none`). Each is applied only when it is set, so an unset one leaves its value in the database as it is.
+
+To give one org more than its plan, for example storage sold to an enterprise, add a row for it; it replaces the plan's cap for as long as the row exists, whether the org pays or not, so remove it when the agreement ends:
+
+```sql
+insert into private.org_media_storage_limits (org_id, limit_bytes, note)
+values ('<org id>', 536870912000, '500 GB, agreed 2026-10-01');
+```
 
 ## Selling subscriptions (optional)
 
