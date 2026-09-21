@@ -67,3 +67,24 @@ jobs:
             -H "Content-Type: application/json" \
             --data "$(jq -n --arg query "$query" '{query: $query}')"
           echo "Free plan: $documents private documents, $editors editors."
+
+      # The same, for the cap on how many bytes of pictures and videos each
+      # org can keep. A separate step, so setting one leaves the other alone.
+      - name: Media storage limit
+        if: vars.MEDIA_STORAGE_LIMIT_BYTES != ''
+        env:
+          BYTES: ${{ vars.MEDIA_STORAGE_LIMIT_BYTES }}
+        run: |
+          # A whole number of bytes, or "none" for no limit.
+          case "$BYTES" in
+            none) bytes=null ;;
+            *[!0-9]*) echo "::error::'$BYTES' is not a whole number of bytes or 'none'." >&2; exit 1 ;;
+            *) bytes="$BYTES" ;;
+          esac
+          query="update private.config set media_storage_limit_bytes = $bytes"
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -n --arg query "$query" '{query: $query}')"
+          echo "Media storage: $bytes bytes per org."

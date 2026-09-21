@@ -1,0 +1,154 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(19);
+
+-- The cap on an org's pictures and videos (migration media_storage_limit).
+-- Uses its own email domain, slugs and ids so it passes against a local
+-- database that already holds development data, and changes private.config
+-- only inside this transaction.
+--
+-- Storage inserts a row twice per upload: first as the uploader, with only
+-- the declared length (metadata.contentLength), in a transaction it rolls
+-- back; then as its own superuser with the measured size (metadata.size).
+-- Both are imitated here: the first as the logged-in editor, the second as
+-- postgres, which like Storage's role is not subject to the policies.
+
+create function pg_temp.make_user(p_id uuid, p_email text) returns void
+language sql as $$
+  insert into auth.users (id, email, aud, role, instance_id)
+  values (p_id, p_email, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+$$;
+
+create function pg_temp.login(p_id uuid, p_email text) returns void
+language plpgsql as $$
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', p_id, 'email', p_email, 'role', 'authenticated')::text, true);
+end;
+$$;
+
+create function pg_temp.logout() returns void
+language plpgsql as $$
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$;
+
+-- The name of file <n> on the whiteboard of org a or b.
+create function pg_temp.file(p_org text, p_n integer, p_extension text default 'png') returns text
+language sql as $$
+  select case p_org
+    when 'a' then '00000000-0000-0000-0000-0000000008a1/00000000-0000-0000-0000-0000000008b1/00000000-0000-0000-0000-0000000008d1/'
+    else '00000000-0000-0000-0000-0000000008a2/00000000-0000-0000-0000-0000000008b2/00000000-0000-0000-0000-0000000008d2/'
+  end || '00000000-0000-0000-0000-' || lpad(p_n::text, 12, '0') || '.' || p_extension;
+$$;
+
+-- What Storage writes once the file has arrived.
+create function pg_temp.stored(p_org text, p_n integer, p_bytes bigint, p_extension text default 'png') returns text
+language sql as $$
+  select format(
+    $q$ insert into storage.objects (bucket_id, name, metadata) values (%L, %L, %L::jsonb) $q$,
+    case p_extension when 'mp4' then 'media-videos' else 'media-images' end,
+    pg_temp.file(p_org, p_n, p_extension),
+    json_build_object('size', p_bytes, 'contentLength', p_bytes, 'mimetype', 'image/png')::text);
+$$;
+
+\set editor   '''e0000000-0000-0000-0000-000000000801'''
+\set outsider '''a1000000-0000-0000-0000-000000000802'''
+\set orga     '''00000000-0000-0000-0000-0000000008a1'''
+\set orgb     '''00000000-0000-0000-0000-0000000008a2'''
+
+select pg_temp.make_user(:editor,   'editor@pgtap-media-limit.test');
+select pg_temp.make_user(:outsider, 'outsider@pgtap-media-limit.test');
+
+insert into public.orgs (id, name, slug) values
+  (:orga, 'Full', 'pgtap-media-limit-a'), (:orgb, 'Roomy', 'pgtap-media-limit-b');
+insert into public.org_members (org_id, user_id, role) values
+  (:orga, :editor, 'editor'), (:orgb, :outsider, 'editor');
+insert into public.projects (id, org_id, name) values
+  ('00000000-0000-0000-0000-0000000008b1', :orga, 'A'), ('00000000-0000-0000-0000-0000000008b2', :orgb, 'B');
+insert into public.documents (id, org_id, project_id, type, title) values
+  ('00000000-0000-0000-0000-0000000008d1', :orga, '00000000-0000-0000-0000-0000000008b1', 'whiteboard', 'A'),
+  ('00000000-0000-0000-0000-0000000008d2', :orgb, '00000000-0000-0000-0000-0000000008b2', 'whiteboard', 'B');
+
+-- Unlimited while unset ------------------------------------------------------
+
+-- The Storage API sets this before it deletes; without it a trigger refuses
+-- every direct delete.
+select set_config('storage.allow_delete_query', 'true', true);
+
+update private.config set media_storage_limit_bytes = null;
+select lives_ok(pg_temp.stored('a', 1, 50000000000),
+  'with no limit set, an org keeps as much as it likes');
+select is(private.media_bytes(:orga), 50000000000::bigint, 'and all of it is counted');
+delete from storage.objects where name = pg_temp.file('a', 1);
+
+-- Under and over the limit ---------------------------------------------------
+
+update private.config set media_storage_limit_bytes = 1000;
+
+select lives_ok(pg_temp.stored('a', 2, 600), 'a file that fits is stored');
+select lives_ok(pg_temp.stored('a', 3, 300, 'mp4'), 'a video counts in the same total');
+select throws_ok(pg_temp.stored('a', 4, 200), '42501',
+  'This org has used its storage for pictures and videos (900 of 1000 bytes).',
+  'a file that would go over the limit is refused, with a message the app recognises');
+select lives_ok(pg_temp.stored('a', 5, 100), 'a file that exactly fills it is stored');
+select is(private.media_bytes(:orga), 1000::bigint, 'the org is at its limit');
+
+-- The uploader's own check, before any bytes are sent -------------------------
+
+select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
+select throws_ok(
+  format($$ insert into storage.objects (bucket_id, name, metadata) values ('media-images', %L, '{"contentLength": 1}') $$,
+    pg_temp.file('a', 6)),
+  '42501', null, 'a full org is refused an upload before it starts');
+select throws_ok(
+  format($$ insert into storage.objects (bucket_id, name) values ('media-images', %L) $$, pg_temp.file('a', 6)),
+  '42501', null, 'even one whose size is not declared');
+
+-- Another org is unaffected -------------------------------------------------
+
+select pg_temp.login(:outsider, 'outsider@pgtap-media-limit.test');
+select lives_ok(
+  format($$ insert into storage.objects (bucket_id, name, metadata) values ('media-images', %L, '{"contentLength": 800}') $$,
+    pg_temp.file('b', 1)),
+  'a member of another org can still upload');
+select throws_ok(
+  format($$ insert into storage.objects (bucket_id, name, metadata) values ('media-images', %L, '{"contentLength": 1200}') $$,
+    pg_temp.file('b', 2)),
+  '42501', null, 'but not a file that declares more than the limit');
+select pg_temp.logout();
+select lives_ok(pg_temp.stored('b', 3, 150), 'and the other org has its own total');
+select is(private.media_bytes(:orgb), 950::bigint, 'which counts only its own files');
+
+-- Deleting frees space; growing is counted -----------------------------------
+
+delete from storage.objects where name = pg_temp.file('a', 2);
+select lives_ok(pg_temp.stored('a', 7, 500), 'deleting a file makes room for another');
+select throws_ok(
+  format($$ update storage.objects set metadata = '{"size": 700}' where name = %L $$, pg_temp.file('a', 7)),
+  '42501', null, 'a row that grows past the limit is refused');
+select lives_ok(
+  format($$ update storage.objects set metadata = '{"size": 400}' where name = %L $$, pg_temp.file('a', 7)),
+  'one that shrinks is not');
+
+-- What the settings page reads ------------------------------------------------
+
+select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
+select results_eq(
+  format('select used_bytes, limit_bytes from public.org_media_usage(%L)', :orga),
+  $$ values (800::bigint, 1000::bigint) $$,
+  'a member reads the org''s usage and limit');
+select is((select count(*) from public.org_media_usage(:orgb)), 0::bigint,
+  'nobody reads the usage of an org they are not in');
+
+-- Unset again, nothing is refused --------------------------------------------
+
+select pg_temp.logout();
+update private.config set media_storage_limit_bytes = null;
+select lives_ok(pg_temp.stored('a', 8, 5000), 'unsetting the limit lifts it');
+
+select * from finish();
+rollback;
