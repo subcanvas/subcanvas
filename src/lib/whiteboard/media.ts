@@ -41,15 +41,19 @@ export function classifyMedia(file: { type: string; size: number }): MediaFormat
 
 // --- How much an org keeps --------------------------------------------------
 
-// A deployment may cap the bytes an org keeps across both buckets (migration
-// `media_storage_limit`). The database refuses a file that would not fit
-// with a message containing this, which Storage passes on to the browser.
-const STORAGE_FULL = "has used its storage for pictures and videos"
+// A deployment may cap the bytes an org keeps across both buckets, one cap
+// for free orgs and one for paid (migration `media_storage_limit`). The
+// database refuses a file that would not fit with a message written for the
+// person uploading, which Storage passes on to the browser. Both messages
+// contain this.
+const STORAGE_FULL = "storage for pictures and videos"
 
-export const isStorageFullError = (message: unknown) => typeof message === "string" && message.includes(STORAGE_FULL)
-
-export const STORAGE_FULL_MESSAGE =
-  "This org has no room left for pictures and videos. Settings, under General, shows how much it keeps."
+// What to tell the person, when the refusal was the storage cap; null when
+// it was something else.
+export function storageFullMessage(message: unknown) {
+  if (typeof message !== "string" || !message.includes(STORAGE_FULL)) return null
+  return `${message} Settings, under General, shows how much it keeps.`
+}
 
 // A size in words, in the same units as the per-file limits above
 // (1 MB = 1024 × 1024 bytes).

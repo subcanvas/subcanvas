@@ -106,15 +106,17 @@ Environment secrets, unlike repository secrets, are released only to approved ru
 
 ## Limiting storage (optional)
 
-Anyone who can sign up can upload pictures and videos, and a server open to the public is otherwise free file hosting. To cap how much each org keeps, across both `media-` buckets, set a number of bytes:
+Anyone who can sign up can upload pictures and videos, and a server open to the public is otherwise free file hosting. To cap how much each org keeps, across both `media-` buckets, set a number of bytes for free orgs, for paid orgs, or both. An org is paid while its subscription is (see [Selling subscriptions](#selling-subscriptions-optional)); on a server without billing every org is free.
 
 ```sql
-update private.config set media_storage_limit_bytes = 1073741824;  -- 1 GB per org
+update private.config
+set free_media_storage_limit_bytes = 1073741824,   -- 1 GB for a free org
+    paid_media_storage_limit_bytes = 53687091200;  -- 50 GB for a paid one
 ```
 
-Set it back to `null` to remove the cap, which is where a new server starts. The database enforces it, whatever the client: an upload that would take its org past the cap is refused and its bytes are removed, and people see why in the whiteboard. It applies to every org, paid or not. Settings → General shows each org how much it uses while a cap is set. Lowering the cap below what an org already keeps deletes nothing; it only refuses new files until the org is back under it. A file counts until its whiteboard is deleted from the trash, including the files of nodes deleted from a whiteboard that still exists (see [Things to know](#things-to-know)).
+Either can be `null`, meaning no cap, which is where a new server starts. The database enforces them, whatever the client: an upload that would take its org past its plan's cap is refused and its bytes are removed, and people see why in the whiteboard (a free org is told that upgrading raises it). Settings → General shows each org how much it uses while its plan has a cap. Lowering a cap below what an org already keeps, or an org that stops paying and is back on the free cap, deletes nothing; new files are refused until the org is back under it. A file counts until its whiteboard is deleted from the trash, including the files of nodes deleted from a whiteboard that still exists (see [Things to know](#things-to-know)).
 
-The deploy workflow can keep it set for you: add the repository variable `MEDIA_STORAGE_LIMIT_BYTES` (a whole number of bytes, or `none`). Leave it unset to leave the database as it is.
+The deploy workflow can keep them set for you: add the repository variables `FREE_MEDIA_STORAGE_LIMIT_BYTES` and `PAID_MEDIA_STORAGE_LIMIT_BYTES` (a whole number of bytes, or `none`). Each is applied only when it is set, so an unset one leaves its value in the database as it is.
 
 ## Selling subscriptions (optional)
 

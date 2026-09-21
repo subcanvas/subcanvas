@@ -1,8 +1,9 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(27);
 
--- The cap on an org's pictures and videos (migration media_storage_limit).
+-- The caps on an org's pictures and videos (migration media_storage_limit):
+-- one for free orgs, one for paid orgs.
 -- Uses its own email domain, slugs and ids so it passes against a local
 -- database that already holds development data, and changes private.config
 -- only inside this transaction.
@@ -41,6 +42,7 @@ create function pg_temp.file(p_org text, p_n integer, p_extension text default '
 language sql as $$
   select case p_org
     when 'a' then '00000000-0000-0000-0000-0000000008a1/00000000-0000-0000-0000-0000000008b1/00000000-0000-0000-0000-0000000008d1/'
+    when 'c' then '00000000-0000-0000-0000-0000000008a3/00000000-0000-0000-0000-0000000008b3/00000000-0000-0000-0000-0000000008d3/'
     else '00000000-0000-0000-0000-0000000008a2/00000000-0000-0000-0000-0000000008b2/00000000-0000-0000-0000-0000000008d2/'
   end || '00000000-0000-0000-0000-' || lpad(p_n::text, 12, '0') || '.' || p_extension;
 $$;
@@ -59,19 +61,25 @@ $$;
 \set outsider '''a1000000-0000-0000-0000-000000000802'''
 \set orga     '''00000000-0000-0000-0000-0000000008a1'''
 \set orgb     '''00000000-0000-0000-0000-0000000008a2'''
+\set orgc     '''00000000-0000-0000-0000-0000000008a3'''
 
 select pg_temp.make_user(:editor,   'editor@pgtap-media-limit.test');
 select pg_temp.make_user(:outsider, 'outsider@pgtap-media-limit.test');
 
 insert into public.orgs (id, name, slug) values
-  (:orga, 'Full', 'pgtap-media-limit-a'), (:orgb, 'Roomy', 'pgtap-media-limit-b');
+  (:orga, 'Full', 'pgtap-media-limit-a'), (:orgb, 'Roomy', 'pgtap-media-limit-b'),
+  (:orgc, 'Paid', 'pgtap-media-limit-c');
 insert into public.org_members (org_id, user_id, role) values
-  (:orga, :editor, 'editor'), (:orgb, :outsider, 'editor');
+  (:orga, :editor, 'editor'), (:orgb, :outsider, 'editor'), (:orgc, :editor, 'editor');
 insert into public.projects (id, org_id, name) values
-  ('00000000-0000-0000-0000-0000000008b1', :orga, 'A'), ('00000000-0000-0000-0000-0000000008b2', :orgb, 'B');
+  ('00000000-0000-0000-0000-0000000008b1', :orga, 'A'), ('00000000-0000-0000-0000-0000000008b2', :orgb, 'B'),
+  ('00000000-0000-0000-0000-0000000008b3', :orgc, 'C');
 insert into public.documents (id, org_id, project_id, type, title) values
   ('00000000-0000-0000-0000-0000000008d1', :orga, '00000000-0000-0000-0000-0000000008b1', 'whiteboard', 'A'),
-  ('00000000-0000-0000-0000-0000000008d2', :orgb, '00000000-0000-0000-0000-0000000008b2', 'whiteboard', 'B');
+  ('00000000-0000-0000-0000-0000000008d2', :orgb, '00000000-0000-0000-0000-0000000008b2', 'whiteboard', 'B'),
+  ('00000000-0000-0000-0000-0000000008d3', :orgc, '00000000-0000-0000-0000-0000000008b3', 'whiteboard', 'C');
+insert into public.subscriptions (org_id, stripe_customer_id, status, seats) values
+  (:orgc, 'cus_pgtap_media_limit', 'active', 1);
 
 -- Unlimited while unset ------------------------------------------------------
 
@@ -79,20 +87,20 @@ insert into public.documents (id, org_id, project_id, type, title) values
 -- every direct delete.
 select set_config('storage.allow_delete_query', 'true', true);
 
-update private.config set media_storage_limit_bytes = null;
+update private.config set free_media_storage_limit_bytes = null, paid_media_storage_limit_bytes = null;
 select lives_ok(pg_temp.stored('a', 1, 50000000000),
   'with no limit set, an org keeps as much as it likes');
 select is(private.media_bytes(:orga), 50000000000::bigint, 'and all of it is counted');
 delete from storage.objects where name = pg_temp.file('a', 1);
 
--- Under and over the limit ---------------------------------------------------
+-- A free org under and over the free limit ------------------------------------
 
-update private.config set media_storage_limit_bytes = 1000;
+update private.config set free_media_storage_limit_bytes = 1000, paid_media_storage_limit_bytes = 5000;
 
 select lives_ok(pg_temp.stored('a', 2, 600), 'a file that fits is stored');
 select lives_ok(pg_temp.stored('a', 3, 300, 'mp4'), 'a video counts in the same total');
 select throws_ok(pg_temp.stored('a', 4, 200), '42501',
-  'This org has used its storage for pictures and videos (900 of 1000 bytes).',
+  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
   'a file that would go over the limit is refused, with a message the app recognises');
 select lives_ok(pg_temp.stored('a', 5, 100), 'a file that exactly fills it is stored');
 select is(private.media_bytes(:orga), 1000::bigint, 'the org is at its limit');
@@ -144,10 +152,38 @@ select results_eq(
 select is((select count(*) from public.org_media_usage(:orgb)), 0::bigint,
   'nobody reads the usage of an org they are not in');
 
+-- A paid org has the paid limit ----------------------------------------------
+
+select lives_ok(pg_temp.stored('c', 1, 1500), 'a paid org stores more than the free limit');
+select lives_ok(pg_temp.stored('c', 2, 3000), 'and more, while it is under the paid limit');
+select throws_ok(pg_temp.stored('c', 3, 1000), '42501',
+  'This file does not fit in what is left of this org''s 5000 bytes of storage for pictures and videos.',
+  'past the paid limit it is refused, with the paid plan''s message');
+select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
+select results_eq(
+  format('select used_bytes, limit_bytes from public.org_media_usage(%L)', :orgc),
+  $$ values (4500::bigint, 5000::bigint) $$,
+  'a paid org''s usage reads against the paid limit');
+select pg_temp.logout();
+
+update private.config set paid_media_storage_limit_bytes = null;
+select lives_ok(pg_temp.stored('c', 4, 50000000000), 'with no paid limit set, a paid org is unlimited');
+select throws_ok(pg_temp.stored('a', 9, 500), '42501', null, 'while a free org keeps the free limit');
+select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
+select is((select limit_bytes from public.org_media_usage(:orgc)), null::bigint,
+  'and a paid org reads no limit');
+select pg_temp.logout();
+
+-- An org that stops paying is back under the free limit.
+update public.subscriptions set status = 'canceled' where org_id = :orgc;
+select throws_ok(pg_temp.stored('c', 5, 1), '42501',
+  'The free plan includes 1000 bytes of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it.',
+  'a lapsed org is refused past the free limit');
+
 -- Unset again, nothing is refused --------------------------------------------
 
 select pg_temp.logout();
-update private.config set media_storage_limit_bytes = null;
+update private.config set free_media_storage_limit_bytes = null;
 select lives_ok(pg_temp.stored('a', 8, 5000), 'unsetting the limit lifts it');
 
 select * from finish();

@@ -4,7 +4,7 @@ import {
   classifyMedia,
   fitMedia,
   formatBytes,
-  isStorageFullError,
+  storageFullMessage,
   layoutMedia,
   MEDIA_MAX_BYTES,
   mediaDocumentId,
@@ -96,11 +96,19 @@ describe("formatBytes", () => {
   })
 })
 
-describe("isStorageFullError", () => {
-  it("recognises the database's refusal, as Storage passes it on", () => {
-    // The message raised by private.enforce_media_storage_limit().
-    expect(isStorageFullError("This org has used its storage for pictures and videos (900 of 1000 bytes).")).toBe(true)
-    expect(isStorageFullError("new row violates row-level security policy")).toBe(false)
-    expect(isStorageFullError(undefined)).toBe(false)
+describe("storageFullMessage", () => {
+  // The messages raised by private.enforce_media_storage_limit().
+  const free =
+    "The free plan includes 1 GB of storage for pictures and videos, and this file does not fit in what is left. Upgrading raises it."
+  const paid = "This file does not fit in what is left of this org's 50 GB of storage for pictures and videos."
+
+  it("passes on the database's refusal, and says where to look", () => {
+    expect(storageFullMessage(free)).toBe(`${free} Settings, under General, shows how much it keeps.`)
+    expect(storageFullMessage(paid)).toBe(`${paid} Settings, under General, shows how much it keeps.`)
+  })
+
+  it("is null for any other refusal", () => {
+    expect(storageFullMessage("new row violates row-level security policy")).toBeNull()
+    expect(storageFullMessage(undefined)).toBeNull()
   })
 })
