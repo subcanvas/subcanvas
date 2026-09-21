@@ -5,6 +5,7 @@ import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
 
 import { SettingsSection } from "../settings-section"
 import { DeleteOrg, LeaveOrg, RenameOrgForm } from "./general-forms"
+import { StorageMeter } from "./storage-meter"
 
 export const metadata = { title: "General" }
 
@@ -37,12 +38,16 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
   const isAdmin = hasRole(role, "admin")
   const isOwner = role === "owner"
 
-  const [{ data: details }, { count: owners }, { count: projects }, { data: subscription }] = await Promise.all([
-    supabase.from("orgs").select("created_at").eq("id", org.id).single(),
-    supabase.from("org_members").select("user_id", { count: "exact", head: true }).eq("org_id", org.id).eq("role", "owner"),
-    supabase.from("projects").select("id", { count: "exact", head: true }).eq("org_id", org.id),
-    supabase.from("subscriptions").select("cancel_at_period_end").eq("org_id", org.id).maybeSingle(),
-  ])
+  const [{ data: details }, { count: owners }, { count: projects }, { data: subscription }, { data: media }] =
+    await Promise.all([
+      supabase.from("orgs").select("created_at").eq("id", org.id).single(),
+      supabase.from("org_members").select("user_id", { count: "exact", head: true }).eq("org_id", org.id).eq("role", "owner"),
+      supabase.from("projects").select("id", { count: "exact", head: true }).eq("org_id", org.id),
+      supabase.from("subscriptions").select("cancel_at_period_end").eq("org_id", org.id).maybeSingle(),
+      supabase.rpc("org_media_usage", { p_org_id: org.id }).maybeSingle(),
+    ])
+  // Shown only on a server that caps it; without a cap there is nothing to watch.
+  const storage = media?.limit_bytes != null ? { used: media.used_bytes, limit: media.limit_bytes } : null
 
   const onlyOwner = isOwner && owners === 1
   // Mirrors the database trigger: a subscription that is still renewing
@@ -86,6 +91,16 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
           </dl>
         </div>
       </SettingsSection>
+
+      {storage && (
+        <SettingsSection
+          id="general-storage"
+          title="Storage"
+          description="This server limits how much the org keeps in pictures and videos."
+        >
+          <StorageMeter used={storage.used} limit={storage.limit} />
+        </SettingsSection>
+      )}
 
       <SettingsSection id="general-role" title="Your role">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

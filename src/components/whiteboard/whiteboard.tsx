@@ -32,7 +32,7 @@ import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
-import { MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
+import { MEDIA_ACCEPT, mediaDocumentId, STORAGE_FULL_MESSAGE } from "@/lib/whiteboard/media"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
@@ -370,15 +370,18 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
   // Pictures copied on another whiteboard get files of their own on this
   // one first (media-upload.ts). One that cannot be copied is left out.
   async function withMediaHere(clip: Clip): Promise<Clip> {
+    let full = false
     const nodes = await Promise.all(
       clip.nodes.map(async (node) => {
         if (!node.mediaPath || mediaDocumentId(node.mediaPath) === context.whiteboardId) return node
         const mediaPath = await copyMediaTo(mediaHome, node.mediaPath)
-        return mediaPath ? { ...node, mediaPath } : null
+        if (mediaPath === "full") full = true
+        return mediaPath && mediaPath !== "full" ? { ...node, mediaPath } : null
       })
     )
     const kept = nodes.filter((node) => node !== null)
-    if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
+    if (full) toast.error(`Pictures and videos were left out. ${STORAGE_FULL_MESSAGE}`)
+    else if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
     return { ...clip, nodes: kept }
   }
 

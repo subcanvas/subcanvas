@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import {
   classifyMedia,
   fitMedia,
+  formatBytes,
+  isStorageFullError,
   layoutMedia,
   MEDIA_MAX_BYTES,
   mediaDocumentId,
@@ -76,5 +78,29 @@ describe("layoutMedia", () => {
     const boxes = layoutMedia(sizes, { x: 0, y: 0 }).map((place, i) => ({ ...place, ...sizes[i] }))
     for (const [i, a] of boxes.entries()) for (const b of boxes.slice(i + 1)) expect(overlap(a, b)).toBe(false)
     expect(new Set(boxes.map((box) => box.y)).size).toBeGreaterThan(1)
+  })
+})
+
+describe("formatBytes", () => {
+  it("says a size in the units the per-file limits use", () => {
+    expect(formatBytes(0)).toBe("0 bytes")
+    expect(formatBytes(1)).toBe("1 byte")
+    expect(formatBytes(1536)).toBe("1.5 KB")
+    expect(formatBytes(MEDIA_MAX_BYTES.image)).toBe("10 MB")
+    expect(formatBytes(1024 ** 3)).toBe("1 GB")
+    expect(formatBytes(2.25 * 1024 ** 3)).toBe("2.3 GB")
+  })
+
+  it("never says 1024 of a unit", () => {
+    expect(formatBytes(1024 * 1024 - 100)).toBe("1 MB")
+  })
+})
+
+describe("isStorageFullError", () => {
+  it("recognises the database's refusal, as Storage passes it on", () => {
+    // The message raised by private.enforce_media_storage_limit().
+    expect(isStorageFullError("This org has used its storage for pictures and videos (900 of 1000 bytes).")).toBe(true)
+    expect(isStorageFullError("new row violates row-level security policy")).toBe(false)
+    expect(isStorageFullError(undefined)).toBe(false)
   })
 })
