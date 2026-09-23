@@ -34,13 +34,6 @@ jobs:
   # that refusal here.
   smoke:
     runs-on: ubuntu-24.04
-    # The Supabase CLI pulls its images from Amazon's public registry by
-    # default; the setup action points it at ghcr.io instead, which refuses
-    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
-    # pulls anonymously whatever docker is signed in to. Three jobs each pull
-    # the whole stack, so this goes back to the default.
-    env:
-      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -54,7 +47,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The whole stack, not just the database: every page asks the Auth API
       # who is signed in, and answers 500 when nothing is listening.
+      # Pulled from Amazon's public registry, the CLI's default. The setup
+      # action points it at ghcr.io, which refuses GitHub's own runners with
+      # "toomanyrequests" on a busy day, and the CLI pulls anonymously
+      # whatever docker is signed in to.
       - name: Start the stack the server talks to
+        # On the step, not the job: the setup action exports ghcr.io into the
+        # environment of every later step, which outranks a job's env.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
         run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       # The local stack's keys are the same on every machine and grant
       # nothing anywhere else, so they are printed, not hidden.
@@ -103,13 +104,6 @@ jobs:
   # and come back. Same stack, same build, same runtime flag as above.
   e2e:
     runs-on: ubuntu-24.04
-    # The Supabase CLI pulls its images from Amazon's public registry by
-    # default; the setup action points it at ghcr.io instead, which refuses
-    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
-    # pulls anonymously whatever docker is signed in to. Three jobs each pull
-    # the whole stack, so this goes back to the default.
-    env:
-      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -124,7 +118,15 @@ jobs:
       # Chromium only: the suite tests this app, not browser differences.
       - name: Install the browser the tests drive
         run: pnpm exec playwright install --with-deps chromium
+      # Pulled from Amazon's public registry, the CLI's default. The setup
+      # action points it at ghcr.io, which refuses GitHub's own runners with
+      # "toomanyrequests" on a busy day, and the CLI pulls anonymously
+      # whatever docker is signed in to.
       - name: Start the stack the server talks to
+        # On the step, not the job: the setup action exports ghcr.io into the
+        # environment of every later step, which outranks a job's env.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
         run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       - name: Build and serve as production does
         env:
@@ -153,13 +155,6 @@ jobs:
 
   database:
     runs-on: ubuntu-24.04
-    # The Supabase CLI pulls its images from Amazon's public registry by
-    # default; the setup action points it at ghcr.io instead, which refuses
-    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
-    # pulls anonymously whatever docker is signed in to. Three jobs each pull
-    # the whole stack, so this goes back to the default.
-    env:
-      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: supabase/setup-cli@v3
@@ -168,6 +163,10 @@ jobs:
           # with the CLI used locally.
           version: 2.110.0
       - run: supabase db start
+        # On the step, not the job: the setup action exports ghcr.io into the
+        # environment of every later step, which outranks a job's env.
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
       - run: supabase test db
       - name: Generated types match the migrations
         run: |
