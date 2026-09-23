@@ -13,6 +13,7 @@ Every org has a page with the address and the quickest way into each client: `/<
 | Client | How |
 |---|---|
 | Claude Code | `claude mcp add --transport http subcanvas https://<your domain>/mcp`, then `/mcp` to sign in |
+| Codex (CLI, IDE extension, ChatGPT desktop) | `codex mcp add subcanvas --url https://<your domain>/mcp`, then `codex mcp login subcanvas` |
 | Cursor | The "Add to Cursor" button, or `{ "mcpServers": { "subcanvas": { "url": "https://<your domain>/mcp" } } }` in `~/.cursor/mcp.json` |
 | VS Code | The "Add to VS Code" button, or `{ "servers": { "subcanvas": { "type": "http", "url": "https://<your domain>/mcp" } } }` in `mcp.json` |
 | Claude (claude.ai, desktop) | Customize → Connectors → + → Add custom connector → paste the address |

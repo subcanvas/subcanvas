@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { claudeCodeCommand, cursorInstallLink, vscodeInstallLink } from "./install-links"
+import { claudeCodeCommand, codexCommand, cursorInstallLink, vscodeInstallLink } from "./install-links"
 
 const url = "https://subcanvas.app/mcp"
 
@@ -17,6 +17,12 @@ describe("install links", () => {
     const link = vscodeInstallLink(url)
     expect(link.startsWith("vscode:mcp/install?")).toBe(true)
     expect(JSON.parse(decodeURIComponent(link.split("?")[1]))).toEqual({ name: "subcanvas", type: "http", url })
+  })
+
+  it("gives Codex the add and the sign-in, in that order", () => {
+    expect(codexCommand(url)).toBe(
+      "codex mcp add subcanvas --url https://subcanvas.app/mcp && codex mcp login subcanvas"
+    )
   })
 
   it("gives Claude Code the documented command", () => {
