@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 import { headers } from "next/headers"
 
-import { originFromHeaders } from "@/lib/mcp/origin"
+import { originFromHeaders } from "@/lib/origin"
 
 // Everything behind a sign-in is off limits, and so is anything that is not
 // a page (the MCP endpoint, auth callbacks, the API). Public projects stay

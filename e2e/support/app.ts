@@ -132,10 +132,9 @@ export const nodeDocument = (page: Page) =>
   inspector(page).getByRole("region", { name: "Document" })
 
 // Closes the object panel, if one is open, by the button it offers for it.
-// Worth doing before reaching for the toolbar: with the panel open the
-// canvas is narrower, and the breadcrumb pill that floats over the canvas
-// then reaches far enough right to sit on top of the tools and swallow the
-// press. Document names are kept short here for the same reason.
+// Adding a node starts from a clean canvas this way, and the panel that
+// opens afterwards is the one for the new node. (The tools can be pressed
+// with the panel open; toolbar-reachable.spec.ts holds that open.)
 export async function closePanel(page: Page) {
   const panel = inspector(page)
   if (await panel.isVisible()) {

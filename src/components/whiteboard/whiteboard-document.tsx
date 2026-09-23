@@ -43,18 +43,19 @@ export function WhiteboardDocument({
         {actions}
       </div>
       <div className="relative min-h-0 flex-1">
-        {/* On the canvas, level with the toolbar, and never wide enough to reach it. */}
-        <div className="absolute top-[15px] left-4 z-10 hidden h-[42px] max-w-[calc(50%-12rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm md:flex">
-          {breadcrumb}
-        </div>
-        {provider && <Loaded provider={provider} {...shared} />}
+        {/* The trail goes on the canvas itself (see Whiteboard), which keeps it
+            clear of the tools when the object panel opens. */}
+        {provider && <Loaded provider={provider} breadcrumb={breadcrumb} {...shared} />}
       </div>
     </div>
   )
 }
 
 // Waits for the first load so the canvas fits the real content on open.
-function Loaded({ provider, ...shared }: Shared & { provider: SupabaseProvider }) {
+function Loaded({
+  provider,
+  ...shared
+}: Shared & { provider: SupabaseProvider; breadcrumb: React.ReactNode }) {
   const { loaded } = useSyncStatus(provider)
   if (!loaded) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   return <Whiteboard provider={provider} {...shared} />
