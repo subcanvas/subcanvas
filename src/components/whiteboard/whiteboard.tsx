@@ -72,6 +72,10 @@ export type WhiteboardProps = {
   editable: boolean
   context: WhiteboardContext
   user: EditorUser
+  // The trail of sheets above this one. It belongs on the canvas, in the same
+  // space as the tools: laid out against the whole area instead, it slides
+  // over the tools whenever the object panel opens.
+  breadcrumb?: React.ReactNode
 }
 
 export default function Whiteboard(props: WhiteboardProps) {
@@ -82,7 +86,7 @@ export default function Whiteboard(props: WhiteboardProps) {
   )
 }
 
-function Canvas({ provider, editable, context, user }: WhiteboardProps) {
+function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardProps) {
   // View mode is a choice made by someone who may edit, so that a stray
   // finger changes nothing. Someone who may not edit is always in it.
   const [mode, setMode] = useState<Mode>(storedMode)
@@ -636,6 +640,18 @@ function Canvas({ provider, editable, context, user }: WhiteboardProps) {
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="var(--blueline)" bgColor="var(--paper)" />
           <Controls showInteractive={false} fitViewOptions={FIT_VIEW} />
           <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
+
+          {breadcrumb && (
+            // Level with the tools, and narrow enough to leave them room: the
+            // tools are centred on this canvas, so half of it less their half
+            // is the most the trail can take.
+            <Panel
+              position="top-left"
+              className="hidden h-[42px] md:flex max-w-[calc(50%-12rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm"
+            >
+              {breadcrumb}
+            </Panel>
+          )}
 
           {editable && (
             // Beside the tools on a wide canvas, under them on a narrow one.
