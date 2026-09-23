@@ -1,5 +1,6 @@
 "use server"
 
+import type { User } from "@supabase/supabase-js"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -11,22 +12,34 @@ export type BillingState = { error: string } | null
 
 // Only an owner manages billing (R6.3). Checked here, not just hidden in the
 // UI, because these actions use the admin client and Stripe.
-async function requireOwner(orgId: string) {
+// Resolves to the owner, or to the reason there is none: "not the owner" and
+// "could not tell who you are" (a failed identity check, say when Supabase is
+// rate limiting) are different answers, and the second must not be worded as
+// the first.
+type Owner = { user: User; org: { name: string; slug: string } }
+
+async function requireOwner(orgId: string): Promise<Owner | { error: string }> {
   const supabase = await createClient()
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
-  if (!user) return null
+  if (error && error.status !== 401 && error.status !== 403)
+    return { error: "Could not check who you are. Try again in a moment." }
+  if (!user) return { error: NOT_OWNER }
 
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("org_members")
     .select("role, orgs (name, slug)")
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .maybeSingle()
-  if (membership?.role !== "owner" || !membership.orgs) return null
+  if (membershipError) return { error: "Could not check your role. Try again in a moment." }
+  if (membership?.role !== "owner" || !membership.orgs) return { error: NOT_OWNER }
   return { user, org: membership.orgs }
 }
+
+const NOT_OWNER = "Only an owner can manage billing."
 
 async function origin() {
   const list = await headers()
@@ -36,7 +49,7 @@ async function origin() {
 export async function startCheckout(orgId: string): Promise<BillingState> {
   if (!billingConfigured()) return { error: "Billing is not set up on this server." }
   const owner = await requireOwner(orgId)
-  if (!owner) return { error: "Only an owner can manage billing." }
+  if ("error" in owner) return owner
 
   const admin = createAdminClient()
   const stripe = getStripe()
@@ -86,7 +99,7 @@ export async function startCheckout(orgId: string): Promise<BillingState> {
 export async function openPortal(orgId: string): Promise<BillingState> {
   if (!billingConfigured()) return { error: "Billing is not set up on this server." }
   const owner = await requireOwner(orgId)
-  if (!owner) return { error: "Only an owner can manage billing." }
+  if ("error" in owner) return owner
 
   const { data: row } = await createAdminClient()
     .from("subscriptions")
