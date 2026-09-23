@@ -196,6 +196,11 @@ password_requirements = ""
 # rp_origins = ["http://127.0.0.1:3000"]
 
 [auth.rate_limit]
+# The three per-IP limits below are raised far past Supabase's defaults (150,
+# 30, 30 per 5 minutes): every browser test signs up its own account, and a
+# full run makes a few hundred sign-ins from one address in two minutes.
+# This file configures the local stack and preview branches only;
+# production's limits are set in the infrastructure repository.
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
@@ -203,11 +208,11 @@ sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
 anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
-token_refresh = 150
+token_refresh = 1000
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
-sign_in_sign_ups = 30
+sign_in_sign_ups = 1000
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
-token_verifications = 30
+token_verifications = 1000
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
