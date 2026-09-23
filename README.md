@@ -28,6 +28,7 @@ pnpm dev
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm build` | Production build |
 | `pnpm test` | Unit tests (Vitest) for code that needs no browser and no database |
+| `pnpm test:e2e` | End-to-end tests (Playwright) in a real browser against a real build |
 | `pnpm db:test` | Database tests (pgTAP), including row-level security |
 | `pnpm db:types` | Regenerate `src/lib/supabase/database.types.ts` after a migration |
 | `supabase db reset` | Rebuild the local database from `supabase/migrations` |
@@ -35,6 +36,25 @@ pnpm dev
 Sign-in is by email and password or by an emailed link. Locally, emails are caught by Mailpit at http://127.0.0.1:54324 instead of being sent. Google and GitHub sign-in are off by default; see the notes at the bottom of `supabase/config.toml`.
 
 After changing `supabase/config.toml`, restart the stack with `supabase stop && supabase start`.
+
+### Tests
+
+Three layers, each answering something the others cannot:
+
+- **`pnpm test`** — Vitest, over code that needs no browser and no database. It is the one that runs in a second, so keep it that way: nothing here may start a server.
+- **`pnpm db:test`** — pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
+- **`pnpm test:e2e`** — Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
+
+The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open.
+
+```sh
+pnpm test:e2e                       # all of it
+pnpm test:e2e whiteboard-node       # one spec
+pnpm exec playwright test --ui      # watch it happen
+pnpm exec playwright show-report    # the last run, in detail
+```
+
+Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web assertion to a sleep. Do not dispatch synthetic mouse events at whiteboard nodes: React Flow hands them to d3-drag, which reads `event.view.document` and throws. Move and press the real mouse, or use the toolbar.
 
 ## Public projects and moderation
 
