@@ -45,8 +45,10 @@ jobs:
         with:
           version: 2.110.0
       - run: pnpm install --frozen-lockfile
-      - name: Start the database the server talks to
-        run: supabase db start
+      # The whole stack, not just the database: every page asks the Auth API
+      # who is signed in, and answers 500 when nothing is listening.
+      - name: Start the stack the server talks to
+        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       # The local stack's keys are the same on every machine and grant
       # nothing anywhere else, so they are printed, not hidden.
       - name: Build and serve as production does
