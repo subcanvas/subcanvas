@@ -1,0 +1,5 @@
+title: Payments
+connects:
+  - to: services/ledger
+    label: gRPC
+    description: Posts a journal entry for every settled charge.

@@ -169,9 +169,17 @@ jobs:
           pnpm build
           export LEGAL_OPERATOR="CI" LEGAL_CONTACT="ci@example.test" LEGAL_GOVERNING_LAW="California"
           NODE_OPTIONS=--no-experimental-require-module pnpm start --port 3310 &
+          # A development server beside it, for the GitHub import spec: the
+          # fixture repositories it imports (e2e/fixtures/github) are read
+          # only by a development server. See e2e/support/import.ts.
+          SUBCANVAS_IMPORT_FIXTURES="$PWD/e2e/fixtures/github" pnpm dev --port 3410 &
           # localhost, not 127.0.0.1: see the note in playwright.config.ts.
           for _ in $(seq 60); do
             curl -fsS -o /dev/null http://localhost:3310/ && break
+            sleep 2
+          done
+          for _ in $(seq 60); do
+            curl -fsS -o /dev/null http://localhost:3410/login && break
             sleep 2
           done
       # The config reuses the server already listening rather than building

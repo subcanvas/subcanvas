@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
+import { devBaseURL, DEV_PORT, GITHUB_FIXTURES } from "./e2e/support/import"
+
 // End-to-end tests: a real browser, a real production build, and the real
 // local stack (`supabase start`). They are deliberately apart from the unit
 // tests (`pnpm test`), which must stay fast and need neither.
@@ -51,15 +53,29 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // The same build and the same runtime flag as production, which is what
-    // the smoke job in CI serves too. CI starts its own server first and
-    // this reuses it; locally it builds and serves on demand.
-    command: `pnpm build && NODE_OPTIONS=--no-experimental-require-module pnpm start --port ${PORT}`,
-    url: baseURL,
-    reuseExistingServer: true,
-    timeout: 300_000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      // The same build and the same runtime flag as production, which is what
+      // the smoke job in CI serves too. CI starts its own server first and
+      // this reuses it; locally it builds and serves on demand.
+      command: `pnpm build && NODE_OPTIONS=--no-experimental-require-module pnpm start --port ${PORT}`,
+      url: baseURL,
+      reuseExistingServer: true,
+      timeout: 300_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      // A development server, for github-import.spec.ts alone: the fixture
+      // repositories it imports are reachable only there (see
+      // e2e/support/import.ts). The URL is the sign-in page, so the first
+      // page every spec opens is compiled before any test starts.
+      command: `SUBCANVAS_IMPORT_FIXTURES=${GITHUB_FIXTURES} pnpm dev --port ${DEV_PORT}`,
+      url: `${devBaseURL}/login`,
+      reuseExistingServer: true,
+      timeout: 120_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  ],
 })
