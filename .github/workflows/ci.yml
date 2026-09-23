@@ -152,6 +152,15 @@ jobs:
       # Chromium only: the suite tests this app, not browser differences.
       - name: Install the browser the tests drive
         run: pnpm exec playwright install --with-deps chromium
+      # The billing specs pay at Stripe's checkout in a sandbox and need its
+      # events forwarded back; the Stripe CLI does the forwarding. Without
+      # the sandbox secrets below those specs skip themselves.
+      - name: Install the Stripe CLI
+        run: |
+          curl -fsSL -o /tmp/stripe.deb \
+            https://github.com/stripe/stripe-cli/releases/download/v1.40.2/stripe_1.40.2_linux_amd64.deb
+          sudo dpkg -i /tmp/stripe.deb
+          stripe version
       # Left to itself the CLI tries three registries for each image (Amazon's,
       # GitHub's, then Docker Hub). The setup action pins it to GitHub's alone,
       # which refuses GitHub's own runners with "toomanyrequests" on a busy
@@ -163,9 +172,16 @@ jobs:
       - name: Build and serve as production does
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          # Sandbox values, or empty: with them the server sells the plan and
+          # the billing specs run; without them billing is off and they skip.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_SANDBOX }}
+          STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID_SANDBOX }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_SANDBOX }}
         run: |
           key=$(supabase status -o env | sed -n 's/^PUBLISHABLE_KEY="\(.*\)"$/\1/p')
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$key"
+          # The server's own key, for billing; the local stack's is public.
+          export SUPABASE_SECRET_KEY=$(supabase status -o env | sed -n 's/^SECRET_KEY="\(.*\)"$/\1/p')
           pnpm build
           export LEGAL_OPERATOR="CI" LEGAL_CONTACT="ci@example.test" LEGAL_GOVERNING_LAW="California"
           NODE_OPTIONS=--no-experimental-require-module pnpm start --port 3310 &
@@ -185,6 +201,10 @@ jobs:
       # The config reuses the server already listening rather than building
       # a second time.
       - run: pnpm test:e2e
+        env:
+          # The billing fixture spawns `stripe listen` itself with these.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_SANDBOX }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_SANDBOX }}
       - name: The report, when something failed
         if: failure()
         uses: actions/upload-artifact@v7
