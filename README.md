@@ -45,7 +45,7 @@ Three layers, each answering something the others cannot:
 - **`pnpm db:test`** — pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
 - **`pnpm test:e2e`** — Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
 
-The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open.
+The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything.
 
 ```sh
 pnpm test:e2e                       # all of it
