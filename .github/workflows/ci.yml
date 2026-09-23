@@ -223,6 +223,7 @@ jobs:
           supabase test db
       - name: Generated types match the migrations
         run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY # this pulls one more image
           supabase gen types typescript --local > src/lib/supabase/database.types.ts
           git diff --exit-code -- src/lib/supabase/database.types.ts \
             || { echo "::error::Run 'pnpm db:types' and commit the result."; exit 1; }
