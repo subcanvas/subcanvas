@@ -61,16 +61,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The whole stack, not just the database: every page asks the Auth API
       # who is signed in, and answers 500 when nothing is listening.
-      # Pulled from Amazon's public registry, the CLI's default. The setup
-      # action points it at ghcr.io, which refuses GitHub's own runners with
-      # "toomanyrequests" on a busy day, and the CLI pulls anonymously
-      # whatever docker is signed in to.
+      # Left to itself the CLI tries three registries for each image (Amazon's,
+      # GitHub's, then Docker Hub). The setup action pins it to GitHub's alone,
+      # which refuses GitHub's own runners with "toomanyrequests" on a busy
+      # day, so the pin is lifted here.
       - name: Start the stack the server talks to
-        # On the step, not the job: the setup action exports ghcr.io into the
-        # environment of every later step, which outranks a job's env.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
-        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
+        run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       # The local stack's keys are the same on every machine and grant
       # nothing anywhere else, so they are printed, not hidden.
       - name: Build and serve as production does
@@ -154,16 +152,14 @@ jobs:
       # Chromium only: the suite tests this app, not browser differences.
       - name: Install the browser the tests drive
         run: pnpm exec playwright install --with-deps chromium
-      # Pulled from Amazon's public registry, the CLI's default. The setup
-      # action points it at ghcr.io, which refuses GitHub's own runners with
-      # "toomanyrequests" on a busy day, and the CLI pulls anonymously
-      # whatever docker is signed in to.
+      # Left to itself the CLI tries three registries for each image (Amazon's,
+      # GitHub's, then Docker Hub). The setup action pins it to GitHub's alone,
+      # which refuses GitHub's own runners with "toomanyrequests" on a busy
+      # day, so the pin is lifted here.
       - name: Start the stack the server talks to
-        # On the step, not the job: the setup action exports ghcr.io into the
-        # environment of every later step, which outranks a job's env.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
-        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
+        run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       - name: Build and serve as production does
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
@@ -220,12 +216,11 @@ jobs:
         run: |
           if [ -f /tmp/supabase-images.tar ]; then docker load -i /tmp/supabase-images.tar; fi
           docker images -q | sort -u > /tmp/images-before
-      - run: supabase db start
-        # On the step, not the job: the setup action exports ghcr.io into the
-        # environment of every later step, which outranks a job's env.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
-      - run: supabase test db
+      # The registry pin is lifted for the reason given in the smoke job.
+      - run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase db start
+          supabase test db
       - name: Generated types match the migrations
         run: |
           supabase gen types typescript --local > src/lib/supabase/database.types.ts
