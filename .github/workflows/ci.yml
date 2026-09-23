@@ -8,8 +8,8 @@ on:
 jobs:
   check:
     # Pinned: "ubuntu-latest" moves to a new release on GitHub's schedule, and
-    # the database job depends on the image's Docker. Move all three runners
-    # (two here, one in deploy.yml) together, on purpose.
+    # the database job depends on the image's Docker. Move all runners
+    # (these and the one in deploy.yml) together, on purpose.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -21,10 +21,72 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+
+  # The build is not enough: a dependency can import fine at build time and
+  # fail when the server runs it. Vercel's runtime refuses require() of an
+  # ESM-only package, which once broke /mcp and Import from GitHub in
+  # production while every other check was green. NODE_OPTIONS reproduces
+  # that refusal here.
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.110.0
+      - run: pnpm install --frozen-lockfile
+      - name: Start the database the server talks to
+        run: supabase db start
+      # The local stack's keys are the same on every machine and grant
+      # nothing anywhere else, so they are printed, not hidden.
+      - name: Build and serve as production does
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+        run: |
+          key=$(supabase status -o env | sed -n 's/^PUBLISHABLE_KEY="\(.*\)"$/\1/p')
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$key"
+          pnpm build
+          # Set so /terms and /privacy render, as they do in production.
+          export LEGAL_OPERATOR="CI" LEGAL_CONTACT="ci@example.test" LEGAL_GOVERNING_LAW="California"
+          NODE_OPTIONS=--no-experimental-require-module pnpm start &
+          for _ in $(seq 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:3000/ && break
+            sleep 2
+          done
+      - name: Every route answers, and none of them 500
+        run: |
+          fail=0
+          check() { # path, expected status
+            actual=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3000$1")
+            if [ "$actual" = "$2" ]; then
+              echo "ok    $1 -> $actual"
+            else
+              echo "::error::$1 answered $actual, expected $2"
+              fail=1
+            fi
+          }
+          check / 200
+          check /login 200
+          check /terms 200
+          check /privacy 200
+          check /robots.txt 200
+          check /sitemap.xml 200
+          check /favicon.ico 200
+          # The MCP endpoint must reject an unauthenticated call, not fail to
+          # load. A 500 here is the ESM-only import problem.
+          check /mcp 401
+          check /p/00000000-0000-0000-0000-000000000000 404
+          exit $fail
 
   database:
     runs-on: ubuntu-24.04
