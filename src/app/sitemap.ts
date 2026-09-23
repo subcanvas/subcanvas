@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next"
 import { headers } from "next/headers"
 
 import { legalDetails } from "@/lib/legal"
-import { originFromHeaders } from "@/lib/mcp/origin"
+import { originFromHeaders } from "@/lib/origin"
 
 // The pages worth finding by search. Everything else is someone's work, and
 // behind a sign-in or marked `noindex`.
