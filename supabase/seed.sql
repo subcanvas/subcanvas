@@ -1,0 +1,5 @@
+-- Rows every fresh database starts with. Loaded after the migrations by
+-- `supabase db reset` locally, and once, when a preview branch is created,
+-- by Supabase Branching (config.toml, [db.seed]). Nothing belongs here yet:
+-- the app makes its own first org and project when a person signs in, and
+-- a branch that starts empty is a branch that tests the migrations alone.
