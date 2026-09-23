@@ -30,7 +30,9 @@ test("signs in by following the link in the email", async ({ page }) => {
   // Really signed in, not merely past the redirect: the account menu is
   // the signed-in frame, and it knows the address.
   await page.getByRole("button", { name: "Account menu" }).click()
-  await expect(page.getByText(account.email)).toBeVisible()
+  // Scoped to the open menu: a wide window also shows the address in the
+  // sidebar, when the account has no display name.
+  await expect(page.getByRole("menu").getByText(account.email)).toBeVisible()
   await page.keyboard.press("Escape")
 
   // And the session survives a fresh load of a page behind the door.
