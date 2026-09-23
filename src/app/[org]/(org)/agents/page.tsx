@@ -2,7 +2,7 @@ import { headers } from "next/headers"
 
 import { PageHeader } from "@/components/page-header"
 import { buttonVariants } from "@/components/ui/button"
-import { claudeCodeCommand, cursorInstallLink, vscodeInstallLink } from "@/lib/mcp/install-links"
+import { claudeCodeCommand, codexCommand, cursorInstallLink, vscodeInstallLink } from "@/lib/mcp/install-links"
 import { MCP_PATH } from "@/lib/mcp/origin"
 import { originFromHeaders } from "@/lib/origin"
 import type { ToolGroup } from "@/lib/mcp/tool"
@@ -48,6 +48,13 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
         <Client name="Claude Code" wide>
           <p>Run this, then type <code className="font-mono">/mcp</code> in Claude Code and sign in.</p>
           <CopyField label="the Claude Code command" value={claudeCodeCommand(url)} />
+        </Client>
+        <Client name="Codex" wide>
+          <p>
+            Run this: the first part adds the server, the second signs in. The Codex CLI, its IDE
+            extension and the ChatGPT desktop app share the result.
+          </p>
+          <CopyField label="the Codex command" value={codexCommand(url)} />
         </Client>
         <Client name="Cursor">
           <p>Opens Cursor with the server filled in. Choose Install, then sign in when Cursor asks.</p>
