@@ -33,7 +33,13 @@ export default defineConfig({
   // One retry in CI, none locally: locally a flake should be seen, not
   // papered over.
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : 3,
+  // Two everywhere, not more: the local Auth server opens a fresh database
+  // connection for every identity check, and three workers' worth of page
+  // loads ran it out of source ports ("cannot assign requested address",
+  // answered as 500), which the app can only read as "signed out". Two
+  // workers stay under it, and the whole suite still runs in about three
+  // minutes.
+  workers: 2,
   // The list as it goes, and the HTML report to open afterwards. CI keeps
   // the report as an artifact when something failed.
   reporter: [["list"], ["html", { open: "never" }]],
