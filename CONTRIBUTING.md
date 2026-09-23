@@ -20,6 +20,7 @@ The [README](README.md) has the development setup, and [docs/DEPLOYMENT.md](docs
 
 ```sh
 pnpm lint && pnpm typecheck && pnpm test && pnpm db:test
+pnpm test:e2e   # a browser, against a real build and the local stack
 ```
 
 Anything that changes the interface should be tried in a real browser, in the light and the dark theme.

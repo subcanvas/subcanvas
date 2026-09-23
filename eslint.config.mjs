@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "supabase/**",
     "src/lib/supabase/database.types.ts",
+    // What a Playwright run leaves behind.
+    "playwright-report/**",
+    "test-results/**",
+    "blob-report/**",
   ]),
 ]);
 
