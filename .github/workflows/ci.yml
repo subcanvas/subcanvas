@@ -34,6 +34,13 @@ jobs:
   # that refusal here.
   smoke:
     runs-on: ubuntu-24.04
+    # The Supabase CLI pulls its images from Amazon's public registry by
+    # default; the setup action points it at ghcr.io instead, which refuses
+    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
+    # pulls anonymously whatever docker is signed in to. Three jobs each pull
+    # the whole stack, so this goes back to the default.
+    env:
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -47,11 +54,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The whole stack, not just the database: every page asks the Auth API
       # who is signed in, and answers 500 when nothing is listening.
-      # Signed in, the registry allows far more pulls than it does a stranger.
-      # Three jobs each pull the whole stack, and a busy day of runs from
-      # GitHub's shared addresses is refused as "toomanyrequests" otherwise.
-      - name: Sign in to the container registry
-        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Start the stack the server talks to
         run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       # The local stack's keys are the same on every machine and grant
@@ -101,6 +103,13 @@ jobs:
   # and come back. Same stack, same build, same runtime flag as above.
   e2e:
     runs-on: ubuntu-24.04
+    # The Supabase CLI pulls its images from Amazon's public registry by
+    # default; the setup action points it at ghcr.io instead, which refuses
+    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
+    # pulls anonymously whatever docker is signed in to. Three jobs each pull
+    # the whole stack, so this goes back to the default.
+    env:
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -115,11 +124,6 @@ jobs:
       # Chromium only: the suite tests this app, not browser differences.
       - name: Install the browser the tests drive
         run: pnpm exec playwright install --with-deps chromium
-      # Signed in, the registry allows far more pulls than it does a stranger.
-      # Three jobs each pull the whole stack, and a busy day of runs from
-      # GitHub's shared addresses is refused as "toomanyrequests" otherwise.
-      - name: Sign in to the container registry
-        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Start the stack the server talks to
         run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       - name: Build and serve as production does
@@ -149,6 +153,13 @@ jobs:
 
   database:
     runs-on: ubuntu-24.04
+    # The Supabase CLI pulls its images from Amazon's public registry by
+    # default; the setup action points it at ghcr.io instead, which refuses
+    # GitHub's own runners with "toomanyrequests" on a busy day, and the CLI
+    # pulls anonymously whatever docker is signed in to. Three jobs each pull
+    # the whole stack, so this goes back to the default.
+    env:
+      SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
     steps:
       - uses: actions/checkout@v7
       - uses: supabase/setup-cli@v3
@@ -156,11 +167,6 @@ jobs:
           # Pinned so generated types do not change under us. Keep in step
           # with the CLI used locally.
           version: 2.110.0
-      # Signed in, the registry allows far more pulls than it does a stranger.
-      # Three jobs each pull the whole stack, and a busy day of runs from
-      # GitHub's shared addresses is refused as "toomanyrequests" otherwise.
-      - name: Sign in to the container registry
-        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - run: supabase db start
       - run: supabase test db
       - name: Generated types match the migrations
