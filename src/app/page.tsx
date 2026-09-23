@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { HeroCanvas } from "@/components/landing/hero-canvas"
 import { Wordmark } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { legalDetails } from "@/lib/legal"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
@@ -57,6 +58,10 @@ export default async function Home() {
     redirect(orgs?.[0] ? `/${orgs[0].slug}` : "/onboarding")
   }
 
+  // Without Stripe there is no plan to buy, so the page shows what this
+  // server actually offers instead of a price nobody can pay.
+  const selling = billingConfigured()
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
@@ -91,7 +96,9 @@ export default async function Home() {
               <Link href="/login" className={cn(buttonVariants({ size: "lg" }), "px-5")}>
                 Start drawing
               </Link>
-              <p className="text-sm text-graphite">Free for public projects. No card.</p>
+              <p className="text-sm text-graphite">
+                {selling ? "Free for public projects. No card." : "Free while Subcanvas is this new. No card."}
+              </p>
             </div>
           </div>
           <HeroCanvas />
@@ -187,26 +194,47 @@ export default async function Home() {
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-20">
             <div className="flex flex-col gap-2">
               <h2 className="text-3xl font-semibold">Pricing</h2>
-              <p className="text-graphite">You pay for people who edit private work. Nothing else.</p>
+              <p className="text-graphite">
+                {selling
+                  ? "You pay for people who edit private work. Nothing else."
+                  : "Nothing to pay yet. There is no paid plan while Subcanvas is this new."}
+              </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              <Plan
-                name="Free"
-                price="$0"
-                points={[
-                  "Unlimited public projects",
-                  "100 documents in private projects",
-                  "3 editors",
-                  "Unlimited viewers",
-                ]}
-              />
-              <Plan
-                name="Team"
-                price="$5"
-                unit="per editor, per month"
-                highlight
-                points={["Unlimited private documents", "Unlimited editors", "Viewers stay free"]}
-              />
+            <div className={cn("grid gap-6", selling ? "md:grid-cols-3" : "md:grid-cols-2")}>
+              {selling ? (
+                <>
+                  <Plan
+                    name="Free"
+                    price="$0"
+                    points={[
+                      "Unlimited public projects",
+                      "100 documents in private projects",
+                      "3 editors",
+                      "Unlimited viewers",
+                    ]}
+                  />
+                  <Plan
+                    name="Team"
+                    price="$5"
+                    unit="per editor, per month"
+                    highlight
+                    points={["Unlimited private documents", "Unlimited editors", "Viewers stay free"]}
+                  />
+                </>
+              ) : (
+                <Plan
+                  name="Hosted"
+                  price="Free"
+                  unit="while Subcanvas is this new"
+                  highlight
+                  points={[
+                    "Public and private projects alike",
+                    "As many editors and viewers as you like",
+                    "1 GB of pictures and videos per org",
+                    "A paid plan comes later, and this work stays yours",
+                  ]}
+                />
+              )}
               <Plan
                 name="Run it yourself"
                 price="Open source"
