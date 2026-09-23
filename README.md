@@ -83,7 +83,7 @@ A deployment that sells subscriptions turns on two things:
    update private.config set free_private_document_limit = 100, free_editor_limit = 3;
    ```
    Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
-2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `stripe listen --forward-to localhost:3000/api/stripe/webhook` instead.
+2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security
 
