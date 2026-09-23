@@ -44,11 +44,31 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.110.0
+      # The stack's images, kept between runs. Each job pulled the whole
+      # stack from a registry that refuses GitHub's shared runners with
+      # "toomanyrequests" on a busy day; loaded from the cache they are
+      # pulled once per CLI version instead.
+      - name: Restore the stack's images
+        id: images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/supabase-images.tar
+          key: supabase-images-2.110.0-${{ runner.os }}
+      - name: Load the images, or note which are already here
+        run: |
+          if [ -f /tmp/supabase-images.tar ]; then docker load -i /tmp/supabase-images.tar; fi
+          docker images -q | sort -u > /tmp/images-before
       - run: pnpm install --frozen-lockfile
       # The whole stack, not just the database: every page asks the Auth API
       # who is signed in, and answers 500 when nothing is listening.
+      # Left to itself the CLI tries three registries for each image (Amazon's,
+      # GitHub's, then Docker Hub). The setup action pins it to GitHub's alone,
+      # which refuses GitHub's own runners with "toomanyrequests" on a busy
+      # day, so the pin is lifted here.
       - name: Start the stack the server talks to
-        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
+        run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       # The local stack's keys are the same on every machine and grant
       # nothing anywhere else, so they are printed, not hidden.
       - name: Build and serve as production does
@@ -89,6 +109,14 @@ jobs:
           check /mcp 401
           check /p/00000000-0000-0000-0000-000000000000 404
           exit $fail
+      # Whatever this job pulled, saved for the next run. Only when the cache
+      # missed: a hit is already complete.
+      - name: Save the images for next time
+        if: always() && steps.images.outputs.cache-hit != 'true'
+        run: |
+          new=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}}' | grep -v '<none>' \
+            | awk 'NR==FNR { before[$1]; next } !($1 in before) { print $2 }' /tmp/images-before - | sort -u)
+          if [ -n "$new" ]; then docker save $new -o /tmp/supabase-images.tar; fi
 
   # The smoke job proves every page answers. This one proves the app works:
   # a browser signs up, makes a whiteboard, and finds what it drew still
@@ -106,12 +134,32 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.110.0
+      # The stack's images, kept between runs. Each job pulled the whole
+      # stack from a registry that refuses GitHub's shared runners with
+      # "toomanyrequests" on a busy day; loaded from the cache they are
+      # pulled once per CLI version instead.
+      - name: Restore the stack's images
+        id: images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/supabase-images.tar
+          key: supabase-images-2.110.0-${{ runner.os }}
+      - name: Load the images, or note which are already here
+        run: |
+          if [ -f /tmp/supabase-images.tar ]; then docker load -i /tmp/supabase-images.tar; fi
+          docker images -q | sort -u > /tmp/images-before
       - run: pnpm install --frozen-lockfile
       # Chromium only: the suite tests this app, not browser differences.
       - name: Install the browser the tests drive
         run: pnpm exec playwright install --with-deps chromium
+      # Left to itself the CLI tries three registries for each image (Amazon's,
+      # GitHub's, then Docker Hub). The setup action pins it to GitHub's alone,
+      # which refuses GitHub's own runners with "toomanyrequests" on a busy
+      # day, so the pin is lifted here.
       - name: Start the stack the server talks to
-        run: supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
+        run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase start -x studio,imgproxy,vector,logflare,supavisor,edge-runtime
       - name: Build and serve as production does
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
@@ -136,6 +184,14 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+      # Whatever this job pulled, saved for the next run. Only when the cache
+      # missed: a hit is already complete.
+      - name: Save the images for next time
+        if: always() && steps.images.outputs.cache-hit != 'true'
+        run: |
+          new=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}}' | grep -v '<none>' \
+            | awk 'NR==FNR { before[$1]; next } !($1 in before) { print $2 }' /tmp/images-before - | sort -u)
+          if [ -n "$new" ]; then docker save $new -o /tmp/supabase-images.tar; fi
 
   database:
     runs-on: ubuntu-24.04
@@ -146,10 +202,36 @@ jobs:
           # Pinned so generated types do not change under us. Keep in step
           # with the CLI used locally.
           version: 2.110.0
-      - run: supabase db start
-      - run: supabase test db
+      # The stack's images, kept between runs. Each job pulled the whole
+      # stack from a registry that refuses GitHub's shared runners with
+      # "toomanyrequests" on a busy day; loaded from the cache they are
+      # pulled once per CLI version instead.
+      - name: Restore the stack's images
+        id: images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/supabase-images.tar
+          key: supabase-images-2.110.0-${{ runner.os }}
+      - name: Load the images, or note which are already here
+        run: |
+          if [ -f /tmp/supabase-images.tar ]; then docker load -i /tmp/supabase-images.tar; fi
+          docker images -q | sort -u > /tmp/images-before
+      # The registry pin is lifted for the reason given in the smoke job.
+      - run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+          supabase db start
+          supabase test db
       - name: Generated types match the migrations
         run: |
+          unset SUPABASE_INTERNAL_IMAGE_REGISTRY # this pulls one more image
           supabase gen types typescript --local > src/lib/supabase/database.types.ts
           git diff --exit-code -- src/lib/supabase/database.types.ts \
             || { echo "::error::Run 'pnpm db:types' and commit the result."; exit 1; }
+      # Whatever this job pulled, saved for the next run. Only when the cache
+      # missed: a hit is already complete.
+      - name: Save the images for next time
+        if: always() && steps.images.outputs.cache-hit != 'true'
+        run: |
+          new=$(docker images --format '{{.ID}} {{.Repository}}:{{.Tag}}' | grep -v '<none>' \
+            | awk 'NR==FNR { before[$1]; next } !($1 in before) { print $2 }' /tmp/images-before - | sort -u)
+          if [ -n "$new" ]; then docker save $new -o /tmp/supabase-images.tar; fi
