@@ -20,6 +20,12 @@ const PORT = Number(process.env.E2E_PORT ?? 3310)
 // Next uses that instead.
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`
 
+// True when the whole suite runs, or the arguments name github-import.
+function githubSpecSelected() {
+  const filters = process.argv.slice(2).filter((arg) => !arg.startsWith("-"))
+  return filters.length === 0 || filters.some((arg) => arg.includes("github-import"))
+}
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -59,6 +65,10 @@ export default defineConfig({
       },
     },
   ],
+  // The second server is only for github-import.spec.ts. When the command
+  // line names specs and that is not one of them, it is left out: a
+  // development server refuses to start beside `pnpm dev` in the same
+  // checkout, and a run of one spec should not need it anyway.
   webServer: [
     {
       // The same build and the same runtime flag as production, which is what
@@ -71,7 +81,7 @@ export default defineConfig({
       stdout: "pipe",
       stderr: "pipe",
     },
-    {
+    ...(githubSpecSelected() ? [{
       // A development server, for github-import.spec.ts alone: the fixture
       // repositories it imports are reachable only there (see
       // e2e/support/import.ts). The URL is the sign-in page, so the first
@@ -80,8 +90,8 @@ export default defineConfig({
       url: `${devBaseURL}/login`,
       reuseExistingServer: true,
       timeout: 120_000,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
+      stdout: "pipe" as const,
+      stderr: "pipe" as const,
+    }] : []),
   ],
 })
