@@ -1,5 +1,8 @@
 # The demo that records itself
 
+For the launch video itself, rendered frame by frame with reelscript rather
+than recorded, see [reel/README.md](reel/README.md) and `pnpm demo:reel`.
+
 `record_demo.py` walks a storyboard through the real app while
 [OpenScreen](https://getopenscreen.com) records the window, then exports the
 video with a zoom wherever the cursor paused, burns in the captions, and cuts

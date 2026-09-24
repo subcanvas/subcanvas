@@ -30,5 +30,9 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // The launch video's script imports reelscript, which is not a dependency of the app.
+    "scripts/demo/reel"
+  ]
 }

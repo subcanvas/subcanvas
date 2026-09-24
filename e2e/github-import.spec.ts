@@ -16,7 +16,9 @@ import { canvas, devBaseURL, treeLink } from "./support/import"
 // under e2e/fixtures/github instead of asking GitHub (see support/import.ts).
 // The repository imported here is `orchard`: a README and a `.subcanvas`
 // file at the root, `apps/web`, and `services/payments` connected to
-// `services/ledger` by a described arrow.
+// `services/ledger` by a described arrow. Two folders under payments,
+// `refunds` and `webhooks`, are past the automatic depth and are mapped by
+// `.subcanvas` files of their own; the launch demo walks into them.
 test.use({ baseURL: devBaseURL })
 
 // A development server compiles each page the first time it is asked for,
