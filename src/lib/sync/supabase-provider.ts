@@ -72,6 +72,8 @@ export class SupabaseProvider {
   // person. Zero means nobody would receive a broadcast.
   private otherConnections = 0
   private readonly sessionId = crypto.randomUUID()
+  // Awareness client ids of the connections presence last listed.
+  private presentClients = new Set<number>()
 
   private channel: RealtimeChannel
   private listeners = new Set<Listener>()
@@ -155,21 +157,28 @@ export class SupabaseProvider {
 
   // Every connection announces itself, named or not, so others know a
   // broadcast has somewhere to go.
+  // The awareness client id rides along, so peers can drop this
+  // connection's caret and cursor the moment the server sees it go.
   private track() {
     if (this.readOnly) return
-    void this.channel.track({ ...(this.me ?? {}), session: this.sessionId })
+    void this.channel.track({ ...(this.me ?? {}), session: this.sessionId, client: this.doc.clientID })
   }
 
   private onPresenceSync = () => {
     const seen = new Map<string, Peer>()
+    const clients = new Set<number>()
     let connections = 0
-    for (const entries of Object.values(this.channel.presenceState<Peer & { session?: string }>()))
-      for (const { id, name, color, session } of entries) {
+    for (const entries of Object.values(
+      this.channel.presenceState<Peer & { session?: string; client?: number }>()
+    ))
+      for (const { id, name, color, session, client } of entries) {
         if (session !== this.sessionId) connections++
+        if (typeof client === "number") clients.add(client)
         if (typeof id === "string" && id !== this.me?.id && !seen.has(id))
           seen.set(id, { id, name: String(name ?? ""), color: String(color ?? "") })
       }
     this.otherConnections = connections
+    this.forgetDeparted(clients)
 
     const next = [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))
     const same =
@@ -411,8 +420,26 @@ export class SupabaseProvider {
     void this.load()
   }
 
+  // Presence is the server's word on who is connected, and it is prompt:
+  // the socket closing is enough. A goodbye sent from a closing page is
+  // not, so a caret whose connection has gone is dropped here rather than
+  // after the awareness protocol's thirty-second timeout. Only connections
+  // that announced a client id are judged; a viewer never tracks, and never
+  // has a caret either.
+  private forgetDeparted(present: Set<number>) {
+    // Only a connection seen present before counts as departed: a newcomer's
+    // first awareness message can land before the presence sync that lists
+    // it, and must not be taken for a leaver.
+    const gone = [...this.presentClients].filter(
+      (clientId) => !present.has(clientId) && this.awareness.getStates().has(clientId)
+    )
+    this.presentClients = present
+    if (gone.length > 0) removeAwarenessStates(this.awareness, gone, this)
+  }
+
   // Say goodbye on the way out, so peers drop this person's avatar and
-  // cursor now instead of when the socket times out.
+  // cursor now instead of when the socket times out. Best effort: a page
+  // that is closing rarely gets the message out (see forgetDeparted).
   private onPageHide = () => {
     this.flush()
     if (this.destroyed || this.readOnly || this.status !== "connected") return

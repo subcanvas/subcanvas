@@ -108,14 +108,11 @@ test("the other person's avatar and cursor are there while they are on the page,
     // the owner is not left with an avatar until the socket times out.
     await editor.page.close()
     await expect(othersHere(page, 1)).toHaveCount(0)
-    // The cursor is slower to go. It is awareness, not presence, and the
-    // goodbye for it is a last broadcast from the pagehide handler, which
-    // does not get out: measured on 2026-09-23, the avatar is gone within
-    // 100 ms of the page closing or navigating away, the cursor after 32 s,
-    // when the awareness protocol drops a state nobody has refreshed for
-    // thirty seconds. That is what a person sees too, so the wait allows
-    // for it; once the goodbye arrives, this can be the default timeout.
-    await expect(canvas(page).getByText(editor.account.email)).toHaveCount(0, { timeout: 45_000 })
+    // The cursor goes with the avatar: both come from presence now. The
+    // server notices the socket closing within a few seconds, the survivors
+    // get a presence sync, and the provider drops the departed caret then,
+    // rather than after the awareness protocol's thirty-second timeout.
+    await expect(canvas(page).getByText(editor.account.email)).toHaveCount(0, { timeout: 10_000 })
   } finally {
     await editor.context.close()
   }
