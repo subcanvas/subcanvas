@@ -152,7 +152,7 @@ test("⌘Z in a node's text takes back the last run of typing, and ⇧⌘Z bring
 // before that write, still works, which is why a probe can pass by luck;
 // nobody types that fast, and waiting for the undo to be saved, as the
 // test does, is enough to see the truth.
-test.fixme("⇧⌘Z after ⌘Z has emptied a node's text brings the text back", async ({ page }) => {
+test("⇧⌘Z after ⌘Z has emptied a node's text brings the text back", async ({ page }) => {
   const id = freshId()
   await signUpWithOrg(page)
   await createProject(page, "Proj")
