@@ -17,6 +17,7 @@ import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { prosemirrorToYXmlFragment } from "y-prosemirror"
 
 import { DocumentPicker } from "@/components/document-picker"
 import { limitMessage } from "@/lib/billing/limit"
@@ -24,6 +25,7 @@ import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
 import { createClient } from "@/lib/supabase/client"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
+import { useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { DocumentType } from "@/lib/tree"
 
 import {
@@ -67,6 +69,24 @@ export default function TextEditor({
     }),
     [provider]
   )
+
+  // A new document's first empty paragraph exists only in the editor until
+  // something is typed; the shared document starts out with nothing at all.
+  // Undoing that first typing then empties the shared document, the editor
+  // puts a paragraph back to satisfy its schema, and that counts as a fresh
+  // change: it wipes the redo stack, and what was undone can never be
+  // redone. So once the document has loaded and is still empty, the
+  // paragraph is written into it here, with an origin the undo manager does
+  // not track. Undo now stops at "one empty paragraph" and redo survives.
+  const { loaded } = useSyncStatus(provider)
+  useEffect(() => {
+    if (!editable || !loaded) return
+    const fragment = provider.doc.getXmlFragment(TEXT_FRAGMENT)
+    if (fragment.length > 0) return
+    provider.doc.transact(() => {
+      prosemirrorToYXmlFragment(editor.prosemirrorState.doc, fragment)
+    }, "seed")
+  }, [editable, loaded, editor, provider])
 
   useEffect(() => {
     if (!autoFocus || !editable) return
