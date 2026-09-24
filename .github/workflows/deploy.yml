@@ -7,6 +7,10 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # By hand too, for the steps that read repository variables (the plan
+  # limits): changing a variable is not a push, and the database should not
+  # have to wait for the next one.
+  workflow_dispatch:
 
 concurrency:
   group: deploy
