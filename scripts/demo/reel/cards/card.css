@@ -1,6 +1,6 @@
 /* Title cards between the beats of the launch demo (see ../demo.ts).
    The video autoplays muted, so each beat's key phrase is put on screen here.
-   Styled like the app's dark theme: Geist for the interface, Bricolage
+   Styled like the app's light theme, which is what the demo shows: Geist for the interface, Bricolage
    Grotesque for the headline only, cobalt for the one accent. The fonts are
    the ones the app ships, inlined in fonts.css, so a card renders the same
    with no network. */
@@ -9,11 +9,11 @@
 
 
 :root {
-  --sheet: #171717;
-  --ink: #ededed;
-  --graphite: #a1a1a1;
-  --rule: #333333;
-  --cobalt: #5379ff;
+  --sheet: #ffffff;
+  --ink: #10162f;
+  --graphite: #59627a;
+  --rule: #dde3ee;
+  --cobalt: #2447f9;
 }
 
 * {
@@ -37,7 +37,7 @@ body::before {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, #2e2e2e 1.2px, transparent 1.4px);
+  background-image: radial-gradient(circle, #dde3ee 1.2px, transparent 1.4px);
   background-size: 28px 28px;
   background-position: 14px 14px;
   mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 100%);
