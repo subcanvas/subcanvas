@@ -1,0 +1,147 @@
+/* Title cards between the beats of the launch demo (see ../demo.ts).
+   The video autoplays muted, so each beat's key phrase is put on screen here.
+   Styled like the app's dark theme: Geist for the interface, Bricolage
+   Grotesque for the headline only, cobalt for the one accent. The fonts are
+   the ones the app ships, inlined in fonts.css, so a card renders the same
+   with no network. */
+
+@import url("fonts.css");
+
+
+:root {
+  --sheet: #171717;
+  --ink: #ededed;
+  --graphite: #a1a1a1;
+  --rule: #333333;
+  --cobalt: #5379ff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body {
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  background: var(--sheet);
+  color: var(--ink);
+  font-family: "Geist", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The whiteboard's dot grid, faint, so a card still reads as a sheet. */
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #2e2e2e 1.2px, transparent 1.4px);
+  background-size: 28px 28px;
+  background-position: 14px 14px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 30%, transparent 100%);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 22px;
+  width: 100%;
+  height: 100%;
+  padding: 0 120px;
+}
+
+.eyebrow {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+
+h1 {
+  font-family: "Bricolage Grotesque", "Geist", sans-serif;
+  font-weight: 600;
+  font-size: 66px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  max-width: 1000px;
+  text-wrap: balance;
+}
+
+h1 em {
+  font-style: normal;
+  color: var(--cobalt);
+}
+
+h1 code {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-weight: 500;
+  font-size: 0.82em;
+  color: var(--cobalt);
+}
+
+.sub {
+  font-size: 27px;
+  line-height: 1.4;
+  color: var(--graphite);
+  max-width: 860px;
+  text-wrap: balance;
+}
+
+.sub code {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 0.86em;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 1px 7px;
+}
+
+/* A short rise-in, stepped by reelscript's frame clock, so it is the same
+   on every render. */
+.card > * {
+  animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.card > :nth-child(2) {
+  animation-delay: 90ms;
+}
+.card > :nth-child(3) {
+  animation-delay: 200ms;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* The closing card: the wordmark, then where to go. */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: "Bricolage Grotesque", "Geist", sans-serif;
+  font-weight: 600;
+  font-size: 80px;
+  letter-spacing: -0.03em;
+}
+.wordmark .mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: var(--cobalt);
+  position: relative;
+}
+.wordmark .mark::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 3px solid #fff;
+  border-radius: 5px;
+}
