@@ -644,10 +644,12 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
           {breadcrumb && (
             // Level with the tools, and narrow enough to leave them room: the
             // tools are centred on this canvas, so half of it less their half
-            // is the most the trail can take.
+            // is the most the trail can take. On a narrow canvas (the object
+            // panel open beside it) that is under a hundred pixels, so the
+            // trail moves under the tools instead, like the mode toggle.
             <Panel
               position="top-left"
-              className="hidden h-[42px] md:flex max-w-[calc(50%-12rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm"
+              className="hidden h-[42px] md:flex max-w-[calc(50%-12rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm @max-[56rem]:top-14! @max-[56rem]:max-w-[calc(100%-1.5rem)]"
             >
               {breadcrumb}
             </Panel>
