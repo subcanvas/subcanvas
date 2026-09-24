@@ -365,7 +365,9 @@ await demo.wait(300)
 await demo.cursor.click()
 await demo.wait(1600)
 demo.zoom.out({ duration: 400 })
-await demo.wait(450)
+// Long enough to read "Copied" with the whole window back in view; the
+// gallery still is cut from here.
+await demo.wait(1200)
 
 // 7. Close.
 mark("Card: subcanvas.app")
