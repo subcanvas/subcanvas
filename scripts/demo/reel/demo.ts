@@ -363,10 +363,11 @@ demo.zoom.to('[data-slot="popover-content"]', { scale: 1.4 })
 await move('button:has-text("Copy embed")', 500)
 await demo.wait(300)
 await demo.cursor.click()
-await demo.wait(1600)
+// "Copied" reverts two seconds after the click, so the camera comes back
+// early enough to show it with the whole window in view; the gallery still
+// is cut from that moment.
+await demo.wait(900)
 demo.zoom.out({ duration: 400 })
-// Long enough to read "Copied" with the whole window back in view; the
-// gallery still is cut from here.
 await demo.wait(1200)
 
 // 7. Close.

@@ -19,7 +19,7 @@ ffmpeg=${REELSCRIPT_FFMPEG:-ffmpeg}
 # 1270x760 is 1.67:1; the frame is 1424x992, so the menu bar and a strip of
 # desktop go.
 i=1
-for t in ${GALLERY_AT:-10.8 28.9 35.0 46.3}; do
+for t in ${GALLERY_AT:-10.8 28.9 35.0 45.6}; do
   "$ffmpeg" -y -loglevel error -ss "$t" -i "$video" -frames:v 1 \
     -vf "crop=1424:852:0:60,scale=1270:760:flags=lanczos" "$out/gallery-$i.png"
   i=$((i + 1))
