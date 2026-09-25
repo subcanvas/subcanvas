@@ -20,8 +20,8 @@ import { Label } from "@/components/ui/label"
 
 import { importFromGitHub, type ImportState } from "./actions"
 
-// Draws a public GitHub repository as a project: a node per folder, its
-// README inside each. See docs/ROADMAP.md, section 3.
+// Draws a public GitHub repository as a project: a node for each of its main
+// folders, its README inside each. See docs/SUBCANVAS_FILE.md.
 export function ImportProject({ slug }: { slug: string }) {
   const router = useRouter()
   // An import that stops to show its notes leaves the page behind the dialog
@@ -92,8 +92,8 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
       <DialogHeader>
         <DialogTitle>Import from GitHub</DialogTitle>
         <DialogDescription>
-          A public repository becomes a project: one node per folder, each folder&apos;s README
-          inside its node, and folders inside folders as whiteboards inside nodes.
+          A public repository becomes a project: its main folders become nodes, each with its
+          README inside, and the folders within them become whiteboards inside those nodes.
         </DialogDescription>
       </DialogHeader>
 
