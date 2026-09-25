@@ -11,42 +11,46 @@
  *
  * Environment, all optional:
  *
- *   DEMO_BASE_URL     The app. Default http://localhost:3420, a dev server
- *                     started with SUBCANVAS_IMPORT_FIXTURES so that the
- *                     repository below is a folder on disk.
- *   DEMO_REPOSITORY   What gets typed into "Import from GitHub".
- *                     Default fixture/orchard; subcanvas/subcanvas on launch day.
+ *   DEMO_BASE_URL     The app. Default http://localhost:3420, a dev server.
+ *   DEMO_REPOSITORY   What gets typed into "Import from GitHub". Default
+ *                     subcanvas/subcanvas, read from GitHub like any import.
+ *                     fixture/<name> reads a folder on disk instead, from a dev
+ *                     server started with SUBCANVAS_IMPORT_FIXTURES (see the
+ *                     README beside this file).
  *   DEMO_EMAIL        The demo account. Created through the sign-up form the
  *   DEMO_PASSWORD     first time, where sign-up needs no email confirmation.
- *   DEMO_ORG_NAME     The org's name, shown at the top of the sidebar. Default Orchard.
+ *   DEMO_ORG_NAME     The org's name, shown at the top of the sidebar. Default Subcanvas.
  *   DEMO_STAGE_ORG    Slug of the org that keeps a finished import of the
  *                     repository for the beats after the first one (see
  *                     "Two orgs" below). Default demo-<repo>.
- *   DEMO_INTO         Titles of the boxes to walk into, outermost first.
- *                     Default Services,Payments.
- *   DEMO_ARROW        Label of the arrow to click. Default gRPC.
+ *   DEMO_INTO         Titles of the two boxes to walk into, outermost first.
+ *                     Default Application,Core libraries.
+ *   DEMO_ARROW        Label of the arrow to click. Default "Auth, data, Realtime".
  *   DEMO_ARROW_DEPTH  Which sheet the arrow is on: 0 the top one, 1 inside the
- *                     first box of DEMO_INTO. Default 1.
+ *                     first box of DEMO_INTO. Default 0.
  *   DEMO_IMPORT_WAIT  Milliseconds of video to hold on the dialog while the
- *                     import runs. Default 500; raise it for a real repository.
+ *                     import runs. Default 600. Past that, the camera waits off
+ *                     screen, up to three seconds, for the whiteboard.
  *   DEMO_ORG          Reuse this org for the on-camera import instead of
  *                     creating a fresh one. Handy while iterating on previews.
  *   DEMO_PUBLIC_SITE  What the address pill shows in place of the dev server.
  *                     Default https://subcanvas.app.
  *   DEMO_KEEP_PRELUDE Set to 1 to keep the sign-in prelude in the video.
  *
- * Beats (times are approximate; the render prints the exact ones):
+ * Beats (times are approximate; the render prints the exact ones). The video
+ * autoplays muted on Product Hunt, so the cards carry the story on their own,
+ * and the diagram is on screen by about five seconds:
  *
  *   1. Card: "Paste a GitHub repository. Get its system diagram."
  *   2. Import: "Import from GitHub", the repository is typed, Import, and the
  *      top whiteboard appears: one box per folder.
- *   3. Card, then inside: click a box, the panel says "A whiteboard. Click to
- *      go inside.", and the sheet inside slides in.
- *   4. Card, then arrows: click the arrow's label and read the document
- *      behind it.
- *   5. Card, then deeper: into the next box, the trail grows, and one click
+ *   3. Card, then inside: the mark on a box opens it, and the sheet inside
+ *      slides in.
+ *   4. Card, then deeper: into the next box, the trail grows, and one click
  *      on the trail brings the top sheet back.
- *   6. Card, then Share: Copy embed, "Copied".
+ *   5. Card, then arrows: in view mode, click the arrow's label and read the
+ *      document behind it.
+ *   6. Card, then Share: the popover close up, the pointer on Copy embed.
  *   7. Card: subcanvas.app.
  *
  * Two orgs: the import in beat 2 is real and lands in a fresh org, but the
@@ -59,6 +63,11 @@
  * Prelude: reelscript starts its browser signed out, so the script signs in
  * by typing. Those seconds are cut from the video afterwards with ffmpeg;
  * previews are offset the same way, so `--at 0` is the first card.
+ *
+ * Frame: a 1600x900 desktop, 16:9 so that YouTube and Product Hunt show it
+ * without bars, scaled to 1920x1080 in the same ffmpeg pass so YouTube
+ * offers it in 1080p. The window is as large as the desktop allows, which
+ * keeps the interface as large as it can be in a small player.
  */
 
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
@@ -71,16 +80,17 @@ import { createDemo } from "@reelscript/cli"
 // --- Settings -----------------------------------------------------------------
 
 const base = (process.env.DEMO_BASE_URL ?? "http://localhost:3420").replace(/\/$/, "")
-const repository = process.env.DEMO_REPOSITORY ?? "fixture/orchard"
+const repository = process.env.DEMO_REPOSITORY ?? "subcanvas/subcanvas"
 const email = process.env.DEMO_EMAIL ?? "demo@subcanvas.test"
 const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
-const orgName = process.env.DEMO_ORG_NAME ?? "Orchard"
+const orgName = process.env.DEMO_ORG_NAME ?? "Subcanvas"
 const repoName = repository.split("/").pop()!.replace(/[^a-z0-9]+/gi, "-").toLowerCase()
 const stageSlug = process.env.DEMO_STAGE_ORG ?? `demo-${repoName}`
-const into = (process.env.DEMO_INTO ?? "Services,Payments").split(",").map((s) => s.trim())
-const arrow = process.env.DEMO_ARROW ?? "gRPC"
-const arrowDepth = Number(process.env.DEMO_ARROW_DEPTH ?? 1)
-const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 500)
+const into = (process.env.DEMO_INTO ?? "Application,Core libraries").split(",").map((s) => s.trim())
+if (into.length !== 2) throw new Error("demo: DEMO_INTO names two boxes, outermost first")
+const arrow = process.env.DEMO_ARROW ?? "Auth, data, Realtime"
+const arrowDepth = Number(process.env.DEMO_ARROW_DEPTH ?? 0)
+const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 600)
 
 const here = dirname(new URL(import.meta.url).pathname)
 const outDir = resolve(here, "..", "out")
@@ -92,17 +102,23 @@ const card = (name: string) => new URL(`./cards/${name}.html`, import.meta.url).
 // `:text-is()` and `>> visible=true` all work.
 
 const NODE = (title: string) => `.react-flow__node[aria-label^="Node: ${title},"]`
+// The mark in a box's corner that opens the whiteboard inside it: one click,
+// and no panel opening beside the canvas first.
+const INSIDE = (title: string) => `${NODE(title)} button[aria-label="Open the whiteboard inside"]`
+// The canvas of the sheet that has this box on it. The whiteboard is centred
+// on it, so its middle is the diagram's; and it is only on the page once
+// that sheet is drawn, so a zoom to it waits, off camera, until then.
+const SHEET = (title: string) => `.react-flow:has(${NODE(title)}) .react-flow__pane`
 const PANEL = 'aside[aria-label="Object settings"]'
 const DOC = `${PANEL} section[aria-label="Document"]`
-const GO_INSIDE = `${DOC} button:has-text("Click to go inside")`
+const VIEW_MODE = '[aria-label="View mode"]'
 // The trail is in the page twice, once for narrow screens; reelscript takes
 // the first match, so the visible one is asked for.
-const CRUMB = 'nav[aria-label="breadcrumb"] >> visible=true'
 const TOP_CRUMB = 'nav[aria-label="breadcrumb"] ol > li:nth-child(3) a >> visible=true'
-// The trail's last step, once it names `title`: a target that is only there
-// after the navigation, so a move to it waits off camera for the new sheet.
-const CURRENT_CRUMB = (title: string) =>
-  `nav[aria-label="breadcrumb"] [aria-current="page"]:text-is("${title}") >> visible=true`
+// The whole trail, once it ends at `title`: only there after the navigation,
+// so a zoom to it waits off camera for the new sheet.
+const TRAIL_TO = (title: string) =>
+  `nav[aria-label="breadcrumb"]:has([aria-current="page"]:text-is("${title}")) >> visible=true`
 const EDGE_LABEL = (label: string) => `.react-flow__edgelabel-renderer span:text-is("${label}")`
 const SIGNED_IN = '[aria-label="Account menu"] >> visible=true'
 
@@ -256,7 +272,8 @@ function address(url: string) {
 
 const demo = createDemo({
   theme: "macos",
-  viewport: [1280, 800],
+  viewport: [1440, 740],
+  desktop: [1600, 900],
   fps: 60,
   voice: "af_heart",
   pronunciations: { Subcanvas: "Sub canvas", subcanvas: "sub canvas", README: "read me" },
@@ -270,11 +287,29 @@ const beats: [string, number][] = []
 const mark = (name: string) => beats.push([name, demo.getTimeline().length])
 const move = (target: string | { x: number; y: number }, duration = 700) =>
   demo.cursor.moveTo(target, { duration, ease: "smooth" })
+// Where the cursor rests while there is nothing to point at: low on the
+// right, clear of every diagram and of the panel's text.
+const REST = { x: 1330, y: 640 }
 // A card holds for `ms` of video. The cursor is tucked into the corner first.
+const CORNER = { x: 1400, y: 710 }
 async function title(name: string, ms: number) {
-  await move({ x: 1230, y: 770 }, 400)
+  await move(CORNER, 400)
   await demo.browser.goto(card(name), { settle: ms })
 }
+// Opens a sheet. The page's clock only moves while frames are filmed, so a
+// page cannot finish drawing off camera: some of the blank sheet is on
+// camera, and a zoom to the sheet's canvas then waits, off camera, for
+// whatever is left (see SHEET).
+async function open(url: string, box: string) {
+  await demo.browser.goto(url, { settle: 400 })
+  demo.zoom.to(SHEET(box), { scale: 1, duration: 1 })
+}
+// The canvas on screen now. A sheet opened from it has its canvas in the
+// same place, so the camera can frame the next sheet while it loads.
+const CANVAS = ".react-flow__pane"
+// The middle of that canvas, right of the 256px sidebar and under the 45px
+// header, for when there is no canvas on the page yet to aim at.
+const CANVAS_MIDDLE = { x: 256 + (1440 - 256) / 2, y: 45 + (740 - 45) / 2 }
 
 // The prelude, cut from the video: reelscript's browser signs in.
 await demo.browser.goto(`${base}/login`, { settle: 600 })
@@ -282,118 +317,125 @@ await demo.type("#email", email, { wpm: 1200 })
 await demo.type("#password", password, { wpm: 1200 })
 await demo.press("Enter")
 await move(SIGNED_IN, 300) // resolving a target waits, off camera, until it exists
+await move(CORNER, 300) // so the video opens on the first card, cursor already tucked away
 const preludeActions = demo.getTimeline().length
 
 // 1. Open.
 mark("Card: paste a repository, get its diagram")
-demo.say("Subcanvas turns a GitHub repository into a system diagram you can walk into.")
-await title("01-open", 2400)
+demo.say("Paste a GitHub repository, and Subcanvas draws its system diagram.")
+await demo.browser.goto(card("01-open"), { settle: 2100 })
 
-// 2. Import from GitHub, on camera.
+// 2. Import from GitHub, on camera. The repository's name is typed close up,
+// and the diagram it becomes is on screen about five seconds in.
 mark("Import from GitHub")
-await demo.browser.goto(`${base}/${slug}`, { settle: 500 })
-demo.say("Paste a public repository. Subcanvas reads its folders and draws one box for each, with the README inside.")
-await move('button:has-text("Import from GitHub")', 800)
+await demo.browser.goto(`${base}/${slug}`, { settle: 200 })
+await move('button:has-text("Import from GitHub")', 550)
 await demo.cursor.click()
-await demo.wait(250)
-demo.zoom.to('[role="dialog"]', { scale: 1.25 })
-await move("#import-repository", 500)
+await demo.wait(100)
+demo.zoom.to('[role="dialog"]', { scale: 1.6, duration: 450 })
+await demo.wait(150)
+await demo.type("#import-repository", repository, { wpm: 700 })
+await demo.wait(200)
+await move('[role="dialog"] button:text-is("Import")', 400)
 await demo.cursor.click()
-await demo.type("#import-repository", repository, { wpm: 420 })
-await demo.wait(350)
-await move('[role="dialog"] button:text-is("Import")', 500)
-await demo.cursor.click()
-demo.zoom.out({ duration: 500 })
 await demo.wait(importWait)
-await move(".react-flow__pane", 300) // waits, off camera, for the whiteboard
-await move({ x: 700, y: 640 }, 500) // then off the boxes, so nothing is hovered
-demo.zoom.to({ x: 800, y: 370 }, { scale: 1.3 })
-await demo.wait(2300)
-demo.zoom.out({ duration: 400 })
-await demo.wait(450)
-mark("Card: every folder is a box")
-await title("02-folders", 1900)
-
-// 3. Inside a box: a whiteboard.
-mark("Card: every box opens into another diagram")
-demo.say("A folder inside a folder is a diagram inside a box. Click one to go inside.")
-await title("03-inside", 1900)
-mark("Click a box to go inside")
-await demo.browser.goto(stage.top, { settle: 700 })
-await move(NODE(into[0]), 800)
-await demo.cursor.click()
-await demo.wait(300)
-demo.zoom.to(GO_INSIDE, { scale: 1.35 })
-await move(GO_INSIDE, 600)
-await demo.wait(700)
-await demo.cursor.click()
-demo.zoom.out({ duration: 500 })
-// A sheet takes a moment to arrive. Some of that moment is on camera (the
-// wait), and a move to a box that is only on the new sheet holds the rest
-// off camera; reelscript gives a target about three seconds to appear.
-await demo.wait(800)
-await move(NODE(into[1] ?? into[0]), 700)
+// From the dialog straight to where the diagram is drawn, then hold there
+// (off camera, if it is not drawn yet).
+demo.zoom.to(CANVAS_MIDDLE, { scale: 1.3, duration: 700 })
+await move(REST, 700)
+demo.zoom.to(SHEET(into[0]), { scale: 1.3, duration: 1 })
+demo.say("One box for each folder, with its README inside.")
+await demo.wait(2800)
+// Out to the whole window for a moment: the address, the project in the
+// sidebar. The first gallery still is cut here.
+demo.zoom.out({ duration: 450 })
 await demo.wait(900)
 
-// 4. Arrows, and the document behind one.
-mark("Card: arrows come from .subcanvas files")
-demo.say("Arrows come from small dot subcanvas files in the repository. Click one to read why it is there.")
-await title("04-arrows", 2000)
-mark("Click the arrow, read the document behind it")
-await demo.browser.goto(arrowDepth === 0 ? stage.top : stage.into[arrowDepth - 1], { settle: 700 })
-await move(EDGE_LABEL(arrow), 800)
+// 3. Inside a box: the diagram of what is in that folder.
+mark("Card: every folder is a box, and every box opens")
+demo.say("Every folder is a box, and every box opens into the diagram of what is inside it.")
+await title("02-folders", 2400)
+mark("Open a box")
+await open(stage.top, into[0])
+await move(NODE(into[0]), 750)
+demo.zoom.to(NODE(into[0]), { scale: 1.7, duration: 600 })
+await move(INSIDE(into[0]), 450)
+await demo.wait(350)
+// Out to where the sheet inside will be while it loads, then hold until it
+// has slid in. The zoom is aimed before the click, while this canvas is
+// still on the page; it starts with the click either way.
+demo.zoom.to(CANVAS, { scale: 1.15, duration: 700 })
 await demo.cursor.click()
-await demo.wait(400)
-demo.zoom.to(`${DOC} h3`, { scale: 1.5 })
-await demo.wait(2700)
+await move(REST, 700)
+demo.zoom.to(SHEET(into[1]), { scale: 1.15, duration: 1 })
+await demo.wait(2000)
 demo.zoom.out({ duration: 400 })
-await demo.wait(450)
+await demo.wait(800)
 
-// 5. Deeper, then back out through the trail.
+// 4. Deeper, then back out through the trail.
 mark("Card: back out through the trail")
 demo.say("Go as deep as the code goes. The trail leads back out.")
-await title("05-trail", 2000)
+await title("03-trail", 2000)
 mark("Into the next box, then the trail")
-await demo.browser.goto(stage.into[0], { settle: 700 })
-await move(NODE(into[1] ?? into[0]), 800)
-await demo.cursor.click()
+await open(stage.into[0], into[1])
+await move(NODE(into[1]), 750)
+demo.zoom.to(NODE(into[1]), { scale: 1.7, duration: 600 })
+await move(INSIDE(into[1]), 450)
 await demo.wait(300)
-await demo.press("Enter")
-await demo.wait(800)
-await move(CURRENT_CRUMB(into[1] ?? into[0]), 600) // waits for the deeper sheet
-demo.zoom.to(CRUMB, { scale: 1.5 })
-await move(TOP_CRUMB, 500)
-await demo.wait(1200)
+demo.zoom.to(TOP_CRUMB, { scale: 1.8, duration: 700 }) // the trail, while the deeper sheet loads
+await demo.cursor.click()
+await demo.wait(600)
+demo.zoom.to(TRAIL_TO(into[1]), { scale: 1.8, duration: 400 }) // waits for it
+await demo.wait(400)
+await move(TOP_CRUMB, 550)
+await demo.wait(900)
 await demo.cursor.click()
 demo.zoom.out({ duration: 600 })
-await demo.wait(800)
-await move(NODE(into[0]), 700) // waits for the top sheet
-await demo.wait(700)
+await move(REST, 600)
+demo.zoom.to(SHEET(into[0]), { scale: 1, duration: 1 }) // waits for the top sheet
+await demo.wait(900)
+
+// 5. Arrows, and the document behind one, read in view mode, where the
+// panel has room for it.
+mark("Card: arrows come from .subcanvas files")
+demo.say("Arrows come from small dot subcanvas files in the repository. Each one can say why it is there.")
+await title("04-arrows", 2400)
+mark("View mode, then the arrow's document")
+const arrowSheet = arrowDepth === 0 ? stage.top : stage.into[arrowDepth - 1]
+await open(arrowSheet, arrowDepth === 0 ? into[0] : into[1])
+await move(VIEW_MODE, 800)
+await demo.cursor.click()
+await demo.wait(350)
+await move(EDGE_LABEL(arrow), 700)
+await demo.cursor.click()
+await demo.wait(400)
+demo.zoom.to(`${DOC} h3`, { scale: 1.6, duration: 600 })
+await move({ x: 400, y: 650 }, 500) // out of the shot, left of the panel
+await demo.wait(3400)
+demo.zoom.out({ duration: 450 })
+await demo.wait(400)
 
 // 6. Share: the embed for a README.
 mark("Card: the embed is the live diagram")
 demo.say("Put the embed in your README. It is the live diagram, so it stays current.")
-await title("06-embed", 2000)
+await title("05-embed", 2400)
 mark("Share, Copy embed")
-await demo.browser.goto(stage.top, { settle: 700 })
+await open(stage.top, into[0])
 await move('button:has-text("Share")', 800)
 await demo.cursor.click()
-await demo.wait(350)
-demo.zoom.to('[data-slot="popover-content"]', { scale: 1.4 })
-await move('button:has-text("Copy embed")', 500)
 await demo.wait(300)
-await demo.cursor.click()
-// "Copied" reverts two seconds after the click, so the camera comes back
-// early enough to show it with the whole window in view; the gallery still
-// is cut from that moment.
-await demo.wait(900)
-demo.zoom.out({ duration: 400 })
-await demo.wait(1200)
+// Close up on the popover, with the pointer on Copy embed. It is not
+// clicked: the click moves focus off the link, which then shows its start,
+// the dev server's local address. Focused, it shows the end of the link.
+demo.zoom.to('[data-slot="popover-content"]', { scale: 1.6, duration: 500 })
+await move('button:has-text("Copy embed")', 600)
+await demo.wait(1700)
+demo.zoom.out({ duration: 400 }) // while the cursor is tucked away for the last card
 
 // 7. Close.
 mark("Card: subcanvas.app")
 demo.say("Subcanvas dot app.")
-await title("07-end", 2600)
+await title("06-end", 3000)
 
 // --- Where each beat starts ---------------------------------------------------
 // reelscript's own timing rules, for the actions used above.
@@ -453,6 +495,7 @@ if (snapshot !== undefined) {
       "-y", "-loglevel", "error",
       "-ss", (preludeMs / 1000).toFixed(3),
       "-i", raw,
+      "-vf", "scale=1920:1080:flags=lanczos",
       "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k",
       "-movflags", "+faststart",
