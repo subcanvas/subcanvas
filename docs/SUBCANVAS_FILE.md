@@ -1,6 +1,6 @@
 # The `.subcanvas` file
 
-"Import from GitHub" draws a repository as a diagram: one node per folder, the folder's README inside the node, and folders inside folders as whiteboards inside nodes. It works with no setup. A `.subcanvas` file is how a repository says more than its folders can: what a folder is called, what it is for, and what it talks to.
+"Import from GitHub" draws a repository as a diagram: its main folders become nodes, each with the folder's README inside, and the folders within them become whiteboards inside those nodes. A main folder is one with a README, or a package, app or service in a monorepo (a folder directly inside `packages`, `apps`, `services` and the like), at most two levels down. Docs, tests, examples and build output are left out, and one import draws at most 60 folders. The import is a one-time copy: importing again makes a new project. It works with no setup. A `.subcanvas` file is how a repository says more than its folders can: what a folder is called, what it is for, and what it talks to.
 
 Put a file named `.subcanvas` in any folder. It is YAML, and every key is optional.
 

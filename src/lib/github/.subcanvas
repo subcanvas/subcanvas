@@ -1,5 +1,5 @@
 title: Repository import
-description: Reads a public GitHub repository and draws it. One node per folder, READMEs as read-only pages, and connections from .subcanvas files like this one.
+description: Reads a public GitHub repository and draws it. A node for each main folder, READMEs as read-only pages, and connections from .subcanvas files like this one.
 connects:
   - to: src/lib/sync
     label: writes documents from the server
