@@ -24,7 +24,7 @@
 html,
 body {
   width: 1440px;
-  height: 740px;
+  height: 768px;
   overflow: hidden;
   background: var(--sheet);
   color: var(--ink);

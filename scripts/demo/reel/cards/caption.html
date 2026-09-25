@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Caption</title>
+<!-- A caption laid over the video by demo.ts: the text comes after the #,
+     and the page is photographed with a transparent background at the
+     video's 1920x1080. -->
+<link rel="stylesheet" href="fonts.css">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; overflow: hidden; }
+  p {
+    position: absolute;
+    left: 50%;
+    bottom: 64px;
+    transform: translateX(-50%);
+    max-width: 1500px;
+    width: max-content;
+    margin: 0;
+    padding: 18px 34px 20px;
+    border-radius: 20px;
+    background: rgba(16, 22, 47, 0.9);
+    color: #fff;
+    font-family: "Bricolage Grotesque", "Geist", sans-serif;
+    font-weight: 600;
+    font-size: 46px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-align: center;
+    text-wrap: balance;
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+</head>
+<body>
+<p id="text"></p>
+<script>document.getElementById("text").textContent = decodeURIComponent(location.hash.slice(1))</script>
+</body>
+</html>
