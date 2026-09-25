@@ -11,6 +11,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
+  useNodesInitialized,
   useReactFlow,
   useStoreApi,
 } from "@xyflow/react"
@@ -108,6 +109,17 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
   const [dropping, setDropping] = useState(false)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const panel = usePanelWidth(root)
+
+  // React Flow's own fit on mount measures before every node has a size, so
+  // a sheet opened with the sidebar beside it came up off centre. Fit again
+  // once every node has been measured, once per sheet.
+  const nodesInitialized = useNodesInitialized()
+  const fittedFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!nodesInitialized || fittedFor.current === context.whiteboardId) return
+    fittedFor.current = context.whiteboardId
+    void flow.fitView(FIT_VIEW)
+  }, [nodesInitialized, context.whiteboardId, flow])
 
   function changeMode(next: Mode) {
     setMode(next)
