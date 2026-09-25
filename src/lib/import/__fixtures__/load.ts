@@ -5,7 +5,7 @@ import { zipSync } from "fflate"
 
 // The sample exports next to this file, as the tests need them: every file
 // with its bytes, keyed by its path inside the sample.
-export function fixtureFiles(sample: "notion" | "obsidian" | "docs") {
+export function fixtureFiles(sample: "notion" | "notion-html" | "notion-html-2026" | "obsidian" | "docs") {
   const root = join(__dirname, sample)
   const files: Record<string, Uint8Array> = {}
   const walk = (folder: string, prefix: string) => {

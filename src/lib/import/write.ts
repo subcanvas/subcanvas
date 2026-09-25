@@ -8,7 +8,7 @@ import { readOrgAccess } from "@/lib/org-access"
 import type { Database } from "@/lib/supabase/database.types"
 import { writeNewDocuments } from "@/lib/sync/server-document"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
-import type { ServerBlocks } from "@/lib/text/server-editor"
+import { serverEditor, type ServerBlocks } from "@/lib/text/server-editor"
 import type { Container } from "@/lib/tree"
 
 import type { ImportBatch } from "./batches"
@@ -39,6 +39,7 @@ export const batchSchema = z.object({
         title: name,
         parent: z.discriminatedUnion("kind", [...folderParent.options, z.object({ kind: z.literal("document"), id })]),
         markdown: z.string().max(MAX_FILE_BYTES * 2),
+        html: z.string().max(MAX_FILE_BYTES * 2).optional(),
       })
     )
     .min(1)
@@ -107,6 +108,32 @@ export async function toBlocks(markdown: string): Promise<{ blocks: ServerBlocks
   }
 }
 
+type Media = { type: string; props?: { url?: unknown }; children?: Media[] }
+const MEDIA = new Set(["image", "video", "audio", "file"])
+
+// Pictures and files that point anywhere but the web are dropped: the
+// browser removes them before it sends a page, but a request need not come
+// from the browser.
+function onlyWebMedia<T extends Media>(blocks: T[]): T[] {
+  return blocks
+    .filter((block) => !MEDIA.has(block.type) || /^https?:\/\//i.test(String(block.props?.url ?? "")))
+    .map((block) => (block.children?.length ? { ...block, children: onlyWebMedia(block.children) } : block))
+}
+
+// A page read from HTML. What the browser sent is the page cut down to what
+// the editor holds, but it came over the network, so it is parsed only into
+// blocks the schema knows; nothing of it is rendered as HTML.
+export async function htmlToBlocks(html: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
+  try {
+    const blocks = onlyWebMedia(await serverEditor.tryParseHTMLToBlocks(html) as Media[]) as ServerBlocks
+    tidy(blocks as Rewritable[])
+    return { blocks, plain: false }
+  } catch {
+    const text = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ")
+    return toBlocks(text)
+  }
+}
+
 export async function writeImportBatch(
   supabase: Client,
   project: operations.ProjectScope,
@@ -121,8 +148,8 @@ export async function writeImportBatch(
   const contents: Parameters<typeof writeNewDocuments>[1] = []
   const plainText: string[] = []
   for (const document of batch.documents) {
-    if (!document.markdown.trim()) continue
-    const { blocks, plain } = await toBlocks(document.markdown)
+    if (!document.markdown.trim() && !document.html?.trim()) continue
+    const { blocks, plain } = document.html ? await htmlToBlocks(document.html) : await toBlocks(document.markdown)
     if (plain) plainText.push(document.title)
     if (blocks.length)
       contents.push({ documentId: document.id, change: (doc) => void applyBlockEdit(doc, { kind: "append", blocks }) })

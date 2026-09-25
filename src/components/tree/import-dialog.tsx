@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { makeBatches, type ImportBatch } from "@/lib/import/batches"
 import { collect, CollectError } from "@/lib/import/collect"
+import { MAX_CSV_COLUMNS, MAX_CSV_ROWS } from "@/lib/import/limits"
 import { pickedFromDrop, pickedFromInput, type PickedFile } from "@/lib/import/picked"
 import { planImport, tooManyDocuments, type ImportPlan, type Skipped, type SkipReason } from "@/lib/import/plan"
 import { documentHref } from "@/lib/navigation"
@@ -39,7 +40,7 @@ type Stage =
   | ({ step: "importing"; imported: number } & Prepared)
   | ({ step: "done"; imported: number; plainText: string[]; error?: string; limit?: true } & Prepared)
 
-const ACCEPT = ".md,.markdown,.mdown,.txt,.csv,.zip"
+const ACCEPT = ".md,.markdown,.mdown,.txt,.csv,.html,.htm,.zip"
 
 const REASONS: Record<SkipReason, string> = {
   unsupported: "not a kind of file that can be imported",
@@ -384,6 +385,10 @@ function notesOf({ plan, skipped }: Prepared, done = false) {
   if (plan.localImages)
     notes.push(
       `${count(plan.localImages, "image")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported; image upload is coming. ${plan.localImages === 1 ? "Its description is" : "Their descriptions are"} kept in the text.`
+    )
+  if (plan.tablesLeftOut)
+    notes.push(
+      `${count(plan.tablesLeftOut, "database has", "databases have")} more than ${MAX_CSV_ROWS} rows or ${MAX_CSV_COLUMNS} columns, so ${plan.tablesLeftOut === 1 ? "its table is" : "their tables are"} left out of ${plan.tablesLeftOut === 1 ? "its page" : "their pages"}. Every row is still a page of its own.`
     )
   if (plan.unlinked)
     notes.push(
