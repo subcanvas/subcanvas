@@ -8,14 +8,22 @@ so after an interface change the video is re-rendered, not re-shot.
 About 30 seconds, for Product Hunt, where it autoplays muted. A caption on
 the picture says each scene's point, and the narration says the same:
 
-1. React's diagram, and a box opening into the diagram inside it.
-2. `facebook/react` imported on camera, from GitHub like any import. It has
-   no `.subcanvas` files, so this is what anyone gets.
-3. This repository's `src/.subcanvas` in a terminal, beside the arrow it
-   draws, then that arrow's reason opened as a page.
-4. Share and Copy embed, then the embed in a README when `DEMO_README_URL`
+1. Into this repository's own diagram, two boxes deep, each box opening
+   into the diagram inside it. Its names and arrows come from its
+   `.subcanvas` files.
+2. An arrow there, opened into the page that says why it exists.
+3. The `.subcanvas` file that drew that arrow, in a terminal beside it.
+4. `react/react` imported on camera, from GitHub like any import. It has no
+   `.subcanvas` files, so its folders become boxes on their own: what
+   anyone gets with no setup. The wait is cut, and marked as sped up.
+5. Share and Copy embed, then the embed in a README when `DEMO_README_URL`
    is set.
-5. The end card.
+6. The end card.
+
+Canvas shots are in view mode with the sidebar collapsed (set in the
+prelude), so no editing tools and nothing of the demo account show. Against
+a dev server the address bar is blank; against production it shows the real
+address.
 
 The same render writes the listing's pictures beside the video:
 `gallery-1..4.png` (1270x760, a headline over a frame of the video) and
@@ -24,8 +32,9 @@ its first frame is the mark at rest).
 
 ## Render it locally
 
-It needs a reelscript newer than 0.2.0, for `waitFor`, zooms kept `within`
-the window, and the `menubar` option.
+It needs a reelscript newer than 0.2.0, for `waitFor` (with `settle`), a
+click with no `duration`, zooms kept `within` the window, and the `menubar`
+option.
 
 ```sh
 # Once: the CLI (or `npm i -g @reelscript/cli`), its browser, and ffmpeg
@@ -57,8 +66,9 @@ it allows sixty an hour from one address, so about fifteen renders an hour.
 When they run out, the import fails and the render stops with "waitFor …
 timed out"; the limit resets within the hour.
 
-The staging import of this repository reads its default branch on GitHub.
-To show a branch before it is merged, import a copy of it from disk:
+The staged import of this repository reads its default branch on GitHub,
+while the terminal shows the file from this checkout; they should match. To
+show a branch before it is merged, import a copy of it from disk:
 
 ```sh
 mkdir -p /tmp/fixtures/subcanvas && git archive HEAD | tar -x -C /tmp/fixtures/subcanvas

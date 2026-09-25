@@ -61,7 +61,8 @@ body::before {
   font-size: 15px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--cobalt);
+  /* Graphite, not cobalt: the design keeps cobalt for what can be acted on. */
+  color: var(--graphite);
 }
 
 h1 {

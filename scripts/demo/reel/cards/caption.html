@@ -12,28 +12,42 @@
   p {
     position: absolute;
     left: 50%;
-    bottom: 64px;
     transform: translateX(-50%);
-    max-width: 1500px;
     width: max-content;
     margin: 0;
+    color: #fff;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* A scene's point, along the bottom. */
+  p.caption {
+    bottom: 64px;
+    max-width: 1500px;
     padding: 18px 34px 20px;
     border-radius: 20px;
-    background: rgba(16, 22, 47, 0.9);
-    color: #fff;
+    background: rgba(16, 22, 47, 0.92);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 30px rgba(16, 22, 47, 0.25);
     font-family: "Bricolage Grotesque", "Geist", sans-serif;
     font-weight: 600;
     font-size: 46px;
     line-height: 1.15;
     letter-spacing: -0.01em;
-    text-align: center;
     text-wrap: balance;
-    -webkit-font-smoothing: antialiased;
+  }
+  /* A note about the footage itself, small, at the top. */
+  p.note {
+    top: 40px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: rgba(16, 22, 47, 0.85);
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 24px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
 </style>
 </head>
 <body>
-<p id="text"></p>
-<script>document.getElementById("text").textContent = decodeURIComponent(location.hash.slice(1))</script>
+<p id="text" class="caption"></p>
 </body>
 </html>

@@ -13,47 +13,55 @@
  *
  *   DEMO_BASE_URL         The app. Default http://localhost:3420, a dev
  *                         server. https://subcanvas.app for the published cut.
+ *   DEMO_SELF_REPOSITORY  The repository whose diagram the video opens on:
+ *                         one with .subcanvas files, so it has names and
+ *                         arrows. Default subcanvas/subcanvas. fixture/<name>
+ *                         reads a copy on disk instead (see the README).
+ *   DEMO_INTO             The two boxes the first shot goes into, outermost
+ *                         first. Default Application,Core libraries.
+ *   DEMO_ARROW            An arrow on the innermost of those sheets, with a
+ *                         description. Default "writes documents from the server".
+ *   DEMO_ARROW_FILE       The .subcanvas file that declares it, from this
+ *                         checkout. Default src/lib/github/.subcanvas.
  *   DEMO_REPOSITORY       Imported on camera: a well-known repository with no
  *                         .subcanvas files, so the video shows what anyone
- *                         gets. Default facebook/react.
- *   DEMO_DIVE             The box opened in the first shot, on that
- *                         repository's top sheet. Default Packages.
- *   DEMO_DIVE_BOX         A box on the sheet inside it. Default React.
- *   DEMO_SELF_REPOSITORY  The repository whose .subcanvas file is shown.
- *                         Default subcanvas/subcanvas. fixture/<name> reads a
- *                         copy on disk instead (see the README).
- *   DEMO_SELF_FILE        That file, read from this checkout. Default
- *                         src/.subcanvas.
- *   DEMO_ARROW            The arrow it declares. Default "Auth, data, Realtime".
+ *                         gets with no setup. Default react/react.
+ *   DEMO_REPOSITORY_BOX   A box on that repository's top sheet. Default Packages.
  *   DEMO_README_URL       A README with the embed in it, shown at the end of
  *                         the embed scene. Default none.
  *   DEMO_EMAIL            The demo account. Created through the sign-up form
  *   DEMO_PASSWORD         the first time, where sign-up needs no confirmation.
- *   DEMO_ORG_NAME         The org's name in the sidebar. Default Acme.
+ *   DEMO_ORG_NAME         The org's name. Default Acme. The sidebar is
+ *                         collapsed on camera, so it rarely shows.
  *   DEMO_STAGE_ORG        Slug of the org that keeps finished imports of both
  *                         repositories for the scenes that do not import
  *                         (see "Two orgs" below). Default demo-stage.
  *   DEMO_ORG              Reuse this org for the on-camera import instead of
  *                         creating a fresh one.
  *   DEMO_IMPORT_WAIT      Milliseconds of video on "Importing…" before the
- *                         cut to the diagram. Default 800. The rest of the
- *                         import happens off camera.
- *   DEMO_PUBLIC_SITE      For a local render, what the address pill shows in
- *                         place of the dev server. Default https://subcanvas.app.
+ *                         cut to the diagram, which is marked as sped up.
+ *                         Default 600.
+ *   DEMO_PUBLIC_SITE      What the end card's address bar shows. Default
+ *                         https://subcanvas.app.
  *   DEMO_KEEP_PRELUDE     Set to 1 to keep the sign-in prelude in the video.
  *
  * Scenes (the render prints where each starts). The video autoplays muted
- * on Product Hunt, so a caption over the picture says each scene's point,
- * and the narration says the same:
+ * on Product Hunt, so a caption on the picture says each scene's point, and
+ * the narration says the same:
  *
- *   1. React's diagram. A box opens into the diagram inside it.
- *   2. The import that made it: the repository is typed, Import, the diagram.
- *   3. This repository's .subcanvas file in a terminal, beside the arrow it
- *      draws; then that arrow's reason, opened as a page.
- *   4. Share, Copy embed, and the embed in a README when DEMO_README_URL is set.
- *   5. The end card.
+ *   1. Into Subcanvas's own diagram: a box, then a box inside it, each
+ *      opening into the diagram inside.
+ *   2. An arrow there, opened into the page that says why it exists.
+ *   3. The .subcanvas file that drew that arrow, in a terminal beside it.
+ *   4. A repository with no such files imported on camera: its folders
+ *      become boxes on their own.
+ *   5. Share and Copy embed; against production, the embed in a README.
+ *   6. The end card.
  *
- * Two orgs: the import in scene 2 is real and lands in a fresh org, but the
+ * Canvas shots are in view mode with the sidebar collapsed, both set in the
+ * prelude: no editing tools, and nothing from the demo account on screen.
+ *
+ * Two orgs: the import in scene 4 is real and lands in a fresh org, but the
  * page it produces has ids nobody knows in advance, and reelscript can only
  * navigate to addresses the script knows. So the other scenes play on
  * imports made ahead of time (once, and kept) in the staging org, whose
@@ -64,7 +72,9 @@
  * previews are offset the same way, so `--at 0` is the first shot.
  *
  * Frame: a 1600x900 desktop with no menu bar, scaled to 1920x1080 in the
- * same ffmpeg pass, with the captions laid over it there.
+ * same ffmpeg pass, with the captions laid over it there. Against a dev
+ * server the address bar is left blank; against production it shows the
+ * real address.
  */
 
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs"
@@ -78,18 +88,19 @@ import { createDemo } from "@reelscript/cli"
 
 const base = (process.env.DEMO_BASE_URL ?? "http://localhost:3420").replace(/\/$/, "")
 const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(base)
-const repository = process.env.DEMO_REPOSITORY ?? "facebook/react"
-const dive = process.env.DEMO_DIVE ?? "Packages"
-const diveBox = process.env.DEMO_DIVE_BOX ?? "React"
 const selfRepository = process.env.DEMO_SELF_REPOSITORY ?? "subcanvas/subcanvas"
-const selfFile = process.env.DEMO_SELF_FILE ?? "src/.subcanvas"
-const arrow = process.env.DEMO_ARROW ?? "Auth, data, Realtime"
+const into = (process.env.DEMO_INTO ?? "Application,Core libraries").split(",").map((s) => s.trim())
+if (into.length !== 2) throw new Error("demo: DEMO_INTO names two boxes, outermost first")
+const arrow = process.env.DEMO_ARROW ?? "writes documents from the server"
+const arrowFile = process.env.DEMO_ARROW_FILE ?? "src/lib/github/.subcanvas"
+const repository = process.env.DEMO_REPOSITORY ?? "react/react"
+const repositoryBox = process.env.DEMO_REPOSITORY_BOX ?? "Packages"
 const readmeUrl = process.env.DEMO_README_URL
 const email = process.env.DEMO_EMAIL ?? "demo@subcanvas.test"
 const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
 const orgName = process.env.DEMO_ORG_NAME ?? "Acme"
 const stageSlug = process.env.DEMO_STAGE_ORG ?? "demo-stage"
-const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 800)
+const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 600)
 const publicSite = (process.env.DEMO_PUBLIC_SITE ?? "https://subcanvas.app").replace(/\/$/, "")
 
 const nameOf = (repo: string) => repo.split("/").pop()!.replace(/[^a-z0-9]+/gi, "-").toLowerCase()
@@ -100,9 +111,34 @@ const card = (name: string) => new URL(`./cards/${name}.html`, import.meta.url).
 // The file the terminal shows, as it is in this checkout, and the first
 // words of the arrow's reason in it, to know its page has opened.
 const selfName = nameOf(selfRepository)
-const selfText = readFileSync(resolve(here, "..", "..", "..", selfFile), "utf8").trimEnd()
-const reason = selfText.match(new RegExp(`label: ${arrow}\\s*\\n\\s*description: (\\S+ \\S+ \\S+ \\S+)`))?.[1]
-if (!reason) throw new Error(`demo: ${selfFile} has no arrow "${arrow}" with a description`)
+const arrowText = readFileSync(resolve(here, "..", "..", "..", arrowFile), "utf8").trimEnd()
+const reason = arrowText.match(new RegExp(`label: ${arrow}\\s*\\n\\s*description: (\\S+ \\S+ \\S+ \\S+)`))?.[1]
+if (!reason) throw new Error(`demo: ${arrowFile} has no arrow "${arrow}" with a description`)
+
+// The terminal wraps a long line wherever the column runs out, mid-word.
+// Wrapped here at spaces instead, each continuation indented under its
+// line, which is how the file reads in an editor.
+const TERMINAL_COLUMNS = 60
+function wrap(text: string, columns: number) {
+  return text
+    .split("\n")
+    .flatMap((line) => {
+      if (line.length <= columns) return [line]
+      const lead = line.match(/^\s*/)![0]
+      const indent = lead + "  "
+      const out: string[] = []
+      let current = lead
+      for (const word of line.slice(lead.length).split(" ")) {
+        const next = current.trim() ? `${current} ${word}` : current + word
+        if (next.length > columns && current.trim()) {
+          out.push(current)
+          current = indent + word
+        } else current = next
+      }
+      return [...out, current]
+    })
+    .join("\n")
+}
 
 // --- Selectors ----------------------------------------------------------------
 // Roles and labels, the way the e2e helpers name things, never a generated
@@ -119,7 +155,9 @@ const SHEET = (title: string) => `.react-flow:has(${NODE(title)}) .react-flow__p
 const PANEL = 'aside[aria-label="Object settings"]'
 const OPEN_DOCUMENT = `${PANEL} section[aria-label="Document"] :is(button, a):has-text("Open")`
 const EDGE_LABEL = (label: string) => `.react-flow__edgelabel-renderer span:text-is("${label}")`
-const REASON = `:text("${reason}")`
+// The reason on its own page: the panel shows the same text, so the page
+// is the one without a panel.
+const REASON = `main:not(:has(${PANEL})) :text("${reason}")`
 const SIGNED_IN = '[aria-label="Account menu"] >> visible=true'
 
 // --- Before the camera rolls --------------------------------------------------
@@ -128,7 +166,7 @@ const SIGNED_IN = '[aria-label="Account menu"] >> visible=true'
 // that happens on camera, and warm routes so a dev server does not compile
 // in the middle of a scene.
 
-type Stage = { zero: { top: string; dive: string }; self: { top: string } }
+type Stage = { zero: { top: string }; self: { top: string; inside: string; deeper: string } }
 
 async function pressNode(page: Page, title: string) {
   // React Flow hands a press to d3-drag, which needs a real pointer.
@@ -140,7 +178,7 @@ async function pressNode(page: Page, title: string) {
   await page.mouse.up()
 }
 
-const tools = (page: Page) => page.getByRole("toolbar", { name: "Whiteboard tools" })
+const drawn = (page: Page) => page.locator(".react-flow__pane")
 
 async function importInto(page: Page, slug: string, repo: string): Promise<string> {
   await page.goto(`${base}/${slug}`)
@@ -156,12 +194,12 @@ async function importInto(page: Page, slug: string, repo: string): Promise<strin
     opened.waitFor().then(() => opened.click()).catch(() => {}),
   ])
   await page.waitForURL(/\/d\/[0-9a-f-]{36}/)
-  await tools(page).waitFor()
+  await drawn(page).waitFor()
   return page.url()
 }
 
 async function openBox(page: Page, title: string): Promise<string> {
-  await tools(page).waitFor()
+  await page.locator(NODE(title)).waitFor()
   await page.waitForTimeout(400)
   const before = page.url()
   await pressNode(page, title)
@@ -216,22 +254,23 @@ async function prepare(): Promise<{ slug: string; stage: Stage }> {
     if (existsSync(stageFile)) {
       const saved = JSON.parse(readFileSync(stageFile, "utf8")) as Stage
       const response = await page.goto(saved.self.top)
-      if (response?.ok() && (await tools(page).isVisible())) stage = saved
+      if (response?.ok() && (await drawn(page).isVisible())) stage = saved
     }
     if (!stage) {
       const response = await page.goto(`${base}/${stageSlug}`)
       if (!response?.ok()) await createOrg(page, stageSlug)
       const zeroTop = await importInto(page, stageSlug, repository)
-      const zeroDive = await openBox(page, dive)
       const selfTop = await importInto(page, stageSlug, selfRepository)
-      stage = { zero: { top: zeroTop, dive: zeroDive }, self: { top: selfTop } }
+      const selfInside = await openBox(page, into[0])
+      const selfDeeper = await openBox(page, into[1])
+      stage = { zero: { top: zeroTop }, self: { top: selfTop, inside: selfInside, deeper: selfDeeper } }
       mkdirSync(outDir, { recursive: true })
       writeFileSync(stageFile, JSON.stringify(stage, null, 2) + "\n")
     }
     // Warm every route the camera will visit.
-    for (const href of [stage.zero.top, stage.zero.dive, stage.self.top]) {
+    for (const href of [stage.zero.top, stage.self.top, stage.self.inside, stage.self.deeper]) {
       await page.goto(href)
-      await tools(page).waitFor()
+      await drawn(page).waitFor()
     }
 
     // The fresh org the on-camera import lands in. Nothing is deleted, so it
@@ -250,33 +289,18 @@ async function prepare(): Promise<{ slug: string; stage: Stage }> {
   }
 }
 
-process.stderr.write(`demo: preparing ${base} (${repository}, ${selfRepository})\n`)
+process.stderr.write(`demo: preparing ${base} (${selfRepository}, ${repository})\n`)
 const { slug, stage } = await prepare()
 process.stderr.write(`demo: org /${slug}, staging /${stageSlug}\n`)
 
-// --- The address pill ---------------------------------------------------------
-// Against production it shows the real address. Against a dev server it
-// shows the public site instead, with each sheet by name rather than by
-// id, so no dev server, org slug or document id appears.
+// --- The address bar ------------------------------------------------------------
+// Against production, the real address. Against a dev server, nothing: its
+// addresses are not the site's, and a tidied one would be made up. The end
+// card, a local file, shows the site.
 
-const docId = (url: string) => url.match(/\/d\/([0-9a-f-]{36})/)?.[1]
-const projectId = (url: string) => url.match(/\/([0-9a-f-]{36})\/d\//)?.[1]
-const zeroName = nameOf(repository)
-const sheets = new Map<string, string>([
-  [docId(stage.zero.top)!, `/${zeroName}`],
-  [docId(stage.zero.dive)!, `/${zeroName}/${nameOf(dive)}`],
-  [docId(stage.self.top)!, `/${selfName}`],
-])
-const projects = new Map<string, string>([
-  [projectId(stage.zero.top)!, zeroName],
-  [projectId(stage.self.top)!, selfName],
-])
 function address(url: string) {
-  if (!local || !url.startsWith(base)) return url
-  const id = docId(url)
-  if (id && sheets.has(id)) return `${publicSite}${sheets.get(id)}`
-  const project = projectId(url)
-  return `${publicSite}/${(project && projects.get(project)) ?? zeroName}`
+  if (url.startsWith("file:")) return publicSite
+  return local ? "" : url
 }
 
 // --- The timeline -------------------------------------------------------------
@@ -297,78 +321,135 @@ const demo = createDemo({
 // ends. The estimate is checked against the render at the end.
 const beats: [string, number][] = []
 const mark = (name: string) => beats.push([name, demo.getTimeline().length])
-const captions: { text: string; from: number; to?: number }[] = []
+// What is laid over the video afterwards: captions along the bottom, and
+// small notes at the top, each from one point of the timeline to another.
+type Overlay = { text: string; kind: "caption" | "note"; from: number; to?: number }
+const overlays: Overlay[] = []
 function caption(text: string) {
   const at = demo.getTimeline().length
-  const open = captions.at(-1)
+  const open = overlays.findLast((o) => o.kind === "caption")
   if (open && open.to === undefined) open.to = at
-  captions.push({ text, from: at })
+  overlays.push({ text, kind: "caption", from: at })
 }
+function captionEnd() {
+  const open = overlays.findLast((o) => o.kind === "caption")
+  if (open && open.to === undefined) open.to = demo.getTimeline().length
+}
+const note = (text: string) => overlays.push({ text, kind: "note", from: demo.getTimeline().length })
+const noteEnd = () => (overlays.findLast((o) => o.kind === "note")!.to = demo.getTimeline().length)
 // A gallery picture for the listing: `headline` over the frame `after` ms
 // past this point, cut from the render with no caption on it.
 const stills: { headline: string; at: number; after: number }[] = []
 const still = (headline: string, after: number) => stills.push({ headline, at: demo.getTimeline().length, after })
-function captionEnd() {
-  const open = captions.at(-1)
-  if (open && open.to === undefined) open.to = demo.getTimeline().length
-}
 // Narration a little quicker than the voice's default, so each sentence
 // fits the scene it belongs to (sentences queue; one that runs long delays
 // every one after it).
-const QUICK = { speed: 1.1 }
+const say = (text: string) => demo.say(text, { speed: 1.1 })
 type Where = "browser" | "terminal"
 const move = (target: string | { x: number; y: number }, duration = 700, window?: Where) =>
   demo.cursor.moveTo(target, { duration, ease: "smooth", ...(window ? { window } : {}) })
 // Zooms stay inside the browser window, so the desktop never shows past it.
 const zoom = (target: string | { x: number; y: number }, scale: number, duration = 700) =>
   demo.zoom.to(target, { scale, duration, within: "window", window: "browser" })
+// The middle of the canvas, under the 45px header, with the sidebar
+// collapsed to its 48px rail.
+const MIDDLE = { x: 48 + (1440 - 48) / 2, y: 45 + (768 - 45) / 2 }
 // Where the cursor rests while there is nothing to point at: low on the
 // right, clear of the diagrams; and off the screen entirely.
-const REST = { x: 1330, y: 690 }
+const REST = { x: 1330, y: 700 }
 const OFF = { x: 1700, y: 1000 }
-// Opens a sheet with its drawing on camera, not its loading.
-async function open(url: string, box: string) {
-  demo.zoom.out({ duration: 1 })
+// Opens a page with it drawn on camera, not its loading: `drawn` is
+// something that is only there once it is.
+async function open(url: string, drawn: string) {
+  demo.zoom.out({ duration: 0 })
   await demo.browser.goto(url, { settle: 0 })
-  await demo.waitFor(SHEET(box))
+  await demo.waitFor(drawn, { settle: 150 })
+}
+// Clicks through to what the click opens: the next frame is that, drawn,
+// already framed at `scale` (set before the click, while there is still a
+// page to aim at).
+async function clickThrough(target: string, scale: number, at: string | { x: number; y: number } = MIDDLE) {
+  zoom(at, scale, 0)
+  await demo.cursor.click({ duration: 0 })
+  await demo.waitFor(target, { settle: 150 })
 }
 
-// The prelude, cut from the video: reelscript's browser signs in, then
-// opens the first sheet, so the video starts on it, drawn.
+// The prelude, cut from the video: reelscript's browser signs in, puts the
+// canvas in view mode and collapses the sidebar (both kept for the rest of
+// the session), then opens the first sheet, so the video starts on it.
 await demo.browser.goto(`${base}/login`, { settle: 600 })
 await demo.type("#email", email, { wpm: 1200 })
 await demo.type("#password", password, { wpm: 1200 })
 await demo.press("Enter")
 await move(SIGNED_IN, 300) // resolving a target waits, off camera, until it exists
+await demo.browser.goto(stage.self.top, { settle: 0 })
+await demo.waitFor(SHEET(into[0]))
+await move({ x: 420, y: 660 }, 100) // an empty corner of the canvas, to focus it
+await demo.cursor.click()
+await demo.press("e")
+await demo.press("Control+Backslash")
+await demo.wait(300)
 await move(OFF, 100)
-await open(stage.zero.top, dive)
-zoom(SHEET(dive), 1.6, 1)
+await open(stage.self.top, SHEET(into[0]))
 const preludeActions = demo.getTimeline().length
 
-// 1. React's diagram, and a box opening into the diagram inside it.
-mark("React's diagram; a box opens")
-caption("Any public GitHub repository, as a diagram.")
-demo.say("Any public GitHub repository, as a diagram.", QUICK)
-await demo.wait(1500)
-await move(INSIDE(dive), 1000)
-zoom(NODE(dive), 1.8, 600)
-await demo.wait(500)
-// The next sheet's framing is aimed while this canvas is still here to aim
-// at; it starts with the click.
-zoom(".react-flow__pane", 1.25, 800)
-await demo.cursor.click()
-caption("Boxes open into the diagrams inside them.")
-demo.say("Boxes open into the diagrams inside them.", QUICK)
-await demo.waitFor(SHEET(diveBox)) // the sheet inside, drawn, before the next frame
+// 1. Into Subcanvas's own diagram, two boxes deep. The camera pushes toward
+// each box and cuts into it at the click, so nothing reverses.
+mark("Into Subcanvas's diagram")
+caption("Architecture diagrams where every box opens.")
+say("Architecture diagrams where every box opens.")
+// From the whole window, pushing in from the first frame.
+zoom(NODE(into[0]), 2.1, 1800)
+await move(INSIDE(into[0]), 1100)
+await demo.wait(250)
+await clickThrough(SHEET(into[1]), 1.35)
+zoom(NODE(into[1]), 2.1, 1300)
+await move(INSIDE(into[1]), 1000)
+await demo.wait(200)
+caption("This is Subcanvas's own repository, three levels in.")
+say("This is Subcanvas's own repository.")
+await clickThrough(EDGE_LABEL(arrow), 1.3)
+zoom(MIDDLE, 1.4, 3200) // a slow drift, so the hold is not a still
 await move(REST, 700)
-still("Any public GitHub repository, as a diagram you can walk into.", 900)
+still("Architecture diagrams where every box opens.", 800)
 await demo.wait(2400)
 
-// 2. The import that made it, on camera.
-mark("Import from GitHub")
-caption("Paste a public repo. Folders with READMEs become boxes.")
-demo.say("Paste a public repository, and its folders become boxes.", QUICK)
-demo.zoom.out({ duration: 1 })
+// 2. An arrow, opened into the page that says why it is there.
+mark("An arrow's reason")
+caption("Every arrow opens into why it is there.")
+say("Every arrow opens into why it is there.")
+await move(EDGE_LABEL(arrow), 700)
+await demo.cursor.click()
+await move(OPEN_DOCUMENT, 600)
+await clickThrough(REASON, 1.5, { x: 720, y: 190 })
+zoom(REASON, 1.5, 0)
+await move(REST, 500)
+still("Every arrow opens into why it is there.", 700)
+await demo.wait(1800)
+
+// 3. The file that drew that arrow, in a terminal beside it. The browser
+// makes room first, off camera, so the sheet is drawn at its new size.
+mark("The .subcanvas file behind it")
+caption("Names and arrows: a small YAML file in each folder, read at import.")
+say("Names and arrows come from a small YAML file in each folder, read when you import.")
+await demo.browser.place({ x: 16, y: 44, width: 930, height: 768 })
+await open(stage.self.deeper, EDGE_LABEL(arrow))
+// At full size: the two windows fill the frame, and a zoom would cut one.
+await demo.terminal.open({ title: selfName, prompt: `${selfName} % `, fontSize: 16, x: 962, y: 96, width: 624, height: 600 })
+await demo.terminal.run(`cat ${arrowFile}`, { output: wrap(arrowText, TERMINAL_COLUMNS), wpm: 450, duration: 700 })
+await move(EDGE_LABEL(arrow), 800, "browser")
+still("Names and arrows: a small YAML file in each folder, read at import.", 700)
+await demo.wait(2100)
+
+// 4. A repository with no .subcanvas files, imported on camera: folders
+// become boxes on their own. The wait is cut, and says so.
+mark("Import a repository with no .subcanvas files")
+caption("Folders become boxes on their own. Paste a public repo.")
+say("Folders become boxes on their own. Paste a public repository to start.")
+// The terminal goes behind the browser's rectangle, which comes back to its
+// full size and to the front, hiding it.
+await demo.terminal.place({ x: 700, y: 96, width: 624, height: 600 })
+await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
 await demo.browser.goto(`${base}/${slug}`, { settle: 150 })
 await move('button:has-text("Import from GitHub")', 500)
 await demo.cursor.click()
@@ -377,48 +458,23 @@ zoom('[role="dialog"]', 1.6, 450)
 await demo.wait(200)
 await demo.type("#import-repository", repository, { wpm: 500 })
 await demo.wait(250)
-still("Paste a public repository. Folders with READMEs become boxes.", 0)
 await move('[role="dialog"] button:text-is("Import")', 400)
 await demo.cursor.click()
 await demo.wait(importWait)
-// The rest of the import off camera, then the diagram it drew.
-await demo.waitFor(SHEET(dive))
-zoom(SHEET(dive), 1.35, 1)
+await demo.waitFor(SHEET(repositoryBox), { settle: 150 })
+zoom(SHEET(repositoryBox), 1.45, 0)
+note("Import sped up")
 await move(REST, 500)
-await demo.wait(1900)
+await demo.wait(700)
+noteEnd()
+still("Folders become boxes on their own. Paste a public repo.", 400)
+await demo.wait(1300)
 
-// 3. Names and arrows come from .subcanvas files. The terminal shows this
-// repository's, beside the arrow it draws; then the arrow's reason.
-mark(".subcanvas file and the arrow it draws")
-caption("Names and arrows: a few lines of YAML in the repo.")
-demo.say("Name the boxes and draw arrows with a few lines of YAML in the repo.", QUICK)
-await open(stage.self.top, "Application")
-// Inside the browser window, over its sidebar, so that when the browser is
-// clicked it comes to the front and hides the terminal entirely.
-await demo.terminal.open({ title: selfName, prompt: `${selfName} % `, fontSize: 15, x: 92, y: 250, width: 520, height: 520 })
-zoom({ x: 535, y: 440 }, 1.3, 700)
-await demo.terminal.run(`cat ${selfFile}`, { output: selfText, wpm: 450, duration: 700 })
-await move(EDGE_LABEL(arrow), 800, "browser")
-still("Name the boxes and draw the arrows with a few lines of YAML in the repo.", 900)
-await demo.wait(1900)
-caption("Each arrow can say why it is there.")
-demo.say("Each arrow can say why it is there.", QUICK)
-demo.zoom.out({ duration: 500 })
-await demo.cursor.click()
-await move(OPEN_DOCUMENT, 600, "browser")
-await demo.wait(200)
-await demo.cursor.click()
-await demo.waitFor(REASON)
-zoom(REASON, 1.45, 700)
-await move(REST, 600)
-still("Every arrow can say why it is there.", 800)
-await demo.wait(2400)
-
-// 4. The embed, for a README.
+// 5. The embed, for a README.
 mark("Share, Copy embed")
-caption("Embed it in your README. It redraws when the diagram changes.")
-demo.say("Put it in your README, where it redraws as the diagram changes.", QUICK)
-await open(stage.self.top, "Application")
+caption("Edit it here, and the picture in your README follows.")
+say("Edit it here, and the picture in your README follows within minutes.")
+await open(stage.self.top, SHEET(into[0]))
 await move('button:has-text("Share")', 700)
 await demo.cursor.click()
 await demo.wait(300)
@@ -427,29 +483,29 @@ await move('button:has-text("Copy embed")', 500)
 if (local) {
   // Not clicked against a dev server: the click takes focus from the link,
   // which then shows its start, the dev server's address.
-  await demo.wait(2800)
+  await demo.wait(2400)
 } else {
   await demo.wait(200)
   await demo.cursor.click()
-  await demo.wait(2500)
+  await demo.wait(2000)
 }
 if (readmeUrl) {
   // The README on GitHub, with the embed in it.
   const EMBED = 'img[alt$="a Subcanvas diagram"]'
-  demo.zoom.out({ duration: 1 })
+  demo.zoom.out({ duration: 0 })
   await demo.browser.goto(readmeUrl, { settle: 0 })
-  await demo.waitFor(EMBED, { timeout: 30_000 })
-  zoom(EMBED, 1.3, 1)
+  await demo.waitFor(EMBED, { timeout: 30_000, settle: 300 })
+  zoom(EMBED, 1.3, 0)
   await demo.wait(2500)
 }
 
-// 5. The end card.
+// 6. The end card.
 mark("End card")
 captionEnd()
 demo.zoom.out({ duration: 400 })
 await move(OFF, 400)
-demo.say("Paste a public repository at subcanvas dot app.", QUICK)
-await demo.browser.goto(card("end"), { settle: 3200 })
+say("Subcanvas dot app. Free to start.")
+await demo.browser.goto(card("end"), { settle: 3000 })
 
 // --- Where each scene and caption starts -------------------------------------
 // reelscript's own timing rules, for the actions used above.
@@ -462,7 +518,7 @@ function lengthOf(action: ReturnType<typeof demo.getTimeline>[number]): number {
       if (action.duration === undefined) throw new Error("demo: give every cursor move a duration")
       return action.duration
     case "cursor.click":
-      return 180
+      return action.duration ?? 180
     case "type":
       return 80 + Array.from(action.text).length * (60000 / ((action.wpm ?? 300) * 5)) + 120
     case "press":
@@ -480,6 +536,7 @@ function lengthOf(action: ReturnType<typeof demo.getTimeline>[number]): number {
     case "zoom.to":
     case "zoom.out":
     case "waitFor":
+    case "window.place":
       return 0
     default:
       throw new Error(`demo: no timing rule for ${action.kind}`)
@@ -496,11 +553,11 @@ const preludeMs = starts[preludeActions]
 const expectedMs = at + 500 // reelscript's tail
 const videoMs = (index: number) => starts[index] - preludeMs
 
-// --- Captions -----------------------------------------------------------------
+// --- Captions and notes -------------------------------------------------------
 // Each is a transparent 1920x1080 picture from cards/caption.html, laid over
 // the video by ffmpeg with a short fade.
 
-async function captionImages(dir: string): Promise<string[]> {
+async function overlayImages(dir: string): Promise<string[]> {
   mkdirSync(dir, { recursive: true })
   const browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } })
@@ -508,9 +565,15 @@ async function captionImages(dir: string): Promise<string[]> {
     const files: string[] = []
     await page.goto(card("caption"))
     await page.evaluate(() => document.fonts.ready)
-    for (const [i, { text }] of captions.entries()) {
-      await page.locator("#text").evaluate((element, value) => (element.textContent = value), text)
-      const file = resolve(dir, `caption-${i}.png`)
+    for (const [i, { text, kind }] of overlays.entries()) {
+      await page.locator("#text").evaluate(
+        (element, [value, className]) => {
+          element.textContent = value
+          element.className = className
+        },
+        [text, kind]
+      )
+      const file = resolve(dir, `overlay-${i}.png`)
       await page.screenshot({ path: file, omitBackground: true })
       files.push(file)
     }
@@ -552,8 +615,8 @@ async function listingPictures(raw: string, ffmpeg: string) {
 
     const mark = await browser.newPage({ viewport: { width: 240, height: 240 } })
     await mark.goto(card("thumbnail"))
-    // 0.7 s at rest, then 1.3 s of the box opening, at 20 frames a second.
-    const moments = [...Array(14).fill(0), ...Array.from({ length: 26 }, (_, n) => (n + 1) / 26)]
+    // 0.3 s at rest, then 1.3 s of the box opening, at 20 frames a second.
+    const moments = [...Array(6).fill(0), ...Array.from({ length: 26 }, (_, n) => (n + 1) / 26)]
     for (const [n, p] of moments.entries()) {
       await mark.evaluate((value) => (window as unknown as { draw: (p: number) => void }).draw(value), p)
       await mark.screenshot({ path: resolve(work, `mark-${String(n).padStart(3, "0")}.png`) })
@@ -585,22 +648,23 @@ if (snapshot !== undefined) {
   process.env.REELSCRIPT_OUT = raw
   const result = await demo.render(raw)
   const ffmpeg = process.env.REELSCRIPT_FFMPEG ?? "ffmpeg"
-  const captionDir = resolve(outDir, "captions")
-  rmSync(captionDir, { recursive: true, force: true })
-  const images = await captionImages(captionDir)
+  const overlayDir = resolve(outDir, "overlays")
+  rmSync(overlayDir, { recursive: true, force: true })
+  const images = await overlayImages(overlayDir)
   const inputs: string[] = []
   const graph: string[] = ["[0:v]scale=1920:1080:flags=lanczos[v0]"]
-  captions.forEach(({ from, to }, i) => {
+  overlays.forEach(({ from, to }, i) => {
     const start = videoMs(from) / 1000
     const end = videoMs(to ?? starts.length - 1) / 1000
     const length = end - start
     inputs.push("-loop", "1", "-t", length.toFixed(3), "-i", images[i])
-    // The first is on screen from the first frame: muted, it is the video's opening line.
-    const fadeIn = i === 0 ? "" : "fade=t=in:st=0:d=0.25:alpha=1,"
+    // The first caption is on screen from the first frame: muted, it is the
+    // video's opening line.
+    const fadeIn = start === 0 ? "" : "fade=t=in:st=0:d=0.25:alpha=1,"
     graph.push(
       `[${i + 1}:v]format=rgba,${fadeIn}fade=t=out:st=${(length - 0.25).toFixed(3)}:d=0.25:alpha=1,` +
-        `setpts=PTS-STARTPTS+${start.toFixed(3)}/TB[c${i}]`,
-      `[v${i}][c${i}]overlay=eof_action=pass:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${i + 1}]`
+        `setpts=PTS-STARTPTS+${start.toFixed(3)}/TB[o${i}]`,
+      `[v${i}][o${i}]overlay=eof_action=pass:enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'[v${i + 1}]`
     )
   })
   process.stderr.write(`demo: cutting the ${(preludeMs / 1000).toFixed(2)}s sign-in prelude, captioning\n`)
@@ -608,11 +672,12 @@ if (snapshot !== undefined) {
     ffmpeg,
     [
       "-y", "-loglevel", "error",
-      "-ss", (preludeMs / 1000).toFixed(3),
+      // Half a frame in, so the cut cannot land on the prelude's last frame.
+      "-ss", ((preludeMs + 8) / 1000).toFixed(3),
       "-i", raw,
       ...inputs,
       "-filter_complex", graph.join(";"),
-      "-map", `[v${captions.length}]`, "-map", "0:a?",
+      "-map", `[v${overlays.length}]`, "-map", "0:a?",
       "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", "128k",
       "-movflags", "+faststart",
@@ -627,6 +692,6 @@ if (snapshot !== undefined) {
   process.stderr.write(`demo: ${wanted} is ${((result.durationMs - preludeMs) / 1000).toFixed(2)}s\n`)
   for (const [name, index] of beats)
     process.stderr.write(`demo:   ${(videoMs(index) / 1000).toFixed(1).padStart(5)}s  ${name}\n`)
-  for (const { text, from, to } of captions)
+  for (const { text, from, to } of overlays)
     process.stderr.write(`demo:   ${(videoMs(from) / 1000).toFixed(1).padStart(5)}s–${(videoMs(to ?? starts.length - 1) / 1000).toFixed(1)}s  “${text}”\n`)
 }
