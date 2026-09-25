@@ -88,7 +88,13 @@ export function DocumentMark({
       type="button"
       aria-label={label}
       title={label}
-      onClick={() => openObject(objectId)}
+      onClick={(event) => {
+        // Kept from the object under it, whose click would select it first
+        // and open the panel for a moment before the way in is taken. When
+        // the way in is the panel, openObject selects it itself.
+        event.stopPropagation()
+        openObject(objectId)
+      }}
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
         "nodrag nopan pointer-events-auto flex size-5 items-center justify-center rounded-[5px] border border-rule bg-sheet text-graphite outline-none transition-colors hover:border-cobalt hover:text-cobalt focus-visible:ring-2 focus-visible:ring-ring",

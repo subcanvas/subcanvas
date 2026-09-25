@@ -57,8 +57,14 @@ export async function importFromGitHub(
   })
   if ("error" in outcome) return outcome
 
-  revalidatePath(`/${slug}`)
   const href = `/${slug}/${outcome.projectId}/d/${outcome.documentId}`
-  if (!outcome.warnings.length) redirect(href)
+  if (!outcome.warnings.length) {
+    revalidatePath(`/${slug}`)
+    redirect(href)
+  }
+  // The page is not refreshed under the notes: in an org with no projects
+  // the dialog is part of the empty page, and the refreshed page, which
+  // lists the new project instead, would close it before they were read.
+  // The dialog refreshes the page when it closes.
   return { ok: true, href, folders: outcome.folders, warnings: outcome.warnings }
 }

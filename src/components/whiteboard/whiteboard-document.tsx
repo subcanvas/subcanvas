@@ -7,6 +7,7 @@ import { SyncBadge } from "@/components/editor/sync-badge"
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 
+import { BlankCanvas } from "./blank-canvas"
 import type { WhiteboardProps } from "./whiteboard"
 
 const Whiteboard = dynamic(() => import("./whiteboard"), { ssr: false })
@@ -43,6 +44,9 @@ export function WhiteboardDocument({
         {actions}
       </div>
       <div className="relative min-h-0 flex-1">
+        {/* Paper from the first frame; the whiteboard is drawn over it once
+            its code and its first sync have arrived. */}
+        <BlankCanvas className="absolute inset-0" />
         {/* The trail goes on the canvas itself (see Whiteboard), which keeps it
             clear of the tools when the object panel opens. */}
         {provider && <Loaded provider={provider} breadcrumb={breadcrumb} {...shared} />}
@@ -57,6 +61,11 @@ function Loaded({
   ...shared
 }: Shared & { provider: SupabaseProvider; breadcrumb: React.ReactNode }) {
   const { loaded } = useSyncStatus(provider)
-  if (!loaded) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+  if (!loaded)
+    return (
+      <p role="status" className="sr-only">
+        Loading…
+      </p>
+    )
   return <Whiteboard provider={provider} {...shared} />
 }
