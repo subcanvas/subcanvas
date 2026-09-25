@@ -31,11 +31,13 @@
  *                     import runs. Default 500; raise it for a real repository.
  *   DEMO_ORG          Reuse this org for the on-camera import instead of
  *                     creating a fresh one. Handy while iterating on previews.
+ *   DEMO_PUBLIC_SITE  What the address pill shows in place of the dev server.
+ *                     Default https://subcanvas.app.
  *   DEMO_KEEP_PRELUDE Set to 1 to keep the sign-in prelude in the video.
  *
  * Beats (times are approximate; the render prints the exact ones):
  *
- *   1. Card: "Your repository is already a diagram."
+ *   1. Card: "Paste a GitHub repository. Get its system diagram."
  *   2. Import: "Import from GitHub", the repository is typed, Import, and the
  *      top whiteboard appears: one box per folder.
  *   3. Card, then inside: click a box, the panel says "A whiteboard. Click to
@@ -235,12 +237,30 @@ process.stderr.write(`demo: org /${slug}, staging /${stageSlug}\n`)
 
 // --- The timeline -------------------------------------------------------------
 
+// The address pill shows the public site, and the sheets by name rather
+// than by id: the top sheet at /orchard, the ones walked into at
+// /orchard/services and /orchard/services/payments. The dev server, the org
+// slugs and the document ids never appear.
+const publicSite = (process.env.DEMO_PUBLIC_SITE ?? "https://subcanvas.app").replace(/\/$/, "")
+const docIdOf = (url: string) => url.match(/\/d\/([0-9a-f-]{36})/)?.[1]
+const sheetPaths = new Map<string, string>([[docIdOf(stage.top)!, `/${repoName}`]])
+into.forEach((_, i) => {
+  const steps = into.slice(0, i + 1).map((title) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-"))
+  sheetPaths.set(docIdOf(stage.into[i])!, `/${repoName}/${steps.join("/")}`)
+})
+function address(url: string) {
+  if (!url.startsWith(base)) return url
+  const id = docIdOf(url)
+  return `${publicSite}${(id && sheetPaths.get(id)) ?? `/${repoName}`}`
+}
+
 const demo = createDemo({
   theme: "macos",
   viewport: [1280, 800],
   fps: 60,
   voice: "af_heart",
   pronunciations: { Subcanvas: "Sub canvas", subcanvas: "sub canvas", README: "read me" },
+  address,
 })
 
 // Every action here has a fixed length (cursor moves are given one), so the
@@ -265,14 +285,14 @@ await move(SIGNED_IN, 300) // resolving a target waits, off camera, until it exi
 const preludeActions = demo.getTimeline().length
 
 // 1. Open.
-mark("Card: your repository is already a diagram")
-demo.say("Subcanvas turns a repository into a diagram you can walk into.")
+mark("Card: paste a repository, get its diagram")
+demo.say("Subcanvas turns a GitHub repository into a system diagram you can walk into.")
 await title("01-open", 2400)
 
 // 2. Import from GitHub, on camera.
 mark("Import from GitHub")
 await demo.browser.goto(`${base}/${slug}`, { settle: 500 })
-demo.say("Paste a public repository. One box per folder, its README inside.")
+demo.say("Paste a public repository. Subcanvas reads its folders and draws one box for each, with the README inside.")
 await move('button:has-text("Import from GitHub")', 800)
 await demo.cursor.click()
 await demo.wait(250)
@@ -291,12 +311,12 @@ demo.zoom.to({ x: 800, y: 370 }, { scale: 1.3 })
 await demo.wait(2300)
 demo.zoom.out({ duration: 400 })
 await demo.wait(450)
-mark("Card: one box per folder")
+mark("Card: every folder is a box")
 await title("02-folders", 1900)
 
 // 3. Inside a box: a whiteboard.
-mark("Card: whiteboards inside boxes")
-demo.say("Folders inside folders are whiteboards inside boxes. Click one to go inside.")
+mark("Card: every box opens into another diagram")
+demo.say("A folder inside a folder is a diagram inside a box. Click one to go inside.")
 await title("03-inside", 1900)
 mark("Click a box to go inside")
 await demo.browser.goto(stage.top, { settle: 700 })
@@ -317,7 +337,7 @@ await demo.wait(900)
 
 // 4. Arrows, and the document behind one.
 mark("Card: arrows come from .subcanvas files")
-demo.say("Arrows come from dot subcanvas files. Click one to read why it is there.")
+demo.say("Arrows come from small dot subcanvas files in the repository. Click one to read why it is there.")
 await title("04-arrows", 2000)
 mark("Click the arrow, read the document behind it")
 await demo.browser.goto(arrowDepth === 0 ? stage.top : stage.into[arrowDepth - 1], { settle: 700 })
@@ -351,8 +371,8 @@ await move(NODE(into[0]), 700) // waits for the top sheet
 await demo.wait(700)
 
 // 6. Share: the embed for a README.
-mark("Card: the picture stays current")
-demo.say("Copy the embed into your README. The picture stays current.")
+mark("Card: the embed is the live diagram")
+demo.say("Put the embed in your README. It is the live diagram, so it stays current.")
 await title("06-embed", 2000)
 mark("Share, Copy embed")
 await demo.browser.goto(stage.top, { settle: 700 })
