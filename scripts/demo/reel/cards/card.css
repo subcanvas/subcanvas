@@ -58,7 +58,7 @@ body::before {
 
 .eyebrow {
   font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 15px;
+  font-size: 22px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   /* Graphite, not cobalt: the design keeps cobalt for what can be acted on. */
@@ -133,16 +133,6 @@ h1 code {
   letter-spacing: -0.03em;
 }
 .wordmark .mark {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  background: var(--cobalt);
-  position: relative;
-}
-.wordmark .mark::after {
-  content: "";
-  position: absolute;
-  inset: 16px;
-  border: 3px solid #fff;
-  border-radius: 5px;
+  width: 72px;
+  height: 72px;
 }

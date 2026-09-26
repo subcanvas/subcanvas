@@ -5,17 +5,19 @@ it drives a headless Chromium through the real app one frame at a time and
 writes a 60 fps, 1920x1080 mp4 with narration. Nothing is screen-recorded,
 so after an interface change the video is re-rendered, not re-shot.
 
-About 43 seconds, for Product Hunt, where it autoplays muted. A caption on
+About 45 seconds, for Product Hunt, where it autoplays muted. A caption on
 the picture says each scene's point, and the narration says the same:
 
 1. Into this repository's own diagram, two boxes deep, each box opening
-   into the diagram inside it. Its names and arrows come from its
-   `.subcanvas` files.
+   into the diagram inside it. Its names and arrows come from `.subcanvas`
+   files written by hand, and the caption says so.
 2. An arrow there, opened into the page that says why it exists.
-3. The `.subcanvas` file that drew that arrow, in a terminal beside it.
+3. An agent draws one: a real Claude Code run over the MCP server, shown in
+   a terminal beside the sheet while its edits are made again, live (see
+   "The agent" below).
 4. `react/react` imported on camera, from GitHub like any import. It has no
-   `.subcanvas` files, so its folders become boxes on their own: what
-   anyone gets with no setup. The wait is cut, and marked as sped up.
+   `.subcanvas` files, so its main folders become boxes on their own, and
+   one opens onto its packages. The cut wait is marked as sped up.
 5. Share and Copy embed, then the embed in a README when `DEMO_README_URL`
    is set.
 6. The end card.
@@ -53,8 +55,8 @@ REELSCRIPT="node ~/Git/reelscript/dist/cli.js" pnpm demo:reel
 REELSCRIPT_OUT= node ~/Git/reelscript/dist/cli.js preview scripts/demo/reel/demo.ts --at 12 --out frame.png
 ```
 
-The first run creates the demo account (`demo@subcanvas.test`, see the
-header of `demo.ts`) and a staging org, `demo-stage`, that keeps finished
+The first run creates the demo account (`reel-demo@subcanvas.test`, see the
+header of `demo.ts`) and a staging org, `reel-demo`, that keeps finished
 imports of both repositories. Every run also creates a fresh, empty org for
 the import that happens on camera; nothing is deleted. The render prints
 where each scene and caption starts. If the preparation fails, the page it
@@ -76,9 +78,26 @@ SUBCANVAS_IMPORT_FIXTURES=/tmp/fixtures pnpm dev --port 3420
 DEMO_SELF_REPOSITORY=fixture/subcanvas REELSCRIPT=... pnpm demo:reel
 ```
 
-It is imported off camera, so the name never shows. Delete
-`out/stage-demo-stage.json` before the render you publish, so both staged
-imports are made again from GitHub.
+It is imported off camera, so the name never shows. For the render you
+publish, use a fresh staging org (`DEMO_STAGE_ORG`), so both staged imports
+are made from GitHub and the agent runs against them.
+
+## The agent
+
+Scene 3 is a real run of Claude Code, replayed. The first render runs it
+once, headless, in a clean copy of this checkout's committed files, with the
+Subcanvas MCP server signed in as the demo account (its token is passed on
+the command line, never written down). It may read files and read and draw
+on whiteboards, nothing else. What it did is kept in
+`out/agent-<stage org>.json`, and its edits are undone at once. On camera
+the terminal shows that run, and at the moment it made its edits the same
+MCP calls are made again, so its arrow arrives on the sheet live; after the
+render they are undone again.
+
+It needs the `claude` CLI, signed in (`DEMO_CLAUDE` names another). The kept
+run is only good for the sheet it drew on; if the staging org is imported
+again, the agent runs again. Delete the file to have it run again anyway,
+for instance after changing `DEMO_AGENT_PROMPT`.
 
 ## The published render: production
 
@@ -99,6 +118,8 @@ REELSCRIPT="node ~/Git/reelscript/dist/cli.js" pnpm demo:reel
 
 ## Files
 
+- `agent.ts`: the agent scene's run, its replay, and a small client for
+  the app's MCP endpoint.
 - `demo.ts`: the scenes, the preparation before the camera rolls, and the
   post-processing: the cut of the sign-in prelude, the captions, the
   gallery pictures and the thumbnail. Its header lists every setting.
