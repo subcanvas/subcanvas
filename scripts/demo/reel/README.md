@@ -5,7 +5,7 @@ it drives a headless Chromium through the real app one frame at a time and
 writes a 60 fps, 1920x1080 mp4 with narration. Nothing is screen-recorded,
 so after an interface change the video is re-rendered, not re-shot.
 
-About 30 seconds, for Product Hunt, where it autoplays muted. A caption on
+About 43 seconds, for Product Hunt, where it autoplays muted. A caption on
 the picture says each scene's point, and the narration says the same:
 
 1. Into this repository's own diagram, two boxes deep, each box opening

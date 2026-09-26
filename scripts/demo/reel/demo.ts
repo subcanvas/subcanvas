@@ -341,10 +341,9 @@ const noteEnd = () => (overlays.findLast((o) => o.kind === "note")!.to = demo.ge
 // past this point, cut from the render with no caption on it.
 const stills: { headline: string; at: number; after: number }[] = []
 const still = (headline: string, after: number) => stills.push({ headline, at: demo.getTimeline().length, after })
-// Narration a little quicker than the voice's default, so each sentence
-// fits the scene it belongs to (sentences queue; one that runs long delays
-// every one after it).
-const say = (text: string) => demo.say(text, { speed: 1.1 })
+// Each sentence fits the scene it belongs to (sentences queue, so one
+// that runs long delays every one after it).
+const say = (text: string) => demo.say(text)
 type Where = "browser" | "terminal"
 const move = (target: string | { x: number; y: number }, duration = 700, window?: Where) =>
   demo.cursor.moveTo(target, { duration, ease: "smooth", ...(window ? { window } : {}) })
@@ -393,39 +392,45 @@ await move(OFF, 100)
 await open(stage.self.top, SHEET(into[0]))
 const preludeActions = demo.getTimeline().length
 
+// The pace: each caption stays up at least a second and a half plus a
+// second for every three words, so it can be read with the picture.
+
 // 1. Into Subcanvas's own diagram, two boxes deep. The camera pushes toward
 // each box and cuts into it at the click, so nothing reverses.
 mark("Into Subcanvas's diagram")
 caption("Architecture diagrams where every box opens.")
 say("Architecture diagrams where every box opens.")
-// From the whole window, pushing in from the first frame.
-zoom(NODE(into[0]), 2.1, 1800)
-await move(INSIDE(into[0]), 1100)
-await demo.wait(250)
+await demo.wait(900) // the whole window first
+zoom(NODE(into[0]), 2.1, 2200)
+await move(INSIDE(into[0]), 1800)
+await demo.wait(400)
 await clickThrough(SHEET(into[1]), 1.35)
-zoom(NODE(into[1]), 2.1, 1300)
-await move(INSIDE(into[1]), 1000)
-await demo.wait(200)
+await demo.wait(1300) // the sheet inside, before going deeper
+zoom(NODE(into[1]), 2.1, 1800)
+await move(INSIDE(into[1]), 1500)
+await demo.wait(300)
 caption("This is Subcanvas's own repository, three levels in.")
-say("This is Subcanvas's own repository.")
+say("This is Subcanvas's own repository, three levels in.")
 await clickThrough(EDGE_LABEL(arrow), 1.3)
-zoom(MIDDLE, 1.4, 3200) // a slow drift, so the hold is not a still
-await move(REST, 700)
-still("Architecture diagrams where every box opens.", 800)
-await demo.wait(2400)
+zoom(MIDDLE, 1.4, 4500) // a slow drift, so the hold is not a still
+await move(REST, 900)
+still("Architecture diagrams where every box opens.", 1200)
+await demo.wait(3300)
 
 // 2. An arrow, opened into the page that says why it is there.
 mark("An arrow's reason")
 caption("Every arrow opens into why it is there.")
 say("Every arrow opens into why it is there.")
-await move(EDGE_LABEL(arrow), 700)
+await move(EDGE_LABEL(arrow), 1000)
 await demo.cursor.click()
-await move(OPEN_DOCUMENT, 600)
+await demo.wait(300)
+await move(OPEN_DOCUMENT, 900)
+await demo.wait(200)
 await clickThrough(REASON, 1.5, { x: 720, y: 190 })
 zoom(REASON, 1.5, 0)
-await move(REST, 500)
-still("Every arrow opens into why it is there.", 700)
-await demo.wait(1800)
+await move(REST, 700)
+still("Every arrow opens into why it is there.", 1000)
+await demo.wait(2800)
 
 // 3. The file that drew that arrow, in a terminal beside it. The browser
 // makes room first, off camera, so the sheet is drawn at its new size.
@@ -436,10 +441,10 @@ await demo.browser.place({ x: 16, y: 44, width: 930, height: 768 })
 await open(stage.self.deeper, EDGE_LABEL(arrow))
 // At full size: the two windows fill the frame, and a zoom would cut one.
 await demo.terminal.open({ title: selfName, prompt: `${selfName} % `, fontSize: 16, x: 962, y: 96, width: 624, height: 600 })
-await demo.terminal.run(`cat ${arrowFile}`, { output: wrap(arrowText, TERMINAL_COLUMNS), wpm: 450, duration: 700 })
-await move(EDGE_LABEL(arrow), 800, "browser")
-still("Names and arrows: a small YAML file in each folder, read at import.", 700)
-await demo.wait(2100)
+await demo.terminal.run(`cat ${arrowFile}`, { output: wrap(arrowText, TERMINAL_COLUMNS), wpm: 300, duration: 1000 })
+await move(EDGE_LABEL(arrow), 1000, "browser")
+still("Names and arrows: a small YAML file in each folder, read at import.", 1000)
+await demo.wait(3500)
 
 // 4. A repository with no .subcanvas files, imported on camera: folders
 // become boxes on their own. The wait is cut, and says so.
@@ -450,44 +455,44 @@ say("Folders become boxes on their own. Paste a public repository to start.")
 // full size and to the front, hiding it.
 await demo.terminal.place({ x: 700, y: 96, width: 624, height: 600 })
 await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
-await demo.browser.goto(`${base}/${slug}`, { settle: 150 })
-await move('button:has-text("Import from GitHub")', 500)
+await demo.browser.goto(`${base}/${slug}`, { settle: 400 })
+await move('button:has-text("Import from GitHub")', 900)
 await demo.cursor.click()
-await demo.wait(100)
-zoom('[role="dialog"]', 1.6, 450)
 await demo.wait(200)
-await demo.type("#import-repository", repository, { wpm: 500 })
-await demo.wait(250)
-await move('[role="dialog"] button:text-is("Import")', 400)
+zoom('[role="dialog"]', 1.6, 600)
+await demo.wait(300)
+await demo.type("#import-repository", repository, { wpm: 300 })
+await demo.wait(400)
+await move('[role="dialog"] button:text-is("Import")', 700)
 await demo.cursor.click()
 await demo.wait(importWait)
 await demo.waitFor(SHEET(repositoryBox), { settle: 150 })
 zoom(SHEET(repositoryBox), 1.45, 0)
 note("Import sped up")
-await move(REST, 500)
-await demo.wait(700)
+await move(REST, 700)
+await demo.wait(1000)
 noteEnd()
-still("Folders become boxes on their own. Paste a public repo.", 400)
-await demo.wait(1300)
+still("Folders become boxes on their own. Paste a public repo.", 800)
+await demo.wait(2200)
 
 // 5. The embed, for a README.
 mark("Share, Copy embed")
 caption("Edit it here, and the picture in your README follows.")
 say("Edit it here, and the picture in your README follows within minutes.")
 await open(stage.self.top, SHEET(into[0]))
-await move('button:has-text("Share")', 700)
+await move('button:has-text("Share")', 900)
 await demo.cursor.click()
-await demo.wait(300)
-zoom('[data-slot="popover-content"]', 1.6, 500)
-await move('button:has-text("Copy embed")', 500)
+await demo.wait(400)
+zoom('[data-slot="popover-content"]', 1.6, 600)
+await move('button:has-text("Copy embed")', 700)
 if (local) {
   // Not clicked against a dev server: the click takes focus from the link,
   // which then shows its start, the dev server's address.
-  await demo.wait(2400)
+  await demo.wait(3200)
 } else {
-  await demo.wait(200)
+  await demo.wait(300)
   await demo.cursor.click()
-  await demo.wait(2000)
+  await demo.wait(2800)
 }
 if (readmeUrl) {
   // The README on GitHub, with the embed in it.
@@ -496,16 +501,16 @@ if (readmeUrl) {
   await demo.browser.goto(readmeUrl, { settle: 0 })
   await demo.waitFor(EMBED, { timeout: 30_000, settle: 300 })
   zoom(EMBED, 1.3, 0)
-  await demo.wait(2500)
+  await demo.wait(3500)
 }
 
 // 6. The end card.
 mark("End card")
 captionEnd()
-demo.zoom.out({ duration: 400 })
-await move(OFF, 400)
+demo.zoom.out({ duration: 500 })
+await move(OFF, 500)
 say("Subcanvas dot app. Free to start.")
-await demo.browser.goto(card("end"), { settle: 3000 })
+await demo.browser.goto(card("end"), { settle: 4200 })
 
 // --- Where each scene and caption starts -------------------------------------
 // reelscript's own timing rules, for the actions used above.
