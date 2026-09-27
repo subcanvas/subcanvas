@@ -5,7 +5,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import { createProject, expectSaved, freshId, signUpWithOrg } from "./support/app"
 import { createTextDocument, pageEditor } from "./support/collab"
-import { bringIn, chooseFiles, runImport, zipOf } from "./support/import"
+import { zipSync } from "fflate"
+
+import { bringIn, chooseFiles, runImport } from "./support/import"
 
 // The blocks a text document has beyond BlockNote's own, for what Notion
 // pages hold: callouts, equations, bookmarks, a table of contents, and
@@ -98,18 +100,19 @@ test("callouts, equations, bookmarks, a table of contents and columns are added 
 
 // The unit tests' Notion HTML export (src/lib/import/__fixtures__), zipped
 // the way Notion hands it over.
+// Bytes, not text: the export holds a picture.
 function notionExport() {
   const root = join(__dirname, "..", "src", "lib", "import", "__fixtures__", "notion-html")
-  const files: Record<string, string> = {}
+  const files: Record<string, Uint8Array> = {}
   const walk = (folder: string, prefix: string) => {
     for (const entry of readdirSync(folder, { withFileTypes: true })) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name
       if (entry.isDirectory()) walk(join(folder, entry.name), path)
-      else files[path] = readFileSync(join(folder, entry.name), "utf8")
+      else files[path] = new Uint8Array(readFileSync(join(folder, entry.name)))
     }
   }
   walk(root, "")
-  return zipOf(files)
+  return Buffer.from(zipSync(files))
 }
 
 test("a Notion HTML export comes in with its callouts, columns, equations, bookmarks and page links", async ({ page }) => {
@@ -120,6 +123,7 @@ test("a Notion HTML export comes in with its callouts, columns, equations, bookm
   await chooseFiles(page, "files", { name: "Export.zip", mimeType: "application/zip", buffer: notionExport() })
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByText("4 documents will be added to Wiki")).toBeVisible()
+  await expect(dialog.getByText("1 picture or video in these notes will be uploaded with them.")).toBeVisible()
   await runImport(page, 4)
   await dialog.getByRole("button", { name: "Open “Team Wiki”" }).click()
   await expect(page.getByLabel("Document title")).toHaveValue("Team Wiki")
@@ -137,6 +141,11 @@ test("a Notion HTML export comes in with its callouts, columns, equations, bookm
     "Toggle heading",
   ])
   await expect(block(editor, "checkListItem")).toHaveText(["Get a laptop", "Read the handbook"])
+  // The export's own picture came with the page, and is drawn from Storage.
+  const picture = block(editor, "image").locator("img")
+  await expect(picture).toHaveAttribute("src", /\/storage\/v1\/object\/sign\/media-images\//)
+  await expect.poll(() => picture.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBeGreaterThan(0)
+  await expect(block(editor, "image")).toContainText("Office map")
   await page.screenshot({ path: test.info().outputPath("imported.png"), fullPage: true })
 
   // A link to a page is that page's card, and it opens the page.

@@ -1,5 +1,5 @@
-// Pictures and videos on a whiteboard: what may be uploaded, where a file is
-// kept, and how big it is drawn. Pure, so the rules can be tested without a
+// Pictures and videos, on a whiteboard or in a text document: what may be
+// uploaded, where a file is kept, and how big it is drawn on a canvas. Pure, so the rules can be tested without a
 // browser or a bucket. The buckets and their limits are created by the
 // migration `canvas_media`, which repeats these numbers: Storage enforces
 // them, this file only says no sooner and in plainer words.
@@ -27,11 +27,19 @@ const FORMATS: Record<string, { mediaType: MediaType; extension: string }> = {
 // For a file input's `accept`.
 export const MEDIA_ACCEPT = Object.keys(FORMATS).join(",")
 
+// A file's type from its name, for files that come with no type of their
+// own: the pictures inside an imported zip. Null for any this app does not
+// keep.
+const BY_EXTENSION: Record<string, string> = { jpeg: "image/jpeg", ...Object.fromEntries(Object.entries(FORMATS).map(([type, format]) => [format.extension, type])) }
+export function mediaTypeOfName(name: string) {
+  return BY_EXTENSION[name.slice(name.lastIndexOf(".") + 1).toLowerCase()] ?? null
+}
+
 export type MediaFormat = { mediaType: MediaType; extension: string }
 
 export function classifyMedia(file: { type: string; size: number }): MediaFormat | { error: string } {
   const format = FORMATS[file.type]
-  if (!format) return { error: "is not a picture or video this whiteboard takes (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV)." }
+  if (!format) return { error: "is not a picture or video that can be added (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV)." }
   if (file.size > MEDIA_MAX_BYTES[format.mediaType])
     return {
       error: `is larger than the ${MEDIA_MAX_BYTES[format.mediaType] / MB} MB a ${format.mediaType === "image" ? "picture" : "video"} can be.`,
@@ -97,7 +105,7 @@ export function mediaTypeOf(path: string): MediaType {
   return Object.values(FORMATS).find((format) => format.extension === extension)?.mediaType ?? "image"
 }
 
-// The whiteboard whose readers can read the file.
+// The document whose readers can read the file.
 export const mediaDocumentId = (path: string) => PATH.exec(path)?.[1] ?? null
 
 // An address that stays the same, for a person to open: the app checks who

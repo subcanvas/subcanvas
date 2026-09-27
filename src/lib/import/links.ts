@@ -1,4 +1,3 @@
-import { importLocalImage } from "./images"
 import { baseName, kindOf, resolveRelative, withoutExtension } from "./paths"
 
 // Notes link to each other by file: `[text](./other.md)` in Markdown,
@@ -17,11 +16,15 @@ export type LinkTargets = {
   // The path of a file that is not a note, such as an image, named the way
   // Obsidian names them: by file name alone, wherever it is.
   fileNamed: (name: string) => string | null
+  // Where a picture among the import's files will be, once it is uploaded
+  // with the document that shows it; null when it cannot be brought in.
+  imageUrl?: (path: string) => string | null
 }
 
 export type Rewritten = {
   markdown: string
-  // Images kept in the import's own files, which are not brought in.
+  // Images the notes show from the import's own files that cannot be brought
+  // in: missing from the import, or of a kind this app does not keep.
   localImages: number
   // Links to files that are not part of the import, left as plain text.
   unlinked: number
@@ -102,11 +105,11 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
     return path ? targets.byPath(path) : null
   }
 
-  // An image among the import's files: shown from where it was put, or, left
+  // An image among the import's files: shown from where it will be, or, left
   // behind, replaced by the words that described it.
   const localImage = (path: string | null, alt: string, fallback: string) => {
-    const image = importLocalImage(path)
-    if (image.status === "imported") return `![${alt}](${image.url})`
+    const url = path ? (targets.imageUrl?.(path) ?? null) : null
+    if (url) return `![${alt}](${url})`
     localImages++
     return alt || withoutExtension(baseName(fallback))
   }
@@ -166,18 +169,23 @@ export function rewriteHtmlLinks(root: Element, fromPath: string, targets: LinkT
   const doc = root.ownerDocument
 
   // Images first, so that the link Notion wraps round each one is not taken
-  // for a link. Those among the import's files are not brought in yet: the
-  // words that described each one stay, on a line of their own.
+  // for a link. Those among the import's files are uploaded with the page;
+  // one that cannot be leaves the words that described it, on a line of
+  // their own.
   for (const image of Array.from(root.querySelectorAll("img"))) {
     const src = image.getAttribute("src") ?? ""
     if (/^https?:\/\//i.test(src)) continue
-    const local = importLocalImage(src ? resolveRelative(fromPath, pathOf(src)) : null)
-    if (local.status === "imported") {
-      image.setAttribute("src", local.url)
+    const path = src ? resolveRelative(fromPath, pathOf(src)) : null
+    const url = path ? (targets.imageUrl?.(path) ?? null) : null
+    const figure = image.closest("figure") ?? image
+    if (url) {
+      image.setAttribute("src", url)
+      // The link Notion wraps round a picture goes to the file, not a page.
+      const wrapper = image.parentElement?.tagName === "A" ? image.parentElement : null
+      wrapper?.replaceWith(image)
       continue
     }
     localImages++
-    const figure = image.closest("figure") ?? image
     // A caption says what the image shows, then its alt text, then its name.
     const words =
       figure.querySelector("figcaption")?.textContent?.trim() ||

@@ -1,3 +1,5 @@
+import { mediaHref, mediaPath, mediaTypeOfName } from "@/lib/whiteboard/media"
+
 import { csvToMarkdown } from "./csv"
 import { readHtmlFile } from "./html-file"
 import { MAX_DOCUMENTS, MAX_FILE_BYTES, MAX_HTML_FILE_BYTES } from "./limits"
@@ -39,6 +41,11 @@ export type PlannedDocument = {
   html?: string
 }
 
+// A picture or video of the import's, to be uploaded once the document that
+// shows it exists: `source` is its path in the import, `path` where Storage
+// keeps it, filed under that document.
+export type PlannedUpload = { documentId: string; source: string; path: string }
+
 export type ImportPlan = {
   // Both lists are ordered so that a parent comes before what it holds.
   folders: PlannedFolder[]
@@ -49,6 +56,7 @@ export type ImportPlan = {
   // Databases whose table was too large to put in their page (their rows
   // are still pages of their own).
   tablesLeftOut: number
+  uploads: PlannedUpload[]
 }
 
 export type PlanOptions = {
@@ -58,6 +66,10 @@ export type PlanOptions = {
   attachments?: string[]
   newId: () => string
   hrefFor: (documentId: string) => string
+  // Where pictures go, and which of the import's files can be uploaded.
+  // Without it, pictures are left as the words that describe them, as they
+  // are for an agent's import, which sends no files.
+  media?: { orgId: string; projectId: string; has: (path: string) => boolean }
 }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
@@ -85,9 +97,11 @@ function withoutExportFolder(paths: string[]) {
 const NOTION_PAGE_ID = /\s([0-9a-f]{32})(?:_all)?\.\w+$/i
 const NOTION_SHORT_ID = /^(.*) ([0-9a-f]{4})-([0-9a-f]{4})$/i
 
-export function planImport(files: SourceFile[], { intoDocument, attachments = [], newId, hrefFor }: PlanOptions): ImportPlan {
+export function planImport(files: SourceFile[], { intoDocument, attachments = [], newId, hrefFor, media }: PlanOptions): ImportPlan {
   const skipped: Skipped[] = []
   const cut = withoutExportFolder([...files.map((file) => file.path), ...attachments])
+  // Put back in front of a path to name the file as the import has it.
+  const prefix = cut ? (files[0]?.path ?? attachments[0]).slice(0, cut) : ""
   if (cut) {
     files = files.map((file) => ({ ...file, path: file.path.slice(cut) }))
     attachments = attachments.map((path) => path.slice(cut))
@@ -216,9 +230,27 @@ export function planImport(files: SourceFile[], { intoDocument, attachments = []
 
   let localImages = 0
   let unlinked = 0
+  const uploads: PlannedUpload[] = []
+  // Each document shows its own copy of a picture, since a file is read by
+  // the readers of the document it is filed under; one copy per document.
+  const imageUrlFor = (documentId: string) => {
+    const mine = new Map<string, string>()
+    return (path: string) => {
+      const source = prefix + path
+      if (!media || !media.has(source)) return null
+      const known = mine.get(source)
+      if (known) return known
+      const type = mediaTypeOfName(source)!
+      const stored = mediaPath({ orgId: media.orgId, projectId: media.projectId, documentId }, newId(), extensionOf(type))
+      uploads.push({ documentId, source, path: stored })
+      mine.set(source, mediaHref(stored))
+      return mine.get(source)!
+    }
+  }
   const documents: PlannedDocument[] = notes.map((note) => {
+    const targetsHere = { ...targets, imageUrl: imageUrlFor(ids.get(note.path)!) }
     if (note.html) {
-      const rewritten = rewriteHtmlLinks(note.html, note.path, targets)
+      const rewritten = rewriteHtmlLinks(note.html, note.path, targetsHere)
       localImages += rewritten.localImages
       unlinked += rewritten.unlinked
       return {
@@ -230,7 +262,7 @@ export function planImport(files: SourceFile[], { intoDocument, attachments = []
         html: note.html.innerHTML,
       }
     }
-    const rewritten = rewriteLinks(note.body, note.path, targets)
+    const rewritten = rewriteLinks(note.body, note.path, targetsHere)
     localImages += rewritten.localImages
     unlinked += rewritten.unlinked
     return {
@@ -249,8 +281,11 @@ export function planImport(files: SourceFile[], { intoDocument, attachments = []
     localImages,
     unlinked,
     tablesLeftOut,
+    uploads,
   }
 }
+
+const extensionOf = (type: string) => (type === "image/jpeg" ? "jpg" : type === "video/quicktime" ? "mov" : type.split("/")[1])
 
 // Each document after the one it nests under, and siblings by title, the
 // way a file browser lists them.
