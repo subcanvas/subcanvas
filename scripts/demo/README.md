@@ -55,7 +55,7 @@ loudly. On failure, the script saves `out/failure.png` and says which step.
 | `sign_in: { email, password, org }` | Prelude only: sign in, creating the account the first time |
 
 A `<target>` is `{ role: button, name: Share }`, `{ label: Email }`,
-`{ text: Pick a sheet }`, `{ placeholder: ... }`, `{ css: ... }` as a last
+`{ text: Open a whiteboard or a page }`, `{ placeholder: ... }`, `{ css: ... }` as a last
 resort, or a bare string for visible text. `at: [0.2, 0.5]` aims at a point
 inside the element. `pause:` is how long to hold after the step. `${NAME}`
 reads an environment variable, with defaults under `env:`. Steps under

@@ -8,7 +8,7 @@ test("signs up with a password, changes it, and signs back in with the new one",
   const account = await signUp(page)
 
   // Nobody's first account has an org, so sign-up lands on onboarding.
-  await expect(cardTitled(page, "Create your org")).toBeVisible()
+  await expect(cardTitled(page, "Name your org")).toBeVisible()
   const slug = await createOrg(page, account.id)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
 

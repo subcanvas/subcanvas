@@ -60,7 +60,7 @@ export async function createOrg(page: Page, id = freshId()): Promise<string> {
   const slug = `e2e-${id}`
   await page.goto("/onboarding")
   await page.getByLabel("Name").fill(`E2E ${id}`)
-  await page.getByLabel("URL").fill(slug)
+  await page.getByLabel("Web address").fill(slug)
   await page.getByRole("button", { name: "Create org" }).click()
   await page.waitForURL(`/${slug}`)
   return slug
@@ -84,7 +84,7 @@ export async function createProject(
   if (visibility === "public")
     await page.getByRole("radio", { name: "Public" }).click()
   await page.getByRole("button", { name: "Create project", exact: true }).click()
-  await expect(page.getByText("Pick a sheet")).toBeVisible()
+  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
   const projectId = new URL(page.url()).pathname.split("/")[2]
   expect(projectId).toBeTruthy()
   return projectId
@@ -148,7 +148,7 @@ export async function closePanel(page: Page) {
 // goes near the canvas, so React Flow's drag handling is never involved.
 export async function addNode(page: Page, title: string) {
   await closePanel(page)
-  await whiteboardTools(page).getByRole("button", { name: "Node", exact: true }).click()
+  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
   const panel = inspector(page)
   await expect(panel).toBeVisible()
   await panel.getByLabel("Title").fill(title)

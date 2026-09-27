@@ -483,7 +483,7 @@ function CreateItems({
     <>
       <DropdownMenuItem onClick={() => onCreate("text")}>
         <FileText />
-        New text document{suffix}
+        New page{suffix}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => onCreate("whiteboard")}>
         <Workflow />

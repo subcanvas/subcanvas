@@ -32,9 +32,9 @@ export function CreateOrgForm() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Create your org</CardTitle>
+        <CardTitle>Name your org</CardTitle>
         <CardDescription>
-          An org holds your projects and the people who work on them.
+          Your projects live in an org, and so do the people you invite later. Just you? Use your own name.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -46,7 +46,7 @@ export function CreateOrgForm() {
               name="name"
               required
               maxLength={80}
-              placeholder="Acme Inc."
+              placeholder="Your name, or your team's"
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
@@ -55,7 +55,7 @@ export function CreateOrgForm() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="slug">URL</Label>
+            <Label htmlFor="slug">Web address</Label>
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <span>/</span>
               <Input

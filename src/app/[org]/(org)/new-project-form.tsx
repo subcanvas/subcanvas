@@ -42,7 +42,7 @@ export function NewProject({ slug, orgId }: { slug: string; orgId: string }) {
     <Dialog>
       <DialogTrigger
         render={
-          <Button>
+          <Button variant="outline">
             <Plus />
             New project
           </Button>

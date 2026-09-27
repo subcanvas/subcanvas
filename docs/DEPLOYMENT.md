@@ -33,7 +33,7 @@ In the Supabase dashboard, under **Authentication**:
 |---|---|
 | URL Configuration → Site URL | `https://your-domain` |
 | URL Configuration → Redirect URLs | `https://your-domain/**` |
-| Sign In / Providers → Email | On (the default). Subcanvas signs people in with emailed links; there are no passwords. |
+| Sign In / Providers → Email | On (the default). Subcanvas signs people in with a password or an emailed link. |
 
 **Set up email before inviting anyone.** Supabase's built-in mailer sends only a few emails an hour, which is enough to try things and not enough for a team. Under Authentication → Emails → SMTP Settings, add an SMTP provider (Resend, Postmark, Amazon SES), and add the DNS records that provider asks for to your domain.
 

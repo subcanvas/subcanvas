@@ -102,7 +102,7 @@ test("a picture pasted from another document gets a copy of its own", async ({ p
   // The second document from the project's page: made while the first is
   // open, its editor would be found before the new one had replaced it.
   await breadcrumb(page).getByRole("link", { name: "Proj" }).click()
-  await expect(page.getByText("Pick a sheet")).toBeVisible()
+  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
   await createTextDocument(page, `Second ${id}`)
   await expect(treeLink(page, `Second ${id}`)).toBeVisible()
   const second = pageEditor(page)
