@@ -1,5 +1,5 @@
-import { MAX_FILE_BYTES, MAX_INNER_ZIP_BYTES, MAX_TOTAL_BYTES } from "./limits"
-import { isClutter, kindOf, safePath } from "./paths"
+import { MAX_FILE_BYTES, MAX_HTML_FILE_BYTES, MAX_INNER_ZIP_BYTES, MAX_TOTAL_BYTES } from "./limits"
+import { isClutter, kindOf, safePath, type FileKind } from "./paths"
 import type { PickedFile } from "./picked"
 import type { Skipped, SourceFile } from "./plan"
 import { listZip, readZipEntry, ZipError } from "./zip"
@@ -15,6 +15,10 @@ export type Collected = { files: SourceFile[]; skipped: Skipped[] }
 export class CollectError extends Error {}
 
 const decoder = new TextDecoder()
+
+// The kinds of file that are notes, and how large each may be.
+const limitOf = (kind: FileKind) =>
+  kind === "markdown" || kind === "csv" ? MAX_FILE_BYTES : kind === "html" ? MAX_HTML_FILE_BYTES : null
 
 export async function collect(picked: PickedFile[]): Promise<Collected> {
   const files: SourceFile[] = []
@@ -47,11 +51,12 @@ export async function collect(picked: PickedFile[]): Promise<Collected> {
       }
       if (isClutter(path)) continue
       const kind = kindOf(path)
-      if (kind === "markdown" || kind === "csv") {
+      const limit = limitOf(kind)
+      if (limit !== null) {
         if (entry.encrypted) skipped.push({ path, reason: "protected" })
-        else if (entry.size > MAX_FILE_BYTES) skipped.push({ path, reason: "too-large" })
+        else if (entry.size > limit) skipped.push({ path, reason: "too-large" })
         else {
-          const bytes = await readZipEntry(zip, entry, MAX_FILE_BYTES)
+          const bytes = await readZipEntry(zip, entry, limit)
           if (bytes) addText(path, decoder.decode(bytes))
           else skipped.push({ path, reason: entry.method === 0 || entry.method === 8 ? "too-large" : "unreadable" })
         }
@@ -67,9 +72,10 @@ export async function collect(picked: PickedFile[]): Promise<Collected> {
     const path = safePath(rawPath)
     if (!path || isClutter(path)) continue
     const kind = kindOf(path)
+    const limit = limitOf(kind)
     if (kind === "zip") await addZip(file, path, false)
-    else if (kind !== "markdown" && kind !== "csv") skipped.push({ path, reason: kind === "image" ? "image" : "unsupported" })
-    else if (file.size > MAX_FILE_BYTES) skipped.push({ path, reason: "too-large" })
+    else if (limit === null) skipped.push({ path, reason: kind === "image" ? "image" : "unsupported" })
+    else if (file.size > limit) skipped.push({ path, reason: "too-large" })
     else addText(path, await file.text())
   }
   return { files, skipped }

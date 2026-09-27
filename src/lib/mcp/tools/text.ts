@@ -15,7 +15,13 @@ const blockId = z
 const markdown = z
   .string()
   .min(1)
-  .describe("Markdown. It may hold several blocks (headings, paragraphs, lists, code, tables, quotes); each becomes its own block.")
+  .describe(
+    "Markdown. It may hold several blocks (headings, paragraphs, lists, code, tables, quotes); each becomes its own block. " +
+      "Also: `$$…$$` on lines of its own for an equation and `$…$` for maths in a line (TeX); " +
+      '`<aside data-icon="💡">`, a blank line, Markdown, a blank line, `</aside>` for a callout ' +
+      '(optional `data-background-color="blue"`: gray, brown, red, orange, yellow, green, blue, purple, pink); ' +
+      "and `[TOC]` on a line of its own for a table of contents. `read_text_document` writes these blocks the same way."
+  )
 
 // A document imported from a repository is owned by the file it came from,
 // and the web app shows it read-only too.

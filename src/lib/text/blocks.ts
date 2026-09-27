@@ -4,6 +4,7 @@ import * as Y from "yjs"
 
 import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
 
+import { blockToMarkdown } from "./markdown"
 import { serverEditor, type ServerBlocks } from "./server-editor"
 
 // Block-level reads and edits of a text document's Yjs state, for callers
@@ -13,22 +14,29 @@ import { serverEditor, type ServerBlocks } from "./server-editor"
 //
 // BlockNote stores a document as a `blockGroup` of `blockContainer`
 // elements, each carrying its block's id, its content, and an optional
-// nested `blockGroup` of children. Edits here insert and remove whole
-// containers and leave every other one alone, so they merge with what
-// people are typing elsewhere in the document.
+// nested `blockGroup` of children. A row of columns is a `columnList` in
+// the same place, holding `column`s that each hold containers. Edits here
+// insert and remove whole containers and leave every other one alone, so
+// they merge with what people are typing elsewhere in the document.
 
 type Container = Y.XmlElement
 
 const isElement = (node: unknown, name: string): node is Y.XmlElement =>
   node instanceof Y.XmlElement && node.nodeName.toLowerCase() === name
 
+// What a group holds: blocks, and rows of columns, each with its own id.
+const isBlock = (node: unknown): node is Container => isElement(node, "blockcontainer") || isElement(node, "columnlist")
+
 function topGroup(doc: Y.Doc) {
   const first = doc.getXmlFragment(TEXT_FRAGMENT).get(0)
   return isElement(first, "blockgroup") ? first : null
 }
 
-const containersOf = (group: Y.XmlElement) =>
-  group.toArray().filter((node): node is Container => isElement(node, "blockcontainer"))
+const containersOf = (group: Y.XmlElement) => group.toArray().filter(isBlock)
+
+// The groups directly inside a block: its nested children, or its columns.
+const innerGroupsOf = (block: Container) =>
+  block.toArray().filter((node): node is Y.XmlElement => isElement(node, "blockgroup") || isElement(node, "column"))
 
 function findContainer(
   group: Y.XmlElement,
@@ -37,14 +45,31 @@ function findContainer(
   const children = group.toArray()
   for (let index = 0; index < children.length; index++) {
     const container = children[index]
-    if (!isElement(container, "blockcontainer")) continue
+    if (!isBlock(container)) continue
     if (container.getAttribute("id") === blockId) return { group, index, container }
-    for (const inner of container.toArray()) {
-      const found = isElement(inner, "blockgroup") ? findContainer(inner, blockId) : null
+    for (const inner of innerGroupsOf(container)) {
+      const found = findContainer(inner, blockId)
       if (found) return found
     }
   }
   return null
+}
+
+// A column cannot be empty, and a row needs two columns. When a deletion
+// empties a column, the column goes; when that leaves one column, its
+// blocks take the row's place.
+function tidyColumn(column: Y.XmlElement) {
+  const row = column.parent
+  if (column.length > 0 || !(row instanceof Y.XmlElement) || !isElement(row, "columnlist")) return
+  row.delete(row.toArray().indexOf(column), 1)
+  const [last, ...others] = row.toArray()
+  if (others.length || !isElement(last, "column")) return
+  const outer = row.parent
+  if (!(outer instanceof Y.XmlElement)) return
+  const at = outer.toArray().indexOf(row)
+  const blocks = last.toArray().map((node) => (node as Y.XmlElement).clone())
+  outer.delete(at, 1)
+  outer.insert(at, blocks)
 }
 
 // A container with nothing typed in it: what a new document opens with.
@@ -73,15 +98,11 @@ export type ReadBlock = { id: string; type: string; markdown: string }
 export async function readBlocks(doc: Y.Doc): Promise<ReadBlock[]> {
   const blocks = serverEditor.yXmlFragmentToBlocks(doc.getXmlFragment(TEXT_FRAGMENT))
   return Promise.all(
-    blocks.map(async (block) => ({
-      id: block.id,
-      type: block.type,
-      markdown: (await serverEditor.blocksToMarkdownLossy([block])).trimEnd(),
-    }))
+    blocks.map(async (block) => ({ id: block.id, type: block.type, markdown: await blockToMarkdown(block) }))
   )
 }
 
-export const parseMarkdown = (markdown: string) => serverEditor.tryParseMarkdownToBlocks(markdown)
+export { parseMarkdown } from "./markdown"
 
 export type BlockEdit =
   | { kind: "append"; blocks: ServerBlocks }
@@ -123,6 +144,7 @@ export function applyBlockEdit(doc: Y.Doc, edit: BlockEdit): { added: string[] }
     // The editor cannot show a document with no blocks, and a nested group
     // cannot be empty either.
     if (last) found.group.insert(0, containersFor([{ type: "paragraph" }] as ServerBlocks))
+    else if (found.group.nodeName.toLowerCase() === "column") tidyColumn(found.group)
     else if (found.group.length === 0 && found.group.parent instanceof Y.XmlElement)
       found.group.parent.delete(found.group.parent.toArray().indexOf(found.group), 1)
     return { added: [] }

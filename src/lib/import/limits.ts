@@ -4,6 +4,10 @@
 
 // A note longer than this is a data dump, and the editor would crawl on it.
 export const MAX_FILE_BYTES = 500_000
+// A page exported as HTML carries a stylesheet and markup several times the
+// size of its words. It is read and cut down to its content in the browser,
+// and what is sent is held to MAX_FILE_BYTES like any note.
+export const MAX_HTML_FILE_BYTES = 2_000_000
 // All text of one import together, as read into the browser's memory.
 export const MAX_TOTAL_BYTES = 50_000_000
 export const MAX_DOCUMENTS = 2_000

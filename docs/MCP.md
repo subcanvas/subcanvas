@@ -64,6 +64,17 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.
 
+Blocks are read and written as Markdown. The blocks Markdown has no syntax for are written like this, both ways:
+
+| Block | Markdown |
+|---|---|
+| Equation | `$$`, the TeX, `$$`, each on a line of its own (or `$$ x^2 $$` on one line) |
+| Maths in a line | `$e^{i\pi} + 1 = 0$`: the dollar signs hug the TeX, so `$5 and $10` stays text |
+| Callout | `<aside data-icon="💡">`, a blank line, the callout's Markdown, a blank line, `</aside>`. `data-background-color` picks its colour: gray (the default), brown, red, orange, yellow, green, blue, purple, pink. Notion's Markdown export, `<aside>💡 Text</aside>`, reads the same way. |
+| Table of contents | `[TOC]` on a line of its own |
+
+A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
+
 Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
 
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.

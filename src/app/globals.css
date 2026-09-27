@@ -257,3 +257,208 @@ html .bn-root[data-color-scheme] {
   --bn-colors-border: var(--rule);
   --bn-colors-side-menu: var(--graphite);
 }
+
+/* The blocks a text document has beyond BlockNote's own
+   (components/editor/blocks). */
+
+/* Callout: the whole block is the box, so that blocks nested under it sit
+   inside it. A coloured one takes BlockNote's block colour; an uncoloured
+   one is a sheet of paper ruled round. */
+/* A React block sits inside a renderer element, one level below the block. */
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"]) {
+  --sc-callout: var(--paper);
+  margin-block: 0.25rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.375rem;
+  border-radius: var(--radius-md);
+  background-color: var(--sc-callout);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color]) {
+  box-shadow: none;
+}
+/* The box carries the colour, so nested blocks share it; the text's own
+   strip does not repaint it. BlockNote's block colours in the light theme,
+   and the same hues as tints of the sheet in the dark one. */
+.bn-block-content[data-content-type="callout"][data-background-color] {
+  background-color: transparent;
+}
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="gray"]) { --sc-callout: #ebeced; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="brown"]) { --sc-callout: #e9e5e3; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="red"]) { --sc-callout: #fbe4e4; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="orange"]) { --sc-callout: #f6e9d9; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="yellow"]) { --sc-callout: #fbf3db; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="green"]) { --sc-callout: #ddedea; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="blue"]) { --sc-callout: #ddebf1; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="purple"]) { --sc-callout: #eae4f2; }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="pink"]) { --sc-callout: #f4dfeb; }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="gray"]) { --sc-callout: color-mix(in oklab, #9b9a97 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="brown"]) { --sc-callout: color-mix(in oklab, #64473a 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="red"]) { --sc-callout: color-mix(in oklab, #e03e3e 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="orange"]) { --sc-callout: color-mix(in oklab, #d9730d 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="yellow"]) { --sc-callout: color-mix(in oklab, #dfab01 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="green"]) { --sc-callout: color-mix(in oklab, #4d6461 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="blue"]) { --sc-callout: color-mix(in oklab, #0b6e99 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="purple"]) { --sc-callout: color-mix(in oklab, #6940a5 28%, var(--sheet)); }
+.dark .bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"][data-background-color="pink"]) { --sc-callout: color-mix(in oklab, #ad1a72 28%, var(--sheet)); }
+.bn-block:has(> .react-renderer > .bn-block-content[data-content-type="callout"]) > .bn-block-group {
+  margin-left: 2.25rem;
+}
+.sc-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+.sc-callout-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+}
+button.sc-callout-icon:hover {
+  background-color: color-mix(in oklab, var(--ink) 8%, transparent);
+}
+button.sc-callout-icon:focus-visible,
+button.sc-equation-view:focus-visible,
+.sc-inline-equation:focus-visible,
+a.sc-bookmark:focus-visible,
+.sc-toc a:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+.sc-callout-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.125rem;
+}
+
+/* Equations. */
+.sc-equation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.sc-equation-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.5rem;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+}
+.sc-equation-view .katex-display {
+  margin: 0;
+}
+button.sc-equation-view:hover,
+button.sc-equation-view[aria-expanded="true"] {
+  background-color: color-mix(in oklab, var(--ink) 5%, transparent);
+}
+.sc-equation-empty {
+  color: var(--graphite);
+  font-size: 0.875rem;
+}
+.sc-equation-source {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.sc-inline-equation {
+  display: inline;
+  padding-inline: 0.125rem;
+  border-radius: 0.25rem;
+}
+button.sc-inline-equation:hover,
+.sc-inline-equation-open {
+  background-color: color-mix(in oklab, var(--ink) 8%, transparent);
+}
+
+/* Bookmarks. */
+.bn-shadcn .bn-editor a.sc-bookmark,
+.sc-bookmark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  color: inherit;
+  text-decoration: none;
+  background-color: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+}
+.bn-shadcn .bn-editor a.sc-bookmark:hover {
+  background-color: var(--paper);
+  border-color: var(--blueline);
+}
+.sc-bookmark-title {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sc-bookmark-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--graphite);
+  font-size: 0.8125rem;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.sc-bookmark-host {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  overflow: hidden;
+  color: var(--graphite);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sc-bookmark-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Table of contents. */
+.sc-toc {
+  width: 100%;
+}
+.sc-toc ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sc-toc li {
+  margin-block: 0.125rem;
+}
+.bn-shadcn .bn-editor .sc-toc a {
+  color: var(--graphite);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+.bn-shadcn .bn-editor .sc-toc a:hover {
+  color: var(--cobalt);
+  text-decoration-color: currentColor;
+}
+.sc-toc-empty {
+  color: var(--graphite);
+  font-size: 0.875rem;
+}
+
+/* A document's card in a text document is a link, and BlockNote draws links
+   in the browser's blue with an underline; the card keeps its own look. */
+.bn-shadcn .bn-editor a.sc-document-link {
+  color: inherit;
+  text-decoration: none;
+}
