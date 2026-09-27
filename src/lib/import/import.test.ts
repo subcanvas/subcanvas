@@ -154,7 +154,7 @@ describe("link rewriting", () => {
 
 describe("planning a Notion export", () => {
   it("nests subpages under their page, names things without ids, and keeps databases small enough to read", async () => {
-    const { plan: result, skipped } = await planFixture("notion")
+    const { plan: result, skipped, media } = await planFixture("notion")
     expect(result.folders).toEqual([])
     expect(result.documents.map((document) => [document.title, parentTitle(result, document.title)])).toEqual([
       ["Team Wiki", "(target)"],
@@ -164,7 +164,9 @@ describe("planning a Notion export", () => {
       ["Write the handbook", "document Tasks"],
     ])
     expect(titled(result, "Tasks").markdown).toContain('| Order laptops | Done | Grace | Ask about the "pro" model \\| urgent |')
-    expect(skipped).toEqual([{ path: "Team Wiki 1f0c2a9b7d3e4f5a8b6c9d0e1f2a3b4c/office-map.png", reason: "image" }])
+    // The picture is not skipped: it is kept, to be uploaded with the page that shows it.
+    expect(skipped).toEqual([])
+    expect([...media.keys()]).toEqual(["Team Wiki 1f0c2a9b7d3e4f5a8b6c9d0e1f2a3b4c/office-map.png"])
   })
 
   it("follows Notion's URL-encoded links, up and down", async () => {
@@ -179,12 +181,45 @@ describe("planning a Notion export", () => {
   })
 })
 
+describe("pictures in Markdown notes", () => {
+  it("points a note's own pictures at where they will be uploaded, once per document, and keeps the rest as words", async () => {
+    const org = "11111111-1111-4111-8111-111111111111"
+    const project = "22222222-2222-4222-8222-222222222222"
+    let n = 0
+    const result = planImport(
+      [
+        { path: "Home.md", text: "![[diagram.png]]\n\n![A plan](attachments/diagram.png)\n\n![[drawing.svg]]\n" },
+        { path: "Other.md", text: "![[diagram.png|300]]\n" },
+      ],
+      {
+        intoDocument: false,
+        attachments: ["attachments/diagram.png", "drawing.svg"],
+        newId: () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`,
+        hrefFor: (id) => `/d/${id}`,
+        media: { orgId: org, projectId: project, has: (path) => path === "attachments/diagram.png" },
+      }
+    )
+    const home = titled(result, "Home")
+    const other = titled(result, "Other")
+    // One upload for each document that shows it, and none for what cannot be kept.
+    expect(result.uploads.map((upload) => [upload.documentId, upload.source])).toEqual([
+      [home.id, "attachments/diagram.png"],
+      [other.id, "attachments/diagram.png"],
+    ])
+    const [mine, theirs] = result.uploads.map((upload) => `/api/media/${upload.path}`)
+    expect(home.markdown).toBe(`![](${mine})\n\n![A plan](${mine})\n\ndrawing\n`)
+    expect(other.markdown).toBe(`![](${theirs})\n`)
+    expect(result.localImages).toBe(1)
+  })
+})
+
 describe("planning an Obsidian vault", () => {
   it("mirrors folders, skips the settings folder, and resolves wiki links by name", async () => {
-    const { plan: result, skipped } = await planFixture("obsidian")
+    const { plan: result, skipped, media } = await planFixture("obsidian")
     expect(result.folders.map((folder) => folder.name)).toEqual(["Daily", "Projects"])
     expect(parentTitle(result, "Apollo")).toBe("folder Projects")
-    expect(skipped).toEqual([{ path: "attachments/diagram.png", reason: "image" }])
+    expect(skipped).toEqual([])
+    expect([...media.keys()]).toEqual(["attachments/diagram.png"])
 
     const home = titled(result, "Vault home").markdown
     const apollo = titled(result, "Apollo").id
@@ -330,18 +365,30 @@ describe("zip safety", () => {
     const [entry] = await listZip(zip)
     expect(entry.size).toBe(10)
     expect(await readZipEntry(zip, entry, MAX_FILE_BYTES)).toBeNull()
-    expect(await collect([{ path: "bomb.zip", file: zip }])).toEqual({ files: [], skipped: [{ path: "bomb.md", reason: "too-large" }] })
+    expect(await collect([{ path: "bomb.zip", file: zip }])).toEqual({
+      files: [],
+      skipped: [{ path: "bomb.md", reason: "too-large" }],
+      media: new Map(),
+    })
   })
 
-  it("does not unpack what it will not import", async () => {
-    const zip = zipOf({ "video.mp4": new Uint8Array(5_000_000), "huge.md": new Uint8Array(MAX_FILE_BYTES + 1), "note.md": strToU8("hi") })
-    expect(await collect([{ path: "vault.zip", file: zip }])).toEqual({
-      files: [{ path: "note.md", text: "hi" }],
-      skipped: [
-        { path: "video.mp4", reason: "unsupported" },
-        { path: "huge.md", reason: "too-large" },
-      ],
+  it("does not unpack what it will not import, and reads a picture or video only when it is sent", async () => {
+    const zip = zipOf({
+      "video.mp4": new Uint8Array(5_000_000),
+      "drawing.svg": strToU8("<svg/>"),
+      "huge.md": new Uint8Array(MAX_FILE_BYTES + 1),
+      "note.md": strToU8("hi"),
     })
+    const collected = await collect([{ path: "vault.zip", file: zip }])
+    expect(collected.files).toEqual([{ path: "note.md", text: "hi" }])
+    expect(collected.skipped).toEqual([
+      { path: "drawing.svg", reason: "image" },
+      { path: "huge.md", reason: "too-large" },
+    ])
+    const video = collected.media.get("video.mp4")!
+    expect([...collected.media.keys(), video.type]).toEqual(["video.mp4", "video/mp4"])
+    const read = await video.read()
+    expect([read?.size, read?.type]).toEqual([5_000_000, "video/mp4"])
   })
 
   it("opens the zips inside a zip, once, as Notion's large exports need", async () => {

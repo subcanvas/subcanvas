@@ -48,6 +48,10 @@ async function flush() {
   )
 }
 
+// A signed address for a file, from the cache while it is good. The text
+// editor asks through this for every picture a document shows.
+export const signedMediaUrl = (path: string) => signedUrl(path, false)
+
 function signedUrl(path: string, fresh: boolean) {
   const known = cache.get(path)
   if (!fresh && known && known.expiresAt - Date.now() > MARGIN_MS) return Promise.resolve(known.url)

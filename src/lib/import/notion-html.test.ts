@@ -258,4 +258,40 @@ describe("a Notion HTML export", () => {
     expect(JSON.stringify(blocks)).not.toContain("javascript:")
     expect((blocks as unknown as Block[]).map((block) => block.type)).toEqual(["paragraph", "image"])
   })
+
+  it("uploads a picture of the export with the page that shows it, filed under that page", async () => {
+    const org = "11111111-1111-4111-8111-111111111111"
+    const project = "22222222-2222-4222-8222-222222222222"
+    const decoder = new TextDecoder()
+    const all = Object.entries(fixtureFiles("notion-html"))
+    let n = 0
+    const result = planImport(
+      all.filter(([path]) => path.endsWith(".html")).map(([path, bytes]) => ({ path, text: decoder.decode(bytes) })),
+      {
+        intoDocument: false,
+        attachments: all.map(([path]) => path).filter((path) => path.endsWith(".png")),
+        newId: () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`,
+        hrefFor: (id) => `/d/${id}`,
+        media: { orgId: org, projectId: project, has: (path) => path.endsWith("office-map.png") },
+      }
+    )
+    const wiki = titled(result, "Team Wiki")
+    expect(result.localImages).toBe(0)
+    expect(result.uploads).toEqual([
+      {
+        documentId: wiki.id,
+        source: "Team Wiki 1f0c2a9b7d3e4f5a8b6c9d0e1f2a3b4c/office-map.png",
+        path: expect.stringMatching(new RegExp(`^${org}/${project}/${wiki.id}/[0-9a-f-]{36}\\.png$`)),
+      },
+    ])
+
+    const { blocks } = await htmlToBlocks(wiki.html!, wiki.id)
+    const image = (blocks as unknown as Block[]).find((block) => block.type === "image")!
+    expect(image.props).toMatchObject({ url: `/api/media/${result.uploads[0].path}`, caption: "Office map" })
+
+    // Sent for another document, the same page keeps no picture: a file is
+    // read by the readers of the document it is filed under.
+    const elsewhere = await htmlToBlocks(wiki.html!, titled(result, "Onboarding").id)
+    expect((elsewhere.blocks as unknown as Block[]).some((block) => block.type === "image")).toBe(false)
+  })
 })

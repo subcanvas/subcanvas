@@ -9,6 +9,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { writeNewDocuments } from "@/lib/sync/server-document"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
 import { serverEditor, type ServerBlocks } from "@/lib/text/server-editor"
+import { mediaDocumentId, parseMediaPath } from "@/lib/whiteboard/media"
 import type { Container } from "@/lib/tree"
 
 import type { ImportBatch } from "./batches"
@@ -94,9 +95,9 @@ function tidy(blocks: Rewritable[]) {
   }
 }
 
-export async function toBlocks(markdown: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
+export async function toBlocks(markdown: string, documentId?: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
   try {
-    const blocks = await parseMarkdown(markdown)
+    const blocks = keepAllowedMedia((await parseMarkdown(markdown)) as Media[], documentId) as ServerBlocks
     tidy(blocks as Rewritable[])
     return { blocks, plain: false }
   } catch {
@@ -111,21 +112,31 @@ export async function toBlocks(markdown: string): Promise<{ blocks: ServerBlocks
 type Media = { type: string; props?: { url?: unknown }; children?: Media[] }
 const MEDIA = new Set(["image", "video", "audio", "file"])
 
-// Pictures and files that point anywhere but the web are dropped: the
-// browser removes them before it sends a page, but a request need not come
-// from the browser.
-function onlyWebMedia<T extends Media>(blocks: T[]): T[] {
+// A picture or file may show what is on the web, or a file of this app's
+// that is filed under the document being written, which is where the
+// browser uploads an import's pictures once the document exists. Anything
+// else is dropped: the browser never sends it, but a request need not come
+// from the browser, and a file filed under another document is read by
+// that document's readers, not this one's.
+function allowedMedia(url: unknown, documentId: string | undefined) {
+  const address = String(url ?? "")
+  if (/^https?:\/\//i.test(address)) return true
+  const path = address.startsWith("/api/media/") ? parseMediaPath(address.slice("/api/media/".length)) : null
+  return !!path && !!documentId && mediaDocumentId(path) === documentId
+}
+
+export function keepAllowedMedia<T extends Media>(blocks: T[], documentId?: string): T[] {
   return blocks
-    .filter((block) => !MEDIA.has(block.type) || /^https?:\/\//i.test(String(block.props?.url ?? "")))
-    .map((block) => (block.children?.length ? { ...block, children: onlyWebMedia(block.children) } : block))
+    .filter((block) => !MEDIA.has(block.type) || allowedMedia(block.props?.url, documentId))
+    .map((block) => (block.children?.length ? { ...block, children: keepAllowedMedia(block.children, documentId) } : block))
 }
 
 // A page read from HTML. What the browser sent is the page cut down to what
 // the editor holds, but it came over the network, so it is parsed only into
 // blocks the schema knows; nothing of it is rendered as HTML.
-export async function htmlToBlocks(html: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
+export async function htmlToBlocks(html: string, documentId?: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
   try {
-    const blocks = onlyWebMedia(await serverEditor.tryParseHTMLToBlocks(html) as Media[]) as ServerBlocks
+    const blocks = keepAllowedMedia((await serverEditor.tryParseHTMLToBlocks(html)) as Media[], documentId) as ServerBlocks
     tidy(blocks as Rewritable[])
     return { blocks, plain: false }
   } catch {
@@ -149,7 +160,9 @@ export async function writeImportBatch(
   const plainText: string[] = []
   for (const document of batch.documents) {
     if (!document.markdown.trim() && !document.html?.trim()) continue
-    const { blocks, plain } = document.html ? await htmlToBlocks(document.html) : await toBlocks(document.markdown)
+    const { blocks, plain } = document.html
+      ? await htmlToBlocks(document.html, document.id)
+      : await toBlocks(document.markdown, document.id)
     if (plain) plainText.push(document.title)
     if (blocks.length)
       contents.push({ documentId: document.id, change: (doc) => void applyBlockEdit(doc, { kind: "append", blocks }) })

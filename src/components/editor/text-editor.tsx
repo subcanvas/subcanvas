@@ -40,6 +40,7 @@ import { createBookmark } from "./blocks/bookmark"
 import { createCallout } from "./blocks/callout"
 import { createEquation, inlineEquation } from "./blocks/equation"
 import { createTableOfContents } from "./blocks/table-of-contents"
+import { adopt, resolveFileUrl, uploader, useUploadCleanup } from "./media"
 import {
   createDocumentLink,
   TextDocumentContextProvider,
@@ -89,9 +90,14 @@ export default function TextEditor({
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
+  // Pictures and videos are filed under this document (./media.ts).
+  const home = { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId }
+
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
+      uploadFile: uploader(home),
+      resolveFileUrl,
       dictionary: { ...en, multi_column: multiColumnLocales.en },
       dropCursor: multiColumnDropCursor,
       collaboration: {
@@ -121,6 +127,30 @@ export default function TextEditor({
       prosemirrorToYXmlFragment(editor.prosemirrorState.doc, fragment)
     }, "seed")
   }, [editable, loaded, editor, provider])
+
+  useUploadCleanup(context.documentId, editor)
+
+  // A picture that arrives from another document (pasted, dragged, or put
+  // there by an agent) is copied to this one, so that its readers see it.
+  const adopting = useRef(new Set<string>())
+  useEffect(() => {
+    if (!editable) return
+    const here = { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId }
+    const check = () =>
+      editor.forEachBlock((block) => {
+        const url = (block.props as { url?: unknown }).url
+        if (typeof url !== "string" || adopting.current.has(`${block.id} ${url}`)) return true
+        adopting.current.add(`${block.id} ${url}`)
+        void adopt(here, url).then((result) => {
+          if (typeof result === "string") {
+            if (editor.getBlock(block.id)) editor.updateBlock(block.id, { props: { url: result } } as never)
+          } else if (result) toast.error(result.failed)
+        })
+        return true
+      })
+    check()
+    return editor.onChange(check)
+  }, [editable, editor, context.orgId, context.projectId, context.documentId])
 
   useEffect(() => {
     if (!autoFocus || !editable) return

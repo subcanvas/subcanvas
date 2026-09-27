@@ -17,10 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { makeBatches, type ImportBatch } from "@/lib/import/batches"
-import { collect, CollectError } from "@/lib/import/collect"
+import { collect, CollectError, type MediaFile } from "@/lib/import/collect"
 import { MAX_CSV_COLUMNS, MAX_CSV_ROWS } from "@/lib/import/limits"
 import { pickedFromDrop, pickedFromInput, type PickedFile } from "@/lib/import/picked"
 import { planImport, tooManyDocuments, type ImportPlan, type Skipped, type SkipReason } from "@/lib/import/plan"
+import { uploadImportMedia } from "@/lib/import/upload-media"
 import { documentHref } from "@/lib/navigation"
 import type { Container } from "@/lib/tree"
 import { cn } from "@/lib/utils"
@@ -32,19 +33,21 @@ import { cn } from "@/lib/utils"
 
 export type ImportTarget = { container: Container; name: string }
 
-type Prepared = { plan: ImportPlan; batches: ImportBatch[]; skipped: Skipped[] }
+type Prepared = { plan: ImportPlan; batches: ImportBatch[]; skipped: Skipped[]; media: Map<string, MediaFile> }
+// Pictures and videos sent so far, and those that did not make it.
+type Pictures = { sent: number; failed: number; error?: string }
 type Stage =
   | { step: "choose"; error?: string }
   | { step: "reading" }
   | ({ step: "preview" } & Prepared)
-  | ({ step: "importing"; imported: number } & Prepared)
-  | ({ step: "done"; imported: number; plainText: string[]; error?: string; limit?: true } & Prepared)
+  | ({ step: "importing"; imported: number; pictures: Pictures } & Prepared)
+  | ({ step: "done"; imported: number; plainText: string[]; error?: string; limit?: true; pictures: Pictures } & Prepared)
 
 const ACCEPT = ".md,.markdown,.mdown,.txt,.csv,.html,.htm,.zip"
 
 const REASONS: Record<SkipReason, string> = {
   unsupported: "not a kind of file that can be imported",
-  image: "image files",
+  image: "pictures too large to keep, or of a kind that is not kept (such as SVG or HEIC)",
   "too-large": "too large for one document",
   "table-too-large": "tables too large for one document",
   unreadable: "could not be read",
@@ -84,16 +87,17 @@ export function ImportDialog({
 
   async function read(picking: Promise<PickedFile[]> | PickedFile[]) {
     try {
-      const { files, skipped } = await collect(await picking)
+      const { files, skipped, media } = await collect(await picking)
       const plan = planImport(files, {
         intoDocument: target.container.kind === "document",
-        attachments: skipped.map((file) => file.path),
+        attachments: [...skipped.map((file) => file.path), ...media.keys()],
         newId: () => crypto.randomUUID(),
         hrefFor: (id) => documentHref(project, id),
+        media: { orgId: project.orgId, projectId: project.projectId, has: (path) => media.has(path) },
       })
       const tooMany = tooManyDocuments(plan.documents.length)
       if (tooMany) return setStage({ step: "choose", error: tooMany })
-      setStage({ step: "preview", plan, batches: makeBatches(plan), skipped: [...skipped, ...plan.skipped] })
+      setStage({ step: "preview", plan, batches: makeBatches(plan), skipped: [...skipped, ...plan.skipped], media })
     } catch (error) {
       setStage({
         step: "choose",
@@ -115,15 +119,20 @@ export function ImportDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function run({ plan, batches, skipped }: Prepared) {
-    const prepared = { plan, batches, skipped }
+  async function run({ plan, batches, skipped, media }: Prepared) {
+    const prepared = { plan, batches, skipped, media }
     stopped.current = false
-    setStage({ step: "importing", imported: 0, ...prepared })
-
     let imported = 0
+    const pictures: Pictures = { sent: 0, failed: 0 }
+    const show = () => setStage({ step: "importing", imported, pictures: { ...pictures }, ...prepared })
+    show()
+
     const plainText: string[] = []
     const finish = (failure?: { error: string; limit?: true }) =>
-      setStage({ step: "done", imported, plainText, ...failure, ...prepared })
+      setStage({ step: "done", imported, plainText, ...failure, pictures: { ...pictures }, ...prepared })
+    // Uploads are not stopped halfway; closing the tab is what ends them.
+    const uploading = new AbortController()
+    let full = false
 
     const allowed = await checkImport(project, plan.documents.length)
     if ("error" in allowed) return finish(allowed)
@@ -138,7 +147,31 @@ export function ImportDialog({
       if ("error" in result) return finish(result)
       imported += batch.documents.length
       plainText.push(...(result.plainText ?? []))
-      setStage({ step: "importing", imported, ...prepared })
+      show()
+
+      // The batch's pictures, now that the documents they are filed under exist.
+      const here = new Set(batch.documents.map((document) => document.id))
+      const uploads = plan.uploads.filter((upload) => here.has(upload.documentId))
+      if (!uploads.length) continue
+      if (full) {
+        pictures.failed += uploads.length
+        continue
+      }
+      const before = pictures.failed
+      const outcome = await uploadImportMedia(
+        uploads,
+        media,
+        () => {
+          pictures.sent++
+          show()
+        },
+        uploading.signal
+      )
+      pictures.sent -= outcome.failed
+      pictures.failed = before + outcome.failed
+      pictures.error ??= outcome.message
+      full ||= !!outcome.full
+      show()
     }
     finish()
   }
@@ -277,6 +310,8 @@ export function ImportDialog({
               <DialogTitle>Importing…</DialogTitle>
               <DialogDescription role="status">
                 {stage.imported.toLocaleString("en")} of {count(stage.plan.documents.length, "document")}
+                {stage.plan.uploads.length > 0 &&
+                  `, ${(stage.pictures.sent + stage.pictures.failed).toLocaleString("en")} of ${count(stage.plan.uploads.length, "picture")}`}
               </DialogDescription>
             </DialogHeader>
             <div
@@ -332,6 +367,11 @@ export function ImportDialog({
             <Notes
               notes={[
                 ...stage.plainText.map((title) => `“${title}” could not be converted, and was imported as plain text.`),
+                ...(stage.pictures.failed
+                  ? [
+                      `${count(stage.pictures.failed, "picture was", "pictures were")} not uploaded${stage.pictures.error ? `: ${stage.pictures.error}` : "."} ${stage.pictures.failed === 1 ? "It shows" : "They show"} as missing in ${stage.pictures.failed === 1 ? "its document" : "their documents"}.`,
+                    ]
+                  : []),
                 ...(stage.imported ? notesOf(stage, true) : []),
               ]}
             />
@@ -382,9 +422,11 @@ function outlineOf(plan: ImportPlan) {
 // What the person should know that the counts do not say.
 function notesOf({ plan, skipped }: Prepared, done = false) {
   const notes: string[] = []
+  if (plan.uploads.length && !done)
+    notes.push(`${count(plan.uploads.length, "picture or video", "pictures and videos")} in these notes will be uploaded with them.`)
   if (plan.localImages)
     notes.push(
-      `${count(plan.localImages, "image")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported; image upload is coming. ${plan.localImages === 1 ? "Its description is" : "Their descriptions are"} kept in the text.`
+      `${count(plan.localImages, "image")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported, because ${plan.localImages === 1 ? "it is" : "they are"} not among the files or not a kind that is kept. ${plan.localImages === 1 ? "Its description is" : "Their descriptions are"} kept in the text.`
     )
   if (plan.tablesLeftOut)
     notes.push(
