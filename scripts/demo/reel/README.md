@@ -12,9 +12,9 @@ the picture says each scene's point, and the narration says the same:
    into the diagram inside it. Its names and arrows come from `.subcanvas`
    files written by hand, and the caption says so.
 2. An arrow there, opened into the page that says why it exists.
-3. An agent draws one: a real Claude Code run over the MCP server, shown in
-   a terminal beside the sheet while its edits are made again, live (see
-   "The agent" below).
+3. An agent draws one: a recorded Claude Code session over the MCP server,
+   played back in a terminal beside the sheet while its edit is made again,
+   live (see "The agent" below).
 4. `react/react` imported on camera, from GitHub like any import. It has no
    `.subcanvas` files, so its main folders become boxes on their own, and
    one opens onto its packages. The cut wait is marked as sped up.
@@ -35,8 +35,8 @@ its first frame is the mark at rest).
 ## Render it locally
 
 It needs a reelscript newer than 0.2.0, for `waitFor` (with `settle`), a
-click with no `duration`, zooms kept `within` the window, and the `menubar`
-option.
+click with no `duration`, zooms kept `within` the window, the `menubar`
+option, and terminal output played from timed `events` at a fixed size.
 
 ```sh
 # Once: the CLI (or `npm i -g @reelscript/cli`), its browser, and ffmpeg
@@ -84,20 +84,31 @@ are made from GitHub and the agent runs against them.
 
 ## The agent
 
-Scene 3 is a real run of Claude Code, replayed. The first render runs it
-once, headless, in a clean copy of this checkout's committed files, with the
-Subcanvas MCP server signed in as the demo account (its token is passed on
-the command line, never written down). It may read files and read and draw
-on whiteboards, nothing else. What it did is kept in
-`out/agent-<stage org>.json`, and its edits are undone at once. On camera
-the terminal shows that run, and at the moment it made its edits the same
-MCP calls are made again, so its arrow arrives on the sheet live; after the
-render they are undone again.
+Scene 3 is a real Claude Code session, recorded and played back. The first
+render records it once: Claude Code runs interactively, in a terminal of its
+own (macOS `script -r`, driven by `expect`), in `/tmp/subcanvas`, a clean
+copy of this checkout's committed files, with the Subcanvas MCP server
+signed in as the demo account. The token reaches it in the environment; the
+`.mcp.json` written there names the variable, not the token. It runs on
+that folder's settings alone (`--setting-sources project
+--strict-mcp-config`): Opus at medium effort, allowed to read files and to
+read and draw on whiteboards, and refused the shell, file edits and the web.
+While it runs, the script watches the whiteboard for the moment its arrow
+appears. The recording, that moment and the edit are kept in
+`out/agent-<stage org>.json`, and the edit is undone at once.
 
-It needs the `claude` CLI, signed in (`DEMO_CLAUDE` names another). The kept
-run is only good for the sheet it drew on; if the staging org is imported
-again, the agent runs again. Delete the file to have it run again anyway,
-for instance after changing `DEMO_AGENT_PROMPT`.
+On camera the recording plays in a terminal the size it was made at (80 by
+30), sped up and marked so, and at the moment its arrow appeared the same
+edit is made again through the MCP server, so the arrow arrives on the sheet
+live. After the render it is undone again.
+
+It needs `expect` (macOS has it) and Claude Code 2.1.280 or newer, signed
+in; `DEMO_CLAUDE` names another CLI than `claude`. The session uses the
+account's own usage, a few minutes of Opus, and whatever Claude Code shows
+that account (its plan in the header, a usage notice) is in the recording,
+so look at the frames. A kept session is only good for the sheet it drew
+on, the request it was given and the terminal's size; otherwise it is
+recorded again. Delete the file to record it again anyway.
 
 ## The published render: production
 
@@ -118,8 +129,8 @@ REELSCRIPT="node ~/Git/reelscript/dist/cli.js" pnpm demo:reel
 
 ## Files
 
-- `agent.ts`: the agent scene's run, its replay, and a small client for
-  the app's MCP endpoint.
+- `agent.ts`: the agent scene's recording, its replay, and a small client
+  for the app's MCP endpoint.
 - `demo.ts`: the scenes, the preparation before the camera rolls, and the
   post-processing: the cut of the sign-in prelude, the captions, the
   gallery pictures and the thumbnail. Its header lists every setting.

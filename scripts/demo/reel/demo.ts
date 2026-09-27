@@ -30,8 +30,9 @@
  *   DEMO_AGENT_PROMPT     What the agent in scene 3 is asked. The default asks
  *                         for the arrow missing from the Core libraries sheet.
  *   DEMO_CLAUDE           The Claude Code CLI the agent runs as. Default claude.
- *                         It runs once, headless, and is kept (see agent.ts);
- *                         delete out/agent-<stage>.json to run it again.
+ *                         Its session is recorded once and kept (see
+ *                         agent.ts); delete out/agent-<stage>.json to record
+ *                         it again.
  *   DEMO_README_URL       A README with the embed in it, shown at the end of
  *                         the embed scene. Default none.
  *   DEMO_EMAIL            The demo account. Created through the sign-up form
@@ -61,9 +62,9 @@
  *      opening into the diagram inside. Its names and arrows come from
  *      .subcanvas files written by hand, and the caption says so.
  *   2. An arrow there, opened into the page that says why it exists.
- *   3. An agent draws one: a real Claude Code run over the MCP server,
- *      replayed in a terminal beside the sheet while its edits are made
- *      again, live (see agent.ts).
+ *   3. An agent draws one: a recorded Claude Code session over the MCP
+ *      server, played back in a terminal beside the sheet while its edit is
+ *      made again, live (see agent.ts).
  *   4. A repository with no .subcanvas files imported on camera: its main
  *      folders become boxes on their own, and one opens onto its packages.
  *   5. Share and Copy embed; against production, the embed in a README.
@@ -89,14 +90,13 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { dirname, resolve } from "node:path"
 import { execFileSync } from "node:child_process"
 
 import { chromium, type Page } from "@playwright/test"
-import { createDemo } from "@reelscript/cli"
+import { createDemo, playbackEvents } from "@reelscript/cli"
 
-import { describeSteps, madeBy, mcpClient, replay, runAgent, undo, type AgentRun, type Made } from "./agent"
+import { madeBy, mcpClient, recordAgent, replay, undo, type AgentRun, type Made } from "./agent"
 
 // --- Settings -----------------------------------------------------------------
 
@@ -117,7 +117,7 @@ const stageSlug = process.env.DEMO_STAGE_ORG ?? "reel-demo"
 // What the agent in scene 3 is asked, typed on camera as it was given.
 const agentPrompt =
   process.env.DEMO_AGENT_PROMPT ??
-  "Read src/lib and add the arrow missing from the Core libraries diagram in my subcanvas project. Answer in one sentence."
+  "Read src/lib/sync and add the arrow missing from the Core libraries diagram in my subcanvas project. Answer in one short sentence."
 const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 600)
 const publicSite = (process.env.DEMO_PUBLIC_SITE ?? "https://subcanvas.app").replace(/\/$/, "")
 
@@ -127,37 +127,12 @@ const here = dirname(new URL(import.meta.url).pathname)
 const outDir = resolve(here, "..", "out")
 const card = (name: string) => new URL(`./cards/${name}.html`, import.meta.url).href
 
-// The file the terminal shows, as it is in this checkout, and the first
-// words of the arrow's reason in it, to know its page has opened.
+// The first words of the arrow's reason, from its file in this checkout, to
+// know its page has opened.
 const selfName = nameOf(selfRepository)
 const arrowText = readFileSync(resolve(here, "..", "..", "..", arrowFile), "utf8").trimEnd()
 const reason = arrowText.match(new RegExp(`label: ${arrow}\\s*\\n\\s*description: (\\S+ \\S+ \\S+ \\S+)`))?.[1]
 if (!reason) throw new Error(`demo: ${arrowFile} has no arrow "${arrow}" with a description`)
-
-// The terminal wraps a long line wherever the column runs out, mid-word.
-// Wrapped here at spaces instead, each continuation indented under its
-// line, which is how the file reads in an editor.
-const TERMINAL_COLUMNS = 60
-function wrap(text: string, columns: number) {
-  return text
-    .split("\n")
-    .flatMap((line) => {
-      if (line.length <= columns) return [line]
-      const lead = line.match(/^\s*/)![0]
-      const indent = lead + "  "
-      const out: string[] = []
-      let current = lead
-      for (const word of line.slice(lead.length).split(" ")) {
-        const next = current.trim() ? `${current} ${word}` : current + word
-        if (next.length > columns && current.trim()) {
-          out.push(current)
-          current = indent + word
-        } else current = next
-      }
-      return [...out, current]
-    })
-    .join("\n")
-}
 
 // --- Selectors ----------------------------------------------------------------
 // Roles and labels, the way the e2e helpers name things, never a generated
@@ -240,14 +215,21 @@ async function createOrg(page: Page, slug: string) {
 
 // Where the agent runs: a copy of this checkout's committed files in a
 // folder of its own, named like the repository, with nothing around it (no
-// workspace notes above it for the agent to wander into).
-const AGENT_ROOT = resolve(tmpdir(), "subcanvas-demo-agent", selfName)
+// workspace notes above it for the agent to wander into). Its path shows in
+// Claude Code's header. A folder already there is replaced only if it is an
+// earlier copy.
+const AGENT_ROOT = `/tmp/${selfName}`
 function agentFolder() {
+  if (existsSync(AGENT_ROOT) && !existsSync(resolve(AGENT_ROOT, "scripts", "demo", "reel", "agent.ts")))
+    throw new Error(`demo: ${AGENT_ROOT} is there and is not a copy made by the demo; move it`)
   rmSync(AGENT_ROOT, { recursive: true, force: true })
   mkdirSync(AGENT_ROOT, { recursive: true })
   execFileSync("sh", ["-c", `git archive HEAD | tar -x -C "${AGENT_ROOT}"`], { cwd: resolve(here, "..", "..", "..") })
   return AGENT_ROOT
 }
+// The terminal it is recorded in and played back in, in characters.
+const AGENT_COLS = 80
+const AGENT_ROWS = 30
 
 // The demo account's access token, from the session cookie the app set at
 // sign-in (Supabase keeps it there as base64 JSON, split into chunks when
@@ -343,21 +325,35 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
     if (reasonEdge.open_mode !== "navigate")
       await mcp("update_edges", { whiteboard_id: coreId, edges: [{ id: reasonEdge.id, open_mode: "navigate" }] })
 
-    // The agent's run, made once and kept. Its edits are undone right away,
-    // so the sheet is as it was when the camera shows it being drawn on.
-    // A kept run is only good for the sheet it drew on.
+    // The agent's session, recorded once and kept. Its edit is undone right
+    // away, so the sheet is as it was when the camera shows it being drawn
+    // on. A kept session is only good for the sheet it drew on, the request
+    // it was given, and the terminal size it was laid out for.
     const agentFile = resolve(outDir, `agent-${stageSlug}.json`)
     let agent: AgentRun | null = existsSync(agentFile) ? (JSON.parse(readFileSync(agentFile, "utf8")) as AgentRun) : null
-    if (agent && madeBy(agent).whiteboard_id !== coreId) agent = null
+    if (
+      agent &&
+      (!agent.events ||
+        madeBy(agent).whiteboard_id !== coreId ||
+        agent.prompt !== agentPrompt ||
+        agent.cols !== AGENT_COLS ||
+        agent.rows !== AGENT_ROWS)
+    )
+      agent = null
     if (!agent) {
-      process.stderr.write("demo: running the agent once (Claude Code, headless)\n")
-      agent = runAgent({ cwd: agentFolder(), base, token, prompt: agentPrompt })
-      if (madeBy(agent).whiteboard_id !== coreId)
-        throw new Error(`demo: the agent drew on another whiteboard (${madeBy(agent).whiteboard_id}), not Core libraries`)
+      process.stderr.write("demo: recording the agent once (Claude Code, a few minutes)\n")
+      agent = await recordAgent({
+        root: agentFolder(),
+        base,
+        token,
+        prompt: agentPrompt,
+        whiteboardId: coreId,
+        cols: AGENT_COLS,
+        rows: AGENT_ROWS,
+      })
       await undo(mcp, madeBy(agent))
       writeFileSync(agentFile, JSON.stringify(agent, null, 2) + "\n")
     }
-    if (!agent) throw new Error("demo: no agent run")
 
     // The fresh org the on-camera import lands in. Nothing is deleted, so it
     // gets a name of its own each time.
@@ -460,6 +456,16 @@ async function clickThrough(target: string, scale: number, at: string | { x: num
   zoom(at, scale, 900)
 }
 
+// A stretch of the agent's recorded session, [from, to) in its ms, sped up
+// to play in `ms` of video. Every chunk is still written, in order; only
+// the time between them shrinks.
+function paced(events: [number, string][], from: number, to: number, ms: number): [number, string][] {
+  const part = events.filter(([at]) => at >= from && at < to)
+  if (!part.length) return []
+  const speed = Math.max(1, (part.at(-1)![0] - from) / ms)
+  return part.map(([at, text]) => [Math.round((at - from) / speed), text])
+}
+
 // The prelude, cut from the video: reelscript's browser signs in, puts the
 // canvas in view mode and collapses the sidebar (both kept for the rest of
 // the session), then opens the first sheet, so the video starts on it.
@@ -520,9 +526,10 @@ await move(REST, 700)
 still("An arrow can open into why it is there.", 900)
 await demo.wait(2700)
 
-// 3. An agent draws one: a real Claude Code run (see agent.ts), shown in a
-// terminal beside the sheet. Its edits are made again, live, the moment its
-// steps are listed, and the arrow it drew arrives on the sheet.
+// 3. An agent draws one: a Claude Code session, recorded before the camera
+// rolled (see agent.ts), played back in a terminal beside the sheet. At the
+// moment in it when its arrow appeared on the whiteboard, the same edit is
+// made again, live, and the arrow arrives on the sheet.
 mark("An agent draws an arrow")
 caption("Or ask an agent. Subcanvas speaks MCP.")
 say("Or ask an agent to draw them. Subcanvas speaks MCP.")
@@ -530,26 +537,40 @@ const agentArrow = String(
   ((agent.writes.find((write) => write.name === "connect_nodes")?.input.edges as { label?: string }[] | undefined) ?? [])[0]
     ?.label ?? ""
 )
-await demo.browser.place({ x: 16, y: 44, width: 930, height: 768 })
+if (!agentArrow) throw new Error("demo: the agent's arrow has no label to find it by")
+// The terminal at the size the session was laid out for, spaced like a
+// terminal app's, so Claude Code's block-drawn logo joins up: 14px
+// JetBrains Mono at line height 1 draws 8.4 by 18 pixel cells, inside 12
+// and 10 pixels of padding.
+const terminalSize = { width: agent.cols * 8.4 + 24, height: agent.rows * 18 + 20 }
+await demo.browser.place({ x: 16, y: 44, width: 1600 - 48 - terminalSize.width, height: 768 })
 await open(stage.self.deeper, EDGE_LABEL(arrow))
-note("Agent run replayed, sped up")
-await demo.terminal.open({ title: "claude", prompt: `${selfName} % `, fontSize: 15, x: 962, y: 96, width: 624, height: 600 })
-const steps = describeSteps(agent).map((step) => `⏺ ${step}`).join("\n")
-// Claude Code shows its answer's Markdown formatted; here it is plain text.
-const agentReply = agent.reply.replace(/\*\*|__|`/g, "").replace(/\n{2,}/g, "\n")
-await demo.terminal.run(`claude -p "${agentPrompt}"`, { output: wrap(steps, TERMINAL_COLUMNS), wpm: 900, duration: 1400, prompt: false })
+note("Claude Code session replayed, sped up")
+await demo.terminal.open({
+  title: `${selfName} — claude`,
+  prompt: "",
+  fontSize: 14,
+  lineHeight: 1,
+  cols: agent.cols,
+  rows: agent.rows,
+  x: 1600 - 16 - terminalSize.width,
+  y: 140,
+  ...terminalSize,
+})
+await demo.terminal.print("", { events: paced(agent.events, 0, agent.editAt, 5200), maxGapMs: Infinity })
 const replayedFile = resolve(outDir, "agent-replayed.json")
 await demo.call(async () => {
   const made = await replay(mcpClient(base, token), agent)
   writeFileSync(replayedFile, JSON.stringify(made) + "\n")
 })
-await demo.terminal.print(`\n${wrap(agentReply, TERMINAL_COLUMNS)}\n`, { duration: 700, prompt: true })
-if (agentArrow) {
-  // Close on the arrow it drew, centred on it: across both windows, so not
-  // held inside the browser's.
-  await demo.waitFor(EDGE_LABEL(agentArrow), { settle: 150, window: "browser" })
-  demo.zoom.to(EDGE_LABEL(agentArrow), { scale: 1.5, duration: 900, window: "browser" })
-}
+say("It read the code, and drew the arrow itself.")
+await demo.terminal.print("", { events: paced(agent.events, agent.editAt, Infinity, 1600), maxGapMs: Infinity })
+// Closer, on the arrow it drew and its answer together: at 1.3x the view is
+// 1231 pixels of the desktop wide, so centred 97 pixels inside the
+// terminal it runs from the middle of the sheet to the terminal's right
+// edge.
+await demo.waitFor(EDGE_LABEL(agentArrow), { settle: 150, window: "browser" })
+demo.zoom.to({ x: 97, y: 350 }, { scale: 1.3, duration: 900, window: "terminal" })
 await move({ x: 470, y: 700 }, 800, "browser")
 noteEnd()
 still("Or ask an agent to draw them. Subcanvas speaks MCP.", 600)
@@ -563,7 +584,7 @@ say("Start from any public repository.")
 // The terminal goes behind the browser's rectangle, which comes back to its
 // full size and to the front, hiding it.
 demo.zoom.out({ duration: 0 })
-await demo.terminal.place({ x: 700, y: 96, width: 624, height: 600 })
+await demo.terminal.place({ x: 700, y: 140, ...terminalSize })
 await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
 await demo.browser.goto(`${base}/${slug}`, { settle: 400 })
 await move('button:has-text("Import from GitHub")', 900)
@@ -653,16 +674,16 @@ function lengthOf(action: ReturnType<typeof demo.getTimeline>[number]): number {
     case "terminal.open":
       return 300
     case "terminal.print": {
-      // reelscript spreads printed lines over `duration` (default: 150 ms
-      // plus 60 a line, at most 2.5 s), after 80 ms, and ends 250 ms later.
-      const lines = action.text.split("\n").length
+      // Timed chunks end 250 ms after the last. Text is spread over
+      // `duration` (default: 150 ms plus 60 a line, at most 2.5 s), after
+      // 80 ms, and ends 250 ms later.
+      if (action.events) {
+        const played = playbackEvents(action.events, { speed: action.speed, maxGapMs: action.maxGapMs })
+        return (played.at(-1)?.[0] ?? 0) + 250
+      }
+      const lines = (action.text ?? "").split("\n").length
       const total = action.duration ?? Math.min(2500, 150 + 60 * lines)
       return 80 + total + 250
-    }
-    case "terminal.run": {
-      if (action.output === undefined || action.duration === undefined)
-        throw new Error("demo: give every terminal.run its output and a duration")
-      return 510 + Array.from(action.command).length * (60000 / ((action.wpm ?? 300) * 5)) + action.duration
     }
     case "say":
     case "zoom.to":
@@ -702,7 +723,7 @@ async function overlayImages(dir: string): Promise<string[]> {
       await page.locator("#text").evaluate(
         (element, [value, className]) => {
           element.textContent = value
-          element.className = className
+          element.setAttribute("class", className)
         },
         [text, kind]
       )
