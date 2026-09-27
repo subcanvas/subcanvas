@@ -146,7 +146,8 @@ export function planImport(files: SourceFile[], { intoDocument, attachments = []
   }
   // Folders named without the whole id: each goes to the page beside it
   // with that title, the one whose short id it has, or else the one with
-  // that title that has no folder of its own yet.
+  // that title that has no folder of its own yet. A page comes before a
+  // table: an inline database is only a table beside its folder of rows.
   const existing = new Set<string>()
   for (const path of [...notes.map((note) => note.path), ...attachments])
     for (let folder = parentOf(path); folder; folder = parentOf(folder)) existing.add(folder)
@@ -155,7 +156,8 @@ export function planImport(files: SourceFile[], { intoDocument, attachments = []
   const byShortIdFirst = [...existing].sort((a, b) => Number(!NOTION_SHORT_ID.test(baseName(a))) - Number(!NOTION_SHORT_ID.test(baseName(b))))
   for (const folder of byShortIdFirst) {
     if (pageOfFolder.has(key(folder))) continue
-    const pages = notes.filter((note) => parentOf(note.path) === parentOf(folder) && kindOf(note.path) !== "csv")
+    const beside = notes.filter((note) => parentOf(note.path) === parentOf(folder))
+    const pages = [...beside.filter((note) => kindOf(note.path) !== "csv"), ...beside.filter((note) => kindOf(note.path) === "csv")]
     const short = NOTION_SHORT_ID.exec(baseName(folder))
     const page = short
       ? pages.find((note) => {
