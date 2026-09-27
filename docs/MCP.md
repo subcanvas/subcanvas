@@ -2,7 +2,7 @@
 
 Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write text documents, nest a diagram inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
 
-- **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless).
+- **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless). Both the 2025 protocol and 2026-07-28 are served. The tool list never changes while an agent is connected, so there is nothing to listen for: the server says `listChanged: false`, and a client opens no `subscriptions/listen` stream.
 - **Sign-in:** OAuth 2.1, with Supabase Auth as the authorization server. There are no API keys.
 - **Code:** `src/app/mcp/route.ts` (the endpoint), `src/lib/mcp/` (tools), `src/app/oauth/consent/` (the approval page).
 
