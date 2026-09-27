@@ -118,3 +118,35 @@ test("a repository that does not exist is refused in the dialog, with nothing cr
   await expect(dialog).toBeHidden()
   await expect(page.getByText("Start with a project")).toBeVisible()
 })
+
+test("an import with notes shows them, even in an org that had no projects", async ({ page }) => {
+  await signUpWithOrg(page)
+
+  // `bramble` has one arrow to a folder it does not have. In an empty org
+  // the dialog is part of the empty page, which the new project replaces,
+  // and the notes have to outlast that.
+  await expect(page.getByText("Start with a project")).toBeVisible()
+  await page.getByRole("button", { name: "Import from GitHub" }).click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/bramble")
+  await dialog.getByRole("button", { name: "Import", exact: true }).click()
+
+  await expect(dialog.getByRole("heading", { name: "Imported, with notes" })).toBeVisible()
+  await expect(dialog.getByText("api/.subcanvas: `to: queue` is not a folder on the diagram.")).toBeVisible()
+
+  // Closed, the page behind it lists the project.
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole("link", { name: /^bramble/ })).toBeVisible()
+
+  // Opened again, it is the form, not the last import's notes; and the
+  // whiteboard the notes pointed to is there.
+  await page.getByRole("button", { name: "Import from GitHub" }).click()
+  await expect(dialog.getByRole("textbox", { name: "Repository" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.getByRole("link", { name: /^bramble/ }).click()
+  await treeLink(page, "System design").click()
+  await expect(whiteboardTools(page)).toBeVisible()
+  await expect(nodeLabelled(page, "API")).toBeVisible()
+  await expect(nodeLabelled(page, "Web")).toBeVisible()
+})

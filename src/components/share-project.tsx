@@ -62,7 +62,14 @@ export function ShareProject({
   }
 
   async function copy(what: "link" | "embed", text: string) {
-    await navigator.clipboard.writeText(text)
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      // The browser refused (no permission, or the page is not focused):
+      // say so instead of leaving the button looking as if nothing happened.
+      toast.error("Could not reach the clipboard. Select the text and copy it yourself.")
+      return
+    }
     setCopied(what)
     setTimeout(() => setCopied(null), 2000)
   }

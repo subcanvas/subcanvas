@@ -164,3 +164,39 @@ test("an arrow holds a document, written in the panel and there after a reload",
   await clickNode(page, alpha)
   await expect(panel.getByLabel("Title")).toHaveValue(alpha)
 })
+
+// The mark in a node's corner is the one-click way in, and it does only
+// that: the node is not selected on the way, which would open the panel for
+// a moment before the sheet inside replaced the page.
+test("the mark on a node goes inside without opening the panel first", async ({ page }) => {
+  const id = freshId()
+  await signUpWithOrg(page)
+
+  await createProject(page, "Proj")
+  await createWhiteboard(page, "Board")
+
+  const outer = `Outer ${id}`
+  await addNode(page, outer)
+  await createWhiteboardInside(page)
+  await expectSaved(page)
+  // Esc, not the panel's close button: that one keeps the panel shut for
+  // this node until something else is selected, which would hide the flash.
+  await clickNode(page, outer)
+  await page.keyboard.press("Escape")
+  await expect(inspector(page)).toBeHidden()
+
+  // Anything that puts the panel on the page, for however short a time.
+  await page.evaluate(() => {
+    const seen = window as unknown as { panelOpened?: boolean }
+    seen.panelOpened = false
+    new MutationObserver(() => {
+      if (document.querySelector('aside[aria-label="Object settings"]')) seen.panelOpened = true
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+
+  const before = page.url()
+  await nodeNamed(page, outer, "a whiteboard").getByRole("button", { name: "Open the whiteboard inside" }).click()
+  await page.waitForURL((url) => url.href !== before)
+  await expect(breadcrumb(page)).toHaveText(new RegExp(`Proj.*Board.*${outer}`))
+  expect(await page.evaluate(() => (window as unknown as { panelOpened?: boolean }).panelOpened)).toBe(false)
+})

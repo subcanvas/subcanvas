@@ -1,0 +1,6 @@
+title: API
+connects:
+  - to: web
+    label: JSON
+  - to: queue
+    label: jobs
