@@ -95,6 +95,39 @@ test("signs an agent in through the consent page, and it works as that person", 
   await expect(page.getByRole("link", { name: boardName, exact: true })).toBeVisible()
 })
 
+test("an approved agent is listed in Profile, and once revoked its token is refused at once", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  const { account, slug } = await signUpWithOrg(page)
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
+
+  const { client, provider } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
+  if (!client) throw new Error("No client after approval")
+  await callTool(client, "list_orgs")
+  const token = provider.tokens()?.access_token
+  if (!token) throw new Error("The client holds no token")
+
+  await page.goto(`/${slug}/settings/profile`)
+  const section = page.getByRole("region", { name: "Connected agents" })
+  await expect(section.getByText("E2E agent", { exact: true })).toBeVisible()
+  await section.getByRole("button", { name: "Revoke E2E agent" }).click()
+  await expect(page.getByText("E2E agent is disconnected.")).toBeVisible()
+  await expect(section.getByText("No agents are connected.")).toBeVisible()
+
+  // The access token it holds has not run out, and is refused all the same:
+  // the server asks Supabase Auth about an agent's session on every call.
+  const refused = await request.post(`${baseURL}${MCP_PATH}`, {
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
+    data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  })
+  expect(refused.status()).toBe(401)
+  // And its refresh token is gone, so the client cannot get another.
+  await expect(client.callTool({ name: "list_orgs", arguments: {} })).rejects.toThrow()
+  await client.close().catch(() => {})
+})
+
 test("cancelling on the consent page gives the agent no token", async ({ page, baseURL }) => {
   const { account } = await signUpWithOrg(page)
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
