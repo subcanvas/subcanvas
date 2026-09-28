@@ -107,3 +107,21 @@ export async function setProjectVisibility(
     await operations.setProjectVisibility(supabase, project.projectId, visibility)
   )
 }
+
+export async function renameProject(project: ProjectRef, name: string): Promise<ActionResult> {
+  const supabase = await createClient()
+  const result = await operations.renameProject(supabase, project.projectId, name)
+  // The name is in the sidebar, the page titles, and the org's project list.
+  if ("ok" in result) revalidatePath(`/${project.slug}`, "layout")
+  return result
+}
+
+// The dialog goes to the org's projects when this says ok, as deleting an
+// org does: the page it was opened on is gone.
+export async function deleteProject(project: ProjectRef, confirmation: string): Promise<ActionResult> {
+  const supabase = await createClient()
+  const result = await operations.deleteProject(supabase, project.projectId, confirmation)
+  if ("ok" in result) revalidatePath(`/${project.slug}`, "layout")
+  return result
+}
+

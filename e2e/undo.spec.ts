@@ -20,12 +20,12 @@ import { clickCanvas } from "./support/collab"
 // The platform's command key is ⌘ on a Mac and Ctrl elsewhere, which is
 // what ControlOrMeta stands for.
 
-// A node fresh from the toolbar is called "Node", the same word as the tool
+// A box fresh from the toolbar is called "Box", the same word as the tool
 // that made it, so its label cannot be told from the tool's by text alone.
 // Its accessible name can: every node is a group named after its kind and
 // title.
 const freshNode = (page: Page) =>
-  page.getByRole("application").getByRole("group", { name: "Node: Node", exact: true })
+  page.getByRole("application").getByRole("group", { name: "Box: Box", exact: true })
 
 // Adds a node from the toolbar and waits for it to be saved before giving it
 // a title, so the add and the title are two steps to undo. Yjs merges

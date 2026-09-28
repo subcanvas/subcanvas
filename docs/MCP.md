@@ -32,6 +32,7 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `get_project` | Get a project and its document tree | reads |
 | `create_project` | Create a project | writes |
 | `set_project_visibility` | Make a project public or private | writes |
+| `rename_project` | Rename a project | writes |
 | `create_document` | Create a document | writes |
 | `import_markdown_documents` | Import Markdown files as documents | writes |
 | `create_folder` | Create a folder | writes |
@@ -81,7 +82,7 @@ Pictures and videos on a whiteboard are read, not written. `read_whiteboard` rep
 
 ### Not exposed yet
 
-Members and invites, billing, creating, renaming, leaving, or deleting an org, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting an org, deleting a project, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
 
 ## Security model
 

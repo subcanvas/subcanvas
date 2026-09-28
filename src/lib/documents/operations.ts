@@ -274,6 +274,42 @@ export async function setProjectVisibility(
   return { ok: true }
 }
 
+// The same limit as the table's check.
+const MAX_PROJECT_NAME = 120
+
+export async function renameProject(supabase: Client, projectId: string, name: string): Promise<OperationResult> {
+  const trimmed = name.trim()
+  if (!trimmed || trimmed.length > MAX_PROJECT_NAME)
+    return { error: `A project name is 1 to ${MAX_PROJECT_NAME} characters.` }
+
+  const { data, error } = await supabase.from("projects").update({ name: trimmed }).eq("id", projectId).select("id")
+  if (error) return fail(error)
+  if (!data.length) return NOT_ALLOWED
+  return { ok: true }
+}
+
+// For good, with everything in it: RLS lets admins do it, and the rows go by
+// cascade. `confirmation` is the project's name as the person typed it,
+// checked here as well as in the dialog, so nothing but a deliberate request
+// deletes. Its pictures and videos are named <org>/<project>/<document>/…
+// and go after the rows (media-cleanup.ts says why in that order).
+export async function deleteProject(
+  supabase: Client,
+  projectId: string,
+  confirmation: string
+): Promise<OperationResult> {
+  const { data: project } = await supabase.from("projects").select("org_id, name").eq("id", projectId).maybeSingle()
+  if (!project) return NOT_ALLOWED
+  if (confirmation.trim() !== project.name) return { error: "That is not the project's name." }
+
+  const media = (await listMedia(supabase, project.org_id)).filter((file) => file.name.split("/")[1] === projectId)
+  const { data, error } = await supabase.from("projects").delete().eq("id", projectId).select("id")
+  if (error) return fail(error)
+  if (!data.length) return NOT_ALLOWED
+  await removeMedia(supabase, media)
+  return { ok: true }
+}
+
 export async function createProject(
   supabase: Client,
   { orgId, userId, name, visibility }: {
