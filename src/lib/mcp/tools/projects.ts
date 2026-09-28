@@ -194,4 +194,23 @@ export const projectTools = [
       return { text: `The project is now ${wanted}.`, data: { project_id, visibility: wanted } }
     },
   }),
+
+  defineTool({
+    name: "rename_project",
+    title: "Rename a project",
+    group: "Orgs and projects",
+    description:
+      "Gives a project a new name, 1 to 120 characters. Needs the editor role or higher. Its address, its documents, and links to it stay the same.",
+    input: {
+      project_id: id("The project."),
+      name: z.string().min(1).max(120).describe("The new name."),
+    },
+    kind: "idempotent-write",
+    covers: ["[org]/[project]/tree-actions.renameProject"],
+    run: async (context, { project_id, name }) => {
+      const result = await operations.renameProject(context.supabase, project_id, name)
+      if ("error" in result) return result
+      return { text: `The project is now called "${name.trim()}".`, data: { project_id, name: name.trim() } }
+    },
+  }),
 ]

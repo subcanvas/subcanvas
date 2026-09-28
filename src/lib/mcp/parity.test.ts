@@ -32,6 +32,9 @@ const NOT_EXPOSED: Record<string, string> = {
   // Renaming is harmless but belongs with them. Planned with the members
   // tools, behind the same consent-screen choice.
   "[org]/(org)/settings/general/actions.deleteOrg": "irreversible, and takes every project with it",
+  // The same for one project: it goes for good with everything in it, trash
+  // included, and a person confirms it by typing its name.
+  "[org]/[project]/tree-actions.deleteProject": "irreversible, and takes every document in it",
   "[org]/(org)/settings/general/actions.leaveOrg": "changes who has access; a person's decision",
   "[org]/(org)/settings/general/actions.renameOrg": "kept with the rest of org administration",
   // Your own name and picture are how other people recognise you. An agent

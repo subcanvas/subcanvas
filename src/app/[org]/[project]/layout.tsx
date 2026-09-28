@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell"
 import { ProjectTree } from "@/components/tree/project-tree"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
+import { hasRole } from "@/lib/roles"
 import { buildTree } from "@/lib/tree"
 
 export default async function ProjectLayout({
@@ -12,7 +13,7 @@ export default async function ProjectLayout({
   params,
 }: LayoutProps<"/[org]/[project]">) {
   const { org: slug, project: projectId } = await params
-  const { supabase, org, plan, canEdit } = await getOrgContext(slug)
+  const { supabase, org, plan, canEdit, role } = await getOrgContext(slug)
 
   const { data: project } = await supabase
     .from("projects")
@@ -49,6 +50,7 @@ export default async function ProjectLayout({
       projectName={project.name}
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={canEdit}
+      canDelete={hasRole(role, "admin")}
       canUpgrade={billingConfigured()}
       trashHref={`/${org.slug}/${project.id}/trash`}
     />

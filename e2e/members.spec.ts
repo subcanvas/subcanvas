@@ -92,7 +92,7 @@ test("a member invited as a viewer can look, can change things once an editor, a
     await removeMember(page, slug, guest.email)
     await expect(memberRow(page, guest.email)).toHaveCount(0)
     await member.page.goto(`/${slug}`)
-    await expect(member.page.getByText("There is no sheet here")).toBeVisible()
+    await expect(member.page.getByText("There is nothing here")).toBeVisible()
   } finally {
     await member.context.close()
   }
@@ -117,7 +117,7 @@ test("an invite is for one address, and someone else signed in cannot take it", 
 
     // Not in: the org is not theirs to see.
     await other.page.goto(`/${slug}`)
-    await expect(other.page.getByText("There is no sheet here")).toBeVisible()
+    await expect(other.page.getByText("There is nothing here")).toBeVisible()
   } finally {
     await other.context.close()
   }
