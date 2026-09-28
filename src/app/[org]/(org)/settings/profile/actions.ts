@@ -67,3 +67,18 @@ export async function adoptProviderPicture(provider: PictureProvider): Promise<A
   if (!picture) return { error: "That account has no picture to use." }
   return saveProfile(current, { avatar_url: picture })
 }
+
+// An agent the person approved on the consent page, disconnected: its consent
+// is withdrawn, its sessions and refresh tokens are gone, and the MCP server
+// refuses the token it holds from its next request (lib/mcp/auth.ts). To
+// come back it has to be approved again.
+export async function revokeAgent(clientId: string): Promise<ActionResult> {
+  const current = await session()
+  if (!current) return NOT_SIGNED_IN
+
+  const { error } = await current.supabase.auth.oauth.revokeGrant({ clientId })
+  if (error) return { error: error.message }
+  revalidatePath("/[org]/settings/profile", "page")
+  return { ok: true }
+}
+

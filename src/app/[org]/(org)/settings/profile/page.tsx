@@ -8,6 +8,7 @@ import { legalDetails } from "@/lib/legal"
 import { getOrgContext } from "@/lib/orgs"
 
 import { SettingsSection } from "../settings-section"
+import { ConnectedAgents } from "./connected-agents"
 import { PICTURE_PROVIDERS, PROVIDER_LABELS, providerPicture } from "./identities"
 import { DisplayNameForm, PictureForm } from "./profile-forms"
 
@@ -47,10 +48,21 @@ function Method({
 export default async function ProfilePage({ params }: PageProps<"/[org]/settings/profile">) {
   const { org: slug } = await params
   const { supabase, user } = await getOrgContext(slug)
-  const [{ data: profile }, { data: hasPassword }] = await Promise.all([
+  const [{ data: profile }, { data: hasPassword }, grants] = await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
     supabase.rpc("has_password"),
+    supabase.auth.oauth.listGrants(),
   ])
+  // Absent where agents cannot sign in: a server without Supabase's OAuth
+  // server switched on answers with an error, and there is nothing to list.
+  const approved = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" })
+  const agents = grants.error
+    ? null
+    : (grants.data ?? []).map((grant) => ({
+        clientId: grant.client.id,
+        name: grant.client.name || "An unnamed agent",
+        approved: approved.format(new Date(grant.granted_at)),
+      }))
 
   const email = user.email ?? ""
   const identities = user.identities ?? []
@@ -124,6 +136,16 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
           ))}
         </ul>
       </SettingsSection>
+
+      {agents && (
+        <SettingsSection
+          id="profile-agents"
+          title="Connected agents"
+          description="Agents you let in on the consent page. Each one acts as you, with your role in every org. Revoke one and it is refused from its next request; to come back, it has to be approved again."
+        >
+          <ConnectedAgents agents={agents} connectHref={`/${slug}/agents`} />
+        </SettingsSection>
+      )}
 
       <SettingsSection
         id="profile-delete"

@@ -37,6 +37,8 @@ const NOT_EXPOSED: Record<string, string> = {
   // Your own name and picture are how other people recognise you. An agent
   // acts as you; it does not get to change who you appear to be.
   "[org]/(org)/settings/profile/actions.updateDisplayName": "a person's identity is theirs to change",
+  // Which agents may act as you is your decision, not an agent's.
+  "[org]/(org)/settings/profile/actions.revokeAgent": "a person's control over their agents",
   "[org]/(org)/settings/profile/actions.updatePicture": "a person's identity is theirs to change",
   "[org]/(org)/settings/profile/actions.adoptProviderPicture": "a person's identity is theirs to change",
   // An agent gets in through an org's member, so it cannot exist before the
