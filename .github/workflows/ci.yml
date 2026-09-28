@@ -50,7 +50,7 @@ jobs:
       # pulled once per CLI version instead.
       - name: Restore the stack's images
         id: images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/supabase-images.tar
           key: supabase-images-2.110.0-${{ runner.os }}
@@ -140,7 +140,7 @@ jobs:
       # pulled once per CLI version instead.
       - name: Restore the stack's images
         id: images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/supabase-images.tar
           key: supabase-images-2.110.0-${{ runner.os }}
@@ -236,7 +236,7 @@ jobs:
       # pulled once per CLI version instead.
       - name: Restore the stack's images
         id: images
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /tmp/supabase-images.tar
           key: supabase-images-2.110.0-${{ runner.os }}
