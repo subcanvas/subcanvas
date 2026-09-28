@@ -2,15 +2,26 @@
 
 **Turn a GitHub repo into a diagram you can click into.** Paste a public repository and each main folder becomes a box with its README inside; a box opens into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a page of notes, as many levels deep as you need.
 
-<!-- Subcanvas's own diagram, imported from this repository and drawn live by subcanvas.app. -->
-<a href="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg?theme=dark">
-    <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg">
-  </picture>
-</a>
+<!-- The demo, made from scripts/demo/out/demo.mp4 by scripts/demo/readme-preview.sh. -->
+<p align="center">
+  <a href="https://subcanvas.app">
+    <img alt="Subcanvas in 49 seconds: a repository becomes a diagram, a box opens into the whiteboard inside it, an agent adds an arrow over MCP, and the diagram goes into a README" src="docs/media/demo.webp" width="880">
+  </a>
+</p>
 
-**Try it** at [subcanvas.app](https://subcanvas.app) (free, private projects included) · **Run your own** with [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · **AGPL-3.0**
+<p align="center"><strong>Try it</strong> at <a href="https://subcanvas.app">subcanvas.app</a> (free, private projects included) · <strong>Run your own</strong> with <a href="docs/DEPLOYMENT.md">docs/DEPLOYMENT.md</a> · <strong>AGPL-3.0</strong></p>
+
+This repository's own diagram, drawn live by subcanvas.app from its folders and `.subcanvas` files. Click it to open the boxes.
+
+<!-- Share, then Copy embed, on the whiteboard at subcanvas.app. -->
+<p align="center">
+  <a href="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg?theme=dark">
+      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg" width="880">
+    </picture>
+  </a>
+</p>
 
 - **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. The import is a one-time copy.
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
