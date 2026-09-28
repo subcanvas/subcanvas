@@ -150,6 +150,13 @@ export function parseCalloutContent(el: HTMLElement, schema: Schema): Fragment {
     rest = nodes.slice(index)
   }
   stripLeadingEmoji(inline, el.getAttribute("data-icon") === null)
+  // Notion's Markdown gives the emoji a line of its own, so its text is the
+  // paragraph after it.
+  const next = rest[0]
+  if (!inline.textContent?.trim() && next?.nodeType === 1 && (next as HTMLElement).tagName === "P") {
+    inline.replaceChildren(...Array.from(next.childNodes).map((node) => node.cloneNode(true)))
+    rest = rest.slice(1)
+  }
 
   const text = parser.parse(inline, { topNode: schema.nodes.paragraph.create(), preserveWhitespace: true }).content
   const content = schema.nodes.callout.create({}, text).content
