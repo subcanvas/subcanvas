@@ -1,12 +1,12 @@
 import { FileText, Link2, Workflow } from "lucide-react"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 
 import { HeroCanvas } from "@/components/landing/hero-canvas"
 import { Wordmark } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
 import { billingConfigured } from "@/lib/billing/stripe"
+import { WORKSPACE_HOME } from "@/lib/home"
 import { legalDetails } from "@/lib/legal"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
@@ -61,10 +61,10 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user) {
-    const { data: orgs } = await supabase.from("orgs").select("slug").order("created_at").limit(1)
-    redirect(orgs?.[0] ? `/${orgs[0].slug}` : "/onboarding")
-  }
+  // The same page for everyone. Someone signed in gets a way to their own
+  // work in place of Sign in, and the buttons that would ask them to sign in
+  // take them there instead.
+  const start = user ? WORKSPACE_HOME : "/login"
 
   // Without Stripe there is no plan to buy, so the page shows what this
   // server actually offers instead of a price nobody can pay.
@@ -84,8 +84,8 @@ export default async function Home() {
           <a href={SOURCE_URL} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-sm:hidden")}>
             Source
           </a>
-          <Link href="/login" className={buttonVariants({ size: "sm" })}>
-            Sign in
+          <Link href={start} className={buttonVariants({ size: "sm" })}>
+            {user ? "Your projects" : "Sign in"}
           </Link>
         </nav>
       </header>
@@ -102,10 +102,10 @@ export default async function Home() {
               page of notes.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Link href="/login" className={cn(buttonVariants({ size: "lg" }), "px-5")}>
+              <Link href={start} className={cn(buttonVariants({ size: "lg" }), "px-5")}>
                 Import a repository
               </Link>
-              <Link href="/login" className={buttonVariants({ variant: "ghost", size: "lg" })}>
+              <Link href={start} className={buttonVariants({ variant: "ghost", size: "lg" })}>
                 Or start blank
               </Link>
             </div>
@@ -179,7 +179,7 @@ export default async function Home() {
                 ))}
               </ol>
               <div className="flex flex-wrap items-center gap-3">
-                <Link href="/login" className={buttonVariants()}>
+                <Link href={start} className={buttonVariants()}>
                   Import a repository
                 </Link>
                 <a
@@ -222,6 +222,7 @@ export default async function Home() {
               {selling ? (
                 <>
                   <Plan
+                    start={start}
                     name="Free"
                     price="$0"
                     points={[
@@ -233,6 +234,7 @@ export default async function Home() {
                     ]}
                   />
                   <Plan
+                    start={start}
                     name="Team"
                     price="$5"
                     unit="per editor, per month"
@@ -247,6 +249,7 @@ export default async function Home() {
                 </>
               ) : (
                 <Plan
+                  start={start}
                   name="Hosted"
                   price="Free"
                   unit="while Subcanvas is this new"
@@ -260,6 +263,7 @@ export default async function Home() {
                 />
               )}
               <Plan
+                start={start}
                 name="Run it yourself"
                 price="Open source"
                 points={["The whole product, AGPL-3.0", "No plan limits", "Your server, your data"]}
@@ -299,13 +303,15 @@ export default async function Home() {
 }
 
 function Plan({
+  start,
   name,
   price,
   unit,
   points,
   highlight = false,
-  action = { href: "/login", label: "Start drawing" },
+  action = { href: start, label: "Start drawing" },
 }: {
+  start: string
   name: string
   price: string
   unit?: string
