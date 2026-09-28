@@ -1,10 +1,11 @@
 import { isAuthApiError, isAuthSessionMissingError, type AuthError } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 
+import { WORKSPACE_HOME } from "@/lib/home"
 import { createClient } from "@/lib/supabase/server"
 
 // Only same-site paths are allowed as post-login destinations.
-export function safeNext(next: string | null | undefined, fallback = "/") {
+export function safeNext(next: string | null | undefined, fallback = WORKSPACE_HOME) {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : fallback
 }
 

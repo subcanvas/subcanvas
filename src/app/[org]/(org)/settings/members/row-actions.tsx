@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { TableCell } from "@/components/ui/table"
 import { ROLE_LABELS, ROLES, type Role } from "@/lib/roles"
+import { WORKSPACE_HOME } from "@/lib/home"
 
 import {
   changeRole,
@@ -99,7 +100,7 @@ export function MemberActions({
             onClick={() =>
               run(
                 () => removeMember(slug, orgId, userId),
-                canLeave ? () => router.push("/") : undefined
+                canLeave ? () => router.push(WORKSPACE_HOME) : undefined
               )
             }
           >

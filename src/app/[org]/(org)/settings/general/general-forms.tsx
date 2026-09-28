@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { WORKSPACE_HOME } from "@/lib/home"
 
 import { deleteOrg, leaveOrg, renameOrg } from "./actions"
 
@@ -74,7 +75,7 @@ export function LeaveOrg({ slug, orgId, orgName }: { slug: string; orgId: string
       const result = await leaveOrg(slug, orgId)
       if ("error" in result) return void toast.error(result.error)
       toast.success(`You left ${orgName}.`)
-      router.push("/")
+      router.push(WORKSPACE_HOME)
     })
   }
 
@@ -120,7 +121,7 @@ export function DeleteOrg({
       const result = await deleteOrg(orgId, typed)
       if ("error" in result) return setError(result.error)
       toast.success(`${orgName} was deleted.`)
-      router.push("/")
+      router.push(WORKSPACE_HOME)
     })
   }
 

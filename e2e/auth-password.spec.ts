@@ -18,7 +18,7 @@ test("signs up with a password, changes it, and signs back in with the new one",
   const changed = { ...account, password: `changed-${account.id}` }
   await page.getByLabel("New password").fill(changed.password)
   await page.getByRole("button", { name: "Save password" }).click()
-  // It sends you back where you were: the home page, which knows the org.
+  // With nowhere else asked for, it sends you to your own work: the org.
   await page.waitForURL(`/${slug}`)
 
   await signOut(page)
