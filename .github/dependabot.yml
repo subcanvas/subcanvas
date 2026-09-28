@@ -15,6 +15,11 @@ updates:
       # require() ES modules, which Vercel's functions refuse.
       - dependency-name: jsdom
         versions: [">=27"]
+      # Node's types describe the oldest Node the app runs on: 22, in CI and
+      # the Docker image (Vercel runs 24). Newer types would let code use APIs
+      # that do not exist there. Raise this by hand with the runtime.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
