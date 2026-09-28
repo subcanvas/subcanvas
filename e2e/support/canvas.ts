@@ -12,14 +12,14 @@ export type Box = Point & { width: number; height: number }
 const canvas = (page: Page) => page.getByRole("application")
 
 // React Flow gives every node and every edge the group role, with the label
-// the app writes for it: "Node: Alpha", "Group: Frame", "Arrow from Alpha to
+// the app writes for it: "Box: Alpha", "Group: Frame", "Arrow from Alpha to
 // Beta". An object that holds a document says so at the end of its name,
 // which is also how a test knows a node has a whiteboard inside.
 const objectNamed = (page: Page, name: string | RegExp) =>
   canvas(page).getByRole("group", { name, exact: true })
 
 export const nodeNamed = (page: Page, title: string, holds?: "a whiteboard" | "a document") =>
-  objectNamed(page, `Node: ${title}${holds ? `, holds ${holds}` : ""}`)
+  objectNamed(page, `Box: ${title}${holds ? `, holds ${holds}` : ""}`)
 
 export const groupNamed = (page: Page, title: string) => objectNamed(page, `Group: ${title}`)
 

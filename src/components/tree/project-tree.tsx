@@ -493,7 +493,7 @@ export function ProjectTree({
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
           <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
-            {canEdit ? "No documents yet. Use + to add a whiteboard or a page of notes, or drop Markdown files here." : "No documents yet."}
+            {canEdit ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here." : "No whiteboards or pages yet."}
           </p>
         )}
       </SidebarGroupContent>
