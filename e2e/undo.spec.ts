@@ -32,7 +32,7 @@ const freshNode = (page: Page) =>
 // changes made within half a second of each other into one step, and
 // "Saved" comes at least a second after the add.
 async function addNodeInTwoSteps(page: Page, title: string) {
-  await whiteboardTools(page).getByRole("button", { name: "Node", exact: true }).click()
+  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
   await expect(freshNode(page)).toBeVisible()
   await expectSaved(page)
   await inspector(page).getByLabel("Title").fill(title)
@@ -58,7 +58,7 @@ test("⌘Z takes back the title and then the node; ⇧⌘Z brings them back in o
 
   await page.keyboard.press("ControlOrMeta+z")
   // The words the sheet shows when it holds nothing.
-  await expect(page.getByText("An empty sheet")).toBeVisible()
+  await expect(page.getByText("Nothing here yet")).toBeVisible()
 
   await page.keyboard.press("Shift+ControlOrMeta+z")
   await expect(freshNode(page)).toBeVisible()
@@ -89,7 +89,7 @@ test("the toolbar's Undo and Redo do the same", async ({ page }) => {
   await expect(nodeLabelled(page, title)).toHaveCount(0)
 
   await undo.click()
-  await expect(page.getByText("An empty sheet")).toBeVisible()
+  await expect(page.getByText("Nothing here yet")).toBeVisible()
 
   await redo.click()
   await expect(freshNode(page)).toBeVisible()

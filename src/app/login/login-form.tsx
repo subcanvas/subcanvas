@@ -31,13 +31,13 @@ type Mode = "signin" | "signup" | "link" | "reset"
 const COPY: Record<Mode, { title: string; description: string; submit: string; pending: string }> = {
   signin: {
     title: "Sign in",
-    description: "Welcome back.",
+    description: "New here? Continue with GitHub or Google and your account is made for you.",
     submit: "Sign in",
     pending: "Signing in…",
   },
   signup: {
     title: "Create an account",
-    description: "Free for public projects. No card.",
+    description: "Free, private projects included. No card.",
     submit: "Create account",
     pending: "Creating…",
   },
@@ -104,7 +104,13 @@ export function LoginForm({
         router.refresh()
         return
       }
-      setError(error.message)
+      // Supabase says "Invalid login credentials" for a wrong password and for
+      // an email with no account alike; the second is what a newcomer hits.
+      setError(
+        error.code === "invalid_credentials"
+          ? "That email and password don't match. New to Subcanvas? Create an account below."
+          : error.message
+      )
     } else if (mode === "signup") {
       const { data, error } = await auth.signUp({
         email,

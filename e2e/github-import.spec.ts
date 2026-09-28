@@ -131,7 +131,7 @@ test("an import with notes shows them, even in an org that had no projects", asy
   await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/bramble")
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
 
-  await expect(dialog.getByRole("heading", { name: "Imported, with notes" })).toBeVisible()
+  await expect(dialog.getByRole("heading", { name: "Imported, with a few things left out" })).toBeVisible()
   await expect(dialog.getByText("api/.subcanvas: `to: queue` is not a folder on the diagram.")).toBeVisible()
 
   // Closed, the page behind it lists the project.

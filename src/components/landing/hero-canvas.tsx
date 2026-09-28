@@ -6,7 +6,8 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { COLORS } from "@/lib/whiteboard/colors"
 
-// A working miniature of the product: click a stacked box to go inside it.
+// A working miniature of the product, drawn as an imported repository
+// would be: click a stacked box to go inside it.
 // Positions are percentages of the sheet, so it scales with the page.
 
 type Box = {
@@ -24,66 +25,66 @@ type Sheet = { id: string; title: string; boxes: Box[]; lines: [string, string, 
 const SHEETS: Record<string, Sheet> = {
   root: {
     id: "root",
-    title: "Moving to Lisbon",
+    title: "acme/shop",
     boxes: [
-      { id: "visa", label: "Visa", x: 12, y: 20, tone: "green", inside: "visa" },
-      { id: "flat", label: "Apartment", x: 12, y: 62, tone: "blue", inside: "flat" },
-      { id: "budget", label: "Budget", x: 44, y: 41, note: "Rent 1,400. Deposit is two months. Keep 3,000 aside for the first month with no income." },
-      { id: "week", label: "First week", x: 74, y: 41, tone: "orange", inside: "week" },
+      { id: "web", label: "Web app", x: 12, y: 20, tone: "green", inside: "web" },
+      { id: "api", label: "API", x: 12, y: 62, tone: "blue", inside: "api" },
+      { id: "payments", label: "Payments", x: 44, y: 41, note: "Charges cards through Stripe and owns the charges table. Every settled charge becomes a journal entry in the ledger." },
+      { id: "ledger", label: "Ledger", x: 74, y: 41, tone: "orange", inside: "ledger" },
     ],
     lines: [
-      ["visa", "budget"],
-      ["flat", "budget", "deposit"],
-      ["budget", "week"],
+      ["web", "payments"],
+      ["api", "payments", "gRPC"],
+      ["payments", "ledger"],
     ],
   },
-  visa: {
-    id: "visa",
-    title: "Visa",
+  web: {
+    id: "web",
+    title: "Web app",
     boxes: [
-      { id: "appt", label: "Book the appointment", x: 8, y: 40, w: 24 },
-      { id: "docs", label: "Documents", x: 42, y: 40, tone: "green", inside: "docs" },
-      { id: "fee", label: "Pay the fee", x: 72, y: 40, note: "90 euros, card only. Bring the receipt to the appointment." },
+      { id: "store", label: "Storefront", x: 8, y: 40, w: 24 },
+      { id: "checkout", label: "Checkout", x: 42, y: 40, tone: "green", inside: "checkout" },
+      { id: "auth", label: "Sign-in", x: 72, y: 40, note: "Sessions last 30 days. The API checks the same cookie, so one sign-in covers both." },
     ],
     lines: [
-      ["appt", "docs"],
-      ["docs", "fee", "then"],
+      ["store", "checkout"],
+      ["checkout", "auth", "needs"],
     ],
   },
-  docs: {
-    id: "docs",
-    title: "Documents",
+  checkout: {
+    id: "checkout",
+    title: "Checkout",
     boxes: [
-      { id: "passport", label: "Passport copy", x: 14, y: 24 },
-      { id: "income", label: "Proof of income", x: 14, y: 60, note: "Last three payslips, or a letter from the client. Translated copies are not needed." },
-      { id: "lease", label: "Signed lease", x: 58, y: 42, tone: "blue" },
+      { id: "cart", label: "Cart", x: 14, y: 24 },
+      { id: "address", label: "Shipping address", x: 14, y: 60, note: "Checked by the API before an order exists, so a bad address never reaches Payments." },
+      { id: "pay", label: "Pay button", x: 58, y: 42, tone: "blue" },
     ],
-    lines: [["income", "lease", "needs"]],
+    lines: [["address", "pay", "before"]],
   },
-  flat: {
-    id: "flat",
-    title: "Apartment",
+  api: {
+    id: "api",
+    title: "API",
     boxes: [
-      { id: "areas", label: "Neighbourhoods", x: 10, y: 40, tone: "purple", note: "Graça: hills, quiet, views. Alvalade: flat, families, metro. Skip Bairro Alto unless you like noise." },
-      { id: "visit", label: "Viewings", x: 42, y: 40 },
-      { id: "sign", label: "Sign", x: 72, y: 40, tone: "blue" },
+      { id: "routes", label: "Routes", x: 10, y: 40, tone: "purple", note: "REST under /v1. Each route checks the session first, then the person's role." },
+      { id: "orders", label: "Orders", x: 42, y: 40 },
+      { id: "db", label: "Database", x: 72, y: 40, tone: "blue" },
     ],
     lines: [
-      ["areas", "visit"],
-      ["visit", "sign"],
+      ["routes", "orders"],
+      ["orders", "db"],
     ],
   },
-  week: {
-    id: "week",
-    title: "First week",
+  ledger: {
+    id: "ledger",
+    title: "Ledger",
     boxes: [
-      { id: "sim", label: "Phone plan", x: 12, y: 26 },
-      { id: "nif", label: "Tax number", x: 12, y: 60, tone: "orange", note: "You need it for everything, including the phone plan. Do this first." },
-      { id: "bank", label: "Bank account", x: 56, y: 42 },
+      { id: "journal", label: "Journal", x: 12, y: 26 },
+      { id: "reconcile", label: "Reconcile", x: 12, y: 60, tone: "orange", note: "Runs every night. Matches Stripe payouts to journal entries and flags anything a cent off." },
+      { id: "reports", label: "Reports", x: 56, y: 42 },
     ],
     lines: [
-      ["nif", "sim", "first"],
-      ["nif", "bank"],
+      ["reconcile", "journal", "reads"],
+      ["reconcile", "reports"],
     ],
   },
 }
@@ -136,7 +137,7 @@ export function HeroCanvas() {
           ))}
         </ol>
         <span className="ml-auto font-mono text-[10px] tracking-wide text-graphite uppercase">
-          {trail.length === 1 ? "Top sheet" : `${trail.length - 1} deep`}
+          {trail.length === 1 ? "Top level" : `${trail.length - 1} ${trail.length === 2 ? "level" : "levels"} in`}
         </span>
       </div>
 
@@ -231,7 +232,7 @@ export function HeroCanvas() {
       </div>
 
       <p className="border-t border-rule px-3 py-2 text-xs text-graphite">
-        Try it. Stacked boxes have a whiteboard inside. Boxes with a page icon have notes.
+        Try it: click a stacked box to go inside. A page icon means the box has notes.
       </p>
     </div>
   )

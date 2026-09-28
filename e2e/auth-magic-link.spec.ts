@@ -22,7 +22,7 @@ test("signs in by following the link in the email", async ({ page }) => {
   // The Auth API sends the browser to /auth/callback, which swaps the code
   // for a session and then follows `next`. A brand new account has no org.
   await page.waitForURL("/onboarding")
-  await expect(cardTitled(page, "Create your org")).toBeVisible()
+  await expect(cardTitled(page, "Name your org")).toBeVisible()
 
   const slug = await createOrg(page, account.id)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()

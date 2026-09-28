@@ -39,7 +39,7 @@ export function ImportProject({ slug }: { slug: string }) {
     >
       <DialogTrigger
         render={
-          <Button variant="outline">
+          <Button>
             <FolderGit2 />
             Import from GitHub
           </Button>
@@ -70,10 +70,10 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
     // straight to the whiteboard.
     <div className="flex flex-col gap-5">
       <DialogHeader>
-        <DialogTitle>Imported, with notes</DialogTitle>
+        <DialogTitle>Imported, with a few things left out</DialogTitle>
         <DialogDescription>
           {imported.folders} {imported.folders === 1 ? "folder is" : "folders are"} on the
-          diagram. Before you look:
+          diagram. Left out:
         </DialogDescription>
       </DialogHeader>
       <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto rounded-lg border border-rule bg-paper p-3 text-xs leading-relaxed text-graphite">
@@ -84,7 +84,7 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
         ))}
       </ul>
       <DialogFooter>
-        <Button nativeButton={false} render={<Link href={imported.href} />}>Open the whiteboard</Button>
+        <Button nativeButton={false} render={<Link href={imported.href} />}>Open the diagram</Button>
       </DialogFooter>
     </div>
   ) : (
@@ -92,8 +92,9 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
       <DialogHeader>
         <DialogTitle>Import from GitHub</DialogTitle>
         <DialogDescription>
-          A public repository becomes a project: its main folders become nodes, each with its
-          README inside, and the folders within them become whiteboards inside those nodes.
+          A public repository becomes a project. Each main folder becomes a box with its README
+          inside, and a folder with folders of its own opens into another whiteboard. Arrows come
+          from .subcanvas files, where the repository has them.
         </DialogDescription>
       </DialogHeader>
 
@@ -110,7 +111,7 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
           autoComplete="off"
           spellCheck={false}
           disabled={pending}
-          placeholder="owner/name, or the address of its page"
+          placeholder="facebook/react, or its GitHub address"
           className="font-mono text-[13px]"
         />
       </div>
@@ -126,8 +127,9 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
         <span className="flex flex-col gap-0.5">
           <span className="font-medium">Make this project public (the repository already is)</span>
           <span className="text-xs leading-relaxed text-graphite">
-            Anyone with the link can read it. Only members can edit. Public documents are
-            unlimited on the free plan.
+            Anyone with the link can read it. Only members can edit. Unticked, each README and
+            each whiteboard inside a box counts toward the free plan&apos;s 100 private whiteboards
+            and pages.
           </span>
         </span>
       </label>
