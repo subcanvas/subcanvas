@@ -38,10 +38,14 @@ function frontMatterTitle(yaml: string) {
 // `# Title`, or `Title` underlined with `===`, as the first thing in the note.
 const FIRST_HEADING = /^\s*(?:# +(.+?)(?: +#+)?|([^\n#>|`-][^\n]*)\n=+)[ \t]*(?:\n|$)/
 
+// A heading's words without its formatting. A character written with a
+// backslash in front is the character itself, which is how an export writes
+// a title with an underscore or a star in it (lib/export/markdown.ts).
 function plain(inline: string) {
   return inline
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/(\*\*|__|[*_`~])/g, "")
+    .replace(/(?<!\\)(\*\*|__|[*_`~])/g, "")
+    .replace(/\\([!-/:-@[-`{-~])/g, "$1")
     .trim()
 }
 

@@ -53,6 +53,7 @@ const REASONS: Record<SkipReason, string> = {
   unreadable: "could not be read",
   protected: "protected with a password",
   "unsafe-path": "their path leads outside the zip",
+  whiteboard: "whiteboards from a Subcanvas export, which are not imported",
 }
 
 const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en")} ${n === 1 ? one : many}`

@@ -9,7 +9,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { writeNewDocuments } from "@/lib/sync/server-document"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
 import { serverEditor, type ServerBlocks } from "@/lib/text/server-editor"
-import { mediaDocumentId, parseMediaPath } from "@/lib/whiteboard/media"
+import { mediaDocumentId, mediaTypeOf, parseMediaPath } from "@/lib/whiteboard/media"
 import type { Container } from "@/lib/tree"
 
 import type { ImportBatch } from "./batches"
@@ -97,7 +97,7 @@ function tidy(blocks: Rewritable[]) {
 
 export async function toBlocks(markdown: string, documentId?: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
   try {
-    const blocks = keepAllowedMedia((await parseMarkdown(markdown)) as Media[], documentId) as ServerBlocks
+    const blocks = videosAsVideos(keepAllowedMedia((await parseMarkdown(markdown)) as Media[], documentId)) as ServerBlocks
     tidy(blocks as Rewritable[])
     return { blocks, plain: false }
   } catch {
@@ -129,6 +129,23 @@ export function keepAllowedMedia<T extends Media>(blocks: T[], documentId?: stri
   return blocks
     .filter((block) => !MEDIA.has(block.type) || allowedMedia(block.props?.url, documentId))
     .map((block) => (block.children?.length ? { ...block, children: keepAllowedMedia(block.children, documentId) } : block))
+}
+
+// Markdown shows a picture and a video the same way, `![caption](file)`, and
+// the converter makes a picture of both. A file of this app's that is a
+// video is shown as one. That is how an export writes videos
+// (lib/export/markdown.ts), and how other apps' Markdown embeds them.
+export function videosAsVideos<T extends Media>(blocks: T[]): T[] {
+  return blocks.map((block) => {
+    const address = String(block.props?.url ?? "")
+    const path = address.startsWith("/api/media/") ? parseMediaPath(address.slice("/api/media/".length)) : null
+    const video = block.type === "image" && path !== null && mediaTypeOf(path) === "video"
+    return {
+      ...block,
+      ...(video ? { type: "video" } : {}),
+      ...(block.children?.length ? { children: videosAsVideos(block.children) } : {}),
+    }
+  })
 }
 
 // A page read from HTML. What the browser sent is the page cut down to what
