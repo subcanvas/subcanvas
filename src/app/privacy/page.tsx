@@ -205,7 +205,9 @@ export default async function PrivacyPage() {
         </li>
         <li>
           <strong>Right to Portability.</strong> You have the right to receive the personal information we have
-          about you and the right to transmit it to another party. Write to us and we will send you an export.
+          about you and the right to transmit it to another party. You can export any project in a workspace you
+          belong to from the project&apos;s menu, as a zip of Markdown, SVG and JSON files with its pictures and
+          videos. For anything else, write to us and we will send you an export.
         </li>
         <li>
           <strong>Right to not Be Subject to Automated Decision-Making.</strong> We make no decisions about you
