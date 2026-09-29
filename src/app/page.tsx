@@ -21,7 +21,7 @@ const INSIDE = [
   {
     icon: FileText,
     title: "A page of notes",
-    body: "Click a box and write beside it: headings, lists, images, code. The notes open in a side panel, so the drawing stays where it is.",
+    body: "Click a box and write beside it: headings, lists, pictures, code. The page opens in a side panel, so the drawing stays where it is.",
   },
   {
     icon: Workflow,
@@ -231,7 +231,7 @@ export default async function Home() {
                     price="$0"
                     points={[
                       "Unlimited public projects",
-                      "100 private whiteboards and pages (a box's notes don't count)",
+                      "100 private whiteboards and pages (descriptions of boxes and arrows don't count)",
                       "Up to 3 editors, you included",
                       "Unlimited viewers",
                       "1 GB of pictures and videos",

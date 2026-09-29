@@ -1,9 +1,9 @@
 title: Whiteboard
-description: The canvas (React Flow). Nodes, text nodes, nestable groups, and styled edges. Any of them can hold a page of notes or a whole whiteboard of its own.
+description: The canvas (React Flow). Boxes, text nodes, nestable groups, pictures and videos, and styled arrows. Any of them can hold a page or a whole whiteboard of its own.
 connects:
   - to: src/lib/whiteboard
-    label: reads and writes the board
+    label: reads and writes the whiteboard
   - to: src/lib/sync
     label: live updates and cursors
   - to: src/components/editor
-    label: notes in the side panel
+    label: descriptions in the side panel

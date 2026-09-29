@@ -16,7 +16,7 @@ import { CopyField } from "./copy-field"
 
 export const metadata = { title: "Connect an agent" }
 
-const GROUPS: ToolGroup[] = ["Orgs and projects", "Documents", "Text documents", "Whiteboards", "GitHub and embeds"]
+const GROUPS: ToolGroup[] = ["Orgs and projects", "Documents", "Pages", "Whiteboards", "GitHub and embeds"]
 
 // `wide` is for a client whose instructions hold a command too long for half
 // the page.

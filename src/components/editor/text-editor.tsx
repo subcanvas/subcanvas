@@ -232,7 +232,7 @@ export default function TextEditor({
   const blockItems = (): DefaultReactSuggestionItem[] => [
     {
       title: "Callout",
-      subtext: "A box with an emoji, to make a note stand out",
+      subtext: "A shaded block with an emoji, to make a point stand out",
       aliases: ["callout", "note", "tip", "warning", "aside", "admonition"],
       group: "Basic blocks",
       icon: <Lightbulb size={18} />,
@@ -274,9 +274,9 @@ export default function TextEditor({
 
   const documentItems = (): DefaultReactSuggestionItem[] => [
     {
-      title: "Text document",
-      subtext: "Create a text document inside this one",
-      aliases: ["page", "doc", "nested", "subpage"],
+      title: "Page",
+      subtext: "Create a page inside this one",
+      aliases: ["page", "text", "document", "doc", "nested", "subpage"],
       group: "Documents",
       icon: <FileText size={18} />,
       onItemClick: () => void createInside("text"),

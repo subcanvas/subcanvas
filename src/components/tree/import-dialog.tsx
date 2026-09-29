@@ -427,7 +427,7 @@ function notesOf({ plan, skipped }: Prepared, done = false) {
     notes.push(`${count(plan.uploads.length, "picture or video", "pictures and videos")} in these notes will be uploaded with them.`)
   if (plan.localImages)
     notes.push(
-      `${count(plan.localImages, "image")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported, because ${plan.localImages === 1 ? "it is" : "they are"} not among the files or not a kind that is kept. ${plan.localImages === 1 ? "Its description is" : "Their descriptions are"} kept in the text.`
+      `${count(plan.localImages, "picture")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported, because ${plan.localImages === 1 ? "it is" : "they are"} not among the files or not a kind that is kept. The words that described ${plan.localImages === 1 ? "it stay" : "them stay"} in the text.`
     )
   if (plan.tablesLeftOut)
     notes.push(

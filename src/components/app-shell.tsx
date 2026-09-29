@@ -49,7 +49,7 @@ export async function AppShell({
 
   return (
     <SidebarProvider defaultOpen={open} className="min-h-0 flex-1 flex-col md:flex-row">
-      <MobileTree label="Menu" title={title ?? org.name} description="Pages, documents, and your account.">
+      <MobileTree label="Menu" title={title ?? org.name} description="Where to go, and your account.">
         {contents}
       </MobileTree>
       <DesktopSidebar slug={org.slug} user={sidebarUser} agents={agents}>
