@@ -220,7 +220,7 @@ export function readClipboard(page: Page) {
   return page.evaluate(() => navigator.clipboard.readText())
 }
 
-// Invites `email` to the org as a viewer and returns the invite link, taken
+// Invites `email` to the workspace as a viewer and returns the invite link, taken
 // from the clipboard the "Copy link" button writes it to.
 export async function inviteViewer(page: Page, slug: string, email: string): Promise<string> {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(page.url()).origin })

@@ -8,7 +8,7 @@ Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). 
 
 ## Connecting
 
-Every org has a page with the address and the quickest way into each client: `/<org>/agents`. In short:
+Every workspace has a page with the address and the quickest way into each client: `/<workspace>/agents`. In short:
 
 | Client | How |
 |---|---|
@@ -27,7 +27,7 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 
 | Tool | What it does | Kind |
 |---|---|---|
-| `list_orgs` | List orgs | reads |
+| `list_workspaces` | List workspaces | reads |
 | `list_projects` | List projects | reads |
 | `get_project` | Get a project and its document tree | reads |
 | `create_project` | Create a project | writes |
@@ -82,14 +82,14 @@ Pictures and videos on a whiteboard are read, not written. `read_whiteboard` rep
 
 ### Not exposed yet
 
-Members and invites, billing, creating, renaming, leaving, or deleting an org, deleting a project, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting a workspace, deleting a project, deleting your account, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
 
 ## Security model
 
 In plain words: **the agent is you, and the database decides what you may do.**
 
 - **The token is the person's own.** Supabase Auth issues an MCP client the same kind of JWT it issues a browser, for the person who approved it. The server checks its signature against the project's published keys, its issuer, its audience, and that it belongs to a signed-in person.
-- **Every tool call uses a Supabase client that carries that token.** Row-level security then decides what can be read and written, exactly as it does for the web app. A viewer's agent can read and cannot write. An agent cannot see an org its person is not in; to it, those things do not exist.
+- **Every tool call uses a Supabase client that carries that token.** Row-level security then decides what can be read and written, exactly as it does for the web app. A viewer's agent can read and cannot write. An agent cannot see a workspace its person is not in; to it, those things do not exist.
 - **An agent can be disconnected.** Settings → Profile → Connected agents lists every agent the person approved, with Revoke. Revoking withdraws the consent, deletes the agent's sessions and refresh tokens, and takes effect at its next request: for a token issued to an agent, the server also asks Supabase Auth whether its session still exists, one extra request per call. To come back, the agent has to be approved again.
 - **There is no secret key behind the server.** The MCP code never imports the admin client, and the endpoint works without `SUPABASE_SECRET_KEY` being set. A bug in a tool can do no more than its caller could do from their browser's console.
 - **The same rules and limits.** Tools call the functions the server actions call (`src/lib/documents/operations.ts`), so role checks, free-plan limits, and their messages are the same. Imported READMEs are read-only for agents as they are for people.

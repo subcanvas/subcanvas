@@ -75,14 +75,20 @@ test("signs an agent in through the consent page, and it works as that person", 
   const { tools } = await client.listTools()
   expect(tools.map((tool) => tool.name).sort()).toEqual(documentedTools().sort())
 
-  // The token is the person's own, so the agent sees their org with their role.
-  const { orgs } = (await callTool(client, "list_orgs")) as { orgs: { id: string; slug: string; role: string }[] }
-  expect(orgs).toEqual([expect.objectContaining({ slug, role: "owner" })])
+  // The token is the person's own, so the agent sees their workspaces with
+  // their role: the personal one first, then the team one.
+  const { workspaces } = (await callTool(client, "list_workspaces")) as {
+    workspaces: { id: string; slug: string; role: string; personal: boolean }[]
+  }
+  expect(workspaces).toEqual([
+    expect.objectContaining({ personal: true, role: "owner" }),
+    expect.objectContaining({ slug, personal: false, role: "owner" }),
+  ])
 
   const id = freshId()
   const projectName = `Agent project ${id}`
   const boardName = `Agent board ${id}`
-  const { project_id } = (await callTool(client, "create_project", { org_id: orgs[0].id, name: projectName })) as {
+  const { project_id } = (await callTool(client, "create_project", { workspace_id: workspaces[1].id, name: projectName })) as {
     project_id: string
   }
   await callTool(client, "create_document", { project_id, type: "whiteboard", title: boardName })
@@ -105,7 +111,7 @@ test("an approved agent is listed in Profile, and once revoked its token is refu
 
   const { client, provider } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
-  await callTool(client, "list_orgs")
+  await callTool(client, "list_workspaces")
   const token = provider.tokens()?.access_token
   if (!token) throw new Error("The client holds no token")
 
@@ -124,7 +130,7 @@ test("an approved agent is listed in Profile, and once revoked its token is refu
   })
   expect(refused.status()).toBe(401)
   // And its refresh token is gone, so the client cannot get another.
-  await expect(client.callTool({ name: "list_orgs", arguments: {} })).rejects.toThrow()
+  await expect(client.callTool({ name: "list_workspaces", arguments: {} })).rejects.toThrow()
   await client.close().catch(() => {})
 })
 
@@ -167,25 +173,29 @@ test("a viewer's agent can read and cannot write", async ({ page, browser, baseU
     })
     if (!client) throw new Error("No client after approval")
 
-    const { orgs } = (await callTool(client, "list_orgs")) as {
-      orgs: { id: string; slug: string; role: string; can_edit: boolean }[]
+    const { workspaces } = (await callTool(client, "list_workspaces")) as {
+      workspaces: { id: string; slug: string; role: string; can_edit: boolean; personal: boolean }[]
     }
-    expect(orgs).toEqual([expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false })])
+    expect(workspaces).toEqual([
+      expect.objectContaining({ personal: true }),
+      expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false }),
+    ])
+    const team = workspaces[1].id
 
     // Reads work: the viewer can look.
-    const { projects } = (await callTool(client, "list_projects", { org_id: orgs[0].id })) as {
+    const { projects } = (await callTool(client, "list_projects", { workspace_id: team })) as {
       projects: { id: string }[]
     }
     expect(projects.map((project) => project.id)).toContain(projectId)
 
     // Writes are refused by the database, in the same words the app uses.
-    expect(await refusedTool(client, "create_project", { org_id: orgs[0].id, name: "Viewer was here" })).toMatch(
+    expect(await refusedTool(client, "create_project", { workspace_id: team, name: "Viewer was here" })).toMatch(
       /permission/i
     )
     expect(await refusedTool(client, "create_document", { project_id: projectId, type: "text" })).toMatch(/permission/i)
 
     // And nothing appeared.
-    const after = (await callTool(client, "list_projects", { org_id: orgs[0].id })) as { projects: { id: string }[] }
+    const after = (await callTool(client, "list_projects", { workspace_id: team })) as { projects: { id: string }[] }
     expect(after.projects.map((project) => project.id)).toEqual([projectId])
     await client.close()
   } finally {

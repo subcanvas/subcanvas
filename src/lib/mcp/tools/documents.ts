@@ -55,7 +55,7 @@ export const documentTools = [
     title: "Create a document",
     group: "Documents",
     description:
-      "Creates a whiteboard or a text document in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node, group, or arrow (which is how diagrams nest in Subcanvas). Returns the new document's id. A text document can be given its first content as Markdown. On the free plan this fails with an explanation once the org's private-document allowance is used up.",
+      "Creates a whiteboard or a text document in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node, group, or arrow (which is how diagrams nest in Subcanvas). Returns the new document's id. A text document can be given its first content as Markdown. On the free plan this fails with an explanation once the workspace's private-document allowance is used up.",
     input: {
       project_id: id("The project, from `list_projects`."),
       type: z.enum(["whiteboard", "text"]).describe("A whiteboard is a canvas of nodes and arrows; a text document is a page of rich text."),
@@ -105,7 +105,7 @@ export const documentTools = [
     title: "Import Markdown files as documents",
     group: "Documents",
     description:
-      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as text documents, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a document with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new documents. Local images are not imported; their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the org has no room for it.",
+      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as text documents, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a document with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new documents. Local images are not imported; their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the workspace has no room for it.",
     input: {
       project_id: id("The project, from `list_projects`."),
       place: container.default({ kind: "root" }),

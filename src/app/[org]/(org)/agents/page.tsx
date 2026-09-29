@@ -14,7 +14,7 @@ import { CopyField } from "./copy-field"
 
 export const metadata = { title: "Connect an agent" }
 
-const GROUPS: ToolGroup[] = ["Orgs and projects", "Documents", "Text documents", "Whiteboards", "GitHub and embeds"]
+const GROUPS: ToolGroup[] = ["Workspaces and projects", "Documents", "Text documents", "Whiteboards", "GitHub and embeds"]
 
 // `wide` is for a client whose instructions hold a command too long for half
 // the page.
@@ -101,7 +101,7 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">What an agent can do here</h2>
           <p className="max-w-xl text-sm leading-relaxed text-graphite">
-            Exactly what you can, and no more: it acts with your role in each org
+            Exactly what you can, and no more: it acts with your role in each workspace
             {role === "viewer" ? ", so in this one it can read but not change anything" : ""}. Its
             edits merge with what people are typing and show up live. Members and billing stay with
             you.

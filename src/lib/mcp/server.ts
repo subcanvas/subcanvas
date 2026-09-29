@@ -10,7 +10,7 @@ export const SERVER_INFO = { name: "subcanvas", title: "Subcanvas", version: "0.
 
 const INSTRUCTIONS = [
   "Subcanvas is a whiteboard where every box opens: any node, group, or arrow can hold a text document or a whole nested whiteboard.",
-  "You act as the signed-in person, with their role in each org. Start with list_orgs, then list_projects and get_project to find documents. Everything is addressed by id.",
+  "You act as the signed-in person, with their role in each workspace. Start with list_workspaces, then list_projects and get_project to find documents. Everything is addressed by id.",
   "People may be editing the same documents while you work. Your edits merge with theirs, so change only what you mean to: update fields in place, and address text by block id.",
   "To draw a diagram: add_nodes, then connect_nodes with the returned ids, then arrange_nodes. To go deeper, attach_document with type whiteboard puts a new diagram inside a node.",
 ].join("\n")

@@ -17,7 +17,7 @@ export async function findDocument({ supabase }: ToolContext, documentId: string
 
 export const NO_DOCUMENT = { error: "No such document, or you do not have access to it." }
 export const NO_PROJECT = { error: "No such project, or you do not have access to it." }
-export const NO_ORG = { error: "No such org, or you are not a member of it." }
+export const NO_ORG = { error: "No such workspace, or you are not a member of it." }
 
 export async function findTypedDocument(
   context: ToolContext,
