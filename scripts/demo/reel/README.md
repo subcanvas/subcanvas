@@ -113,20 +113,39 @@ recorded again. Delete the file to record it again anyway.
 
 ## The published render: production
 
+Before the first one:
+
+- **A demo account on subcanvas.app.** Sign-up there confirms the email
+  address, so make the account by hand (an address you can receive mail
+  at) and confirm it. Its email shows at the foot of the sidebar, which is
+  collapsed on camera.
+- **Claude Code 2.1.280 or newer**, signed in, for the agent (Opus 5.5). The
+  agent is recorded again against production, once, because a recording is
+  only good for the sheet it drew on. `DEMO_CLAUDE` names another CLI than
+  `claude`, for instance one installed with
+  `npm i --prefix /tmp/claude-latest @anthropic-ai/claude-code@latest`.
+
+Then, with the password typed into your own shell and nowhere else:
+
 ```sh
+read -rs DEMO_PASSWORD && export DEMO_PASSWORD
 DEMO_BASE_URL=https://subcanvas.app \
-DEMO_EMAIL=... DEMO_PASSWORD=... \
+DEMO_EMAIL=<the demo account> \
+DEMO_STAGE_ORG=<a new org slug, e.g. launch-stage> \
 DEMO_README_URL=https://github.com/subcanvas/subcanvas \
 REELSCRIPT="node ~/Git/reelscript/dist/cli.js" pnpm demo:reel
+
+# The README's preview, from the new render (needs img2webp)
+scripts/demo/readme-preview.sh
 ```
 
 - Against production the address pill shows the real address, Copy embed
-  is clicked, and with `DEMO_README_URL` the scene ends on the embed in that
-  README (the page must have one, near enough the top to be found).
-- The account must exist, or sign-up must not need email confirmation. Its
-  email shows at the foot of the sidebar.
+  is clicked, and the scene ends on the embed in the README, scrolled into
+  view (it takes a reelscript whose page clock leaves scroll-driven
+  animations alone, as github.com has them).
 - The staging org and one fresh org per render are created in production;
-  delete them when the launch is over.
+  delete them when the launch is over. The agent's arrow is taken off the
+  sheet after the session and again after the render.
 
 ## Files
 
