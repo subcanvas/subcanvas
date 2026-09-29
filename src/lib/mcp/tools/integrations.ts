@@ -21,7 +21,7 @@ export const integrationTools = [
         .boolean()
         .optional()
         .describe(
-          "Whether the new project is public, so it can be shared and embedded. Left out, it is public when you are an admin or owner of the org, since the repository already is, and private otherwise, as in the web app. Making a project public takes the admin role."
+          "Whether the new project is public, so it can be shared and embedded. Left out, it is public when you are an admin or owner of the workspace, since the repository already is, and private otherwise, as in the web app. Making a project public takes the admin role."
         ),
     },
     kind: "write",

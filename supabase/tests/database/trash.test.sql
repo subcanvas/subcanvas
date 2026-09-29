@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 -- The trash, what it hides, and what the free plan counts because of it
 -- (migration trash_and_limits). Uses its own slugs and ids so it passes
@@ -156,6 +156,26 @@ select results_eq(
   $$ values (null::uuid) $$, 'a folder at the top comes back where it was');
 
 select is(public.document_is_live(:grand), true, 'the app asks whether a document is in view');
+
+-- What deleting a folder for good orphans in Storage -----------------------------------------
+
+reset role;
+insert into public.folders (id, org_id, project_id, parent_folder_id, name)
+values ('00000000-0000-0000-0000-0000000009f5', :org, :project, :inner, 'innermost');
+insert into public.documents (id, org_id, project_id, type, folder_id, parent_document_id) values
+  ('00000000-0000-0000-0000-0000000009da', :org, :project, 'whiteboard', '00000000-0000-0000-0000-0000000009f5', null),
+  ('00000000-0000-0000-0000-0000000009db', :org, :project, 'whiteboard', null, '00000000-0000-0000-0000-0000000009da');
+insert into storage.objects (bucket_id, name) values
+  ('media-images', '00000000-0000-0000-0000-0000000009a1/00000000-0000-0000-0000-0000000009b1/00000000-0000-0000-0000-0000000009da/00000000-0000-0000-0000-0000000009e1.png'),
+  ('media-videos', '00000000-0000-0000-0000-0000000009a1/00000000-0000-0000-0000-0000000009b1/00000000-0000-0000-0000-0000000009db/00000000-0000-0000-0000-0000000009e2.mp4'),
+  ('media-images', '00000000-0000-0000-0000-0000000009a1/00000000-0000-0000-0000-0000000009b1/00000000-0000-0000-0000-0000000009d1/00000000-0000-0000-0000-0000000009e3.png');
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub":"e9000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
+select is(
+  (select array_agg(split_part(name, '/', 4) order by name) from public.folder_media_objects(:inner)),
+  array['00000000-0000-0000-0000-0000000009e1.png', '00000000-0000-0000-0000-0000000009e2.mp4'],
+  'deleting a folder for good takes the files of every document in it, however deep, and no others');
+reset role;
 
 -- Public readers see only what is in view ------------------------------------------------------
 

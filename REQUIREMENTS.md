@@ -21,6 +21,7 @@ Status legend: requirements are v1 unless marked **(later)**.
 | R1.7 | A document shows a **"Referenced by"** list of every place that links to it. |
 | R1.8 | Deleting a document that has references warns the user and lists the references. Deleting a reference never deletes the document. |
 | R1.9 | Cycles are allowed through references (A references B references A) but not through parentage. |
+| R1.10 | Deleting means one thing inside a project: a folder or a document goes to the project's **trash** with everything inside it, and so does what a deleted whiteboard object held (R4.1, R4.2). From the trash it is restored where it was, or deleted forever. A project or a workspace is deleted permanently, after its name is typed. |
 
 ## 2. Navigation
 
@@ -65,6 +66,7 @@ An **object** is a node or an edge. Groups contain objects.
 | ID | Requirement |
 |---|---|
 | R3.14 | Create, delete, move, resize, connect, multi-select, copy/paste, undo/redo, pan, and zoom. |
+| R3.14a | Deleting an object sends what it held to the trash (R1.10); undo brings the object back with it. A picture's or video's file is deleted once nothing shows it and the deletion can no longer be undone. On a touch screen an object is deleted from its side panel. |
 | R3.15 | A toolbar for adding plain nodes, text nodes, and groups. |
 
 ## 4. Object documents and the side panel
@@ -103,7 +105,7 @@ An **object** is a node or an edge. Groups contain objects.
 | R6.3 | Roles per org: **Owner** (billing, delete org, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
 | R6.4 | Members are invited by email with a role. |
 | R6.5 | All data access is enforced by Postgres row-level security scoped to org membership and role. |
-| R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the org can edit). Admins change it, behind a confirmation that says plainly what public means. Public pages are not indexed by search engines unless the org opts in **(opt-in later)**. |
+| R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the org can edit). Only admins and owners make a project public, whether when creating it (including by a GitHub import or an agent) or later, and change it back, behind a confirmation that says plainly what public means. Editors create private projects. Public pages are not indexed by search engines unless the org opts in **(opt-in later)**. |
 | R6.7 | Public pages carry a way to report abuse, and the operator can take a project down. |
 
 ## 7. Plans and billing
@@ -111,12 +113,12 @@ An **object** is a node or an edge. Groups contain objects.
 | ID | Requirement |
 |---|---|
 | R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and up to **3 editors**. Viewers are unlimited. |
-| R7.1a | Node description documents (R4.2) and documents in the trash do not count toward the private document limit. |
+| R7.1a | Node description documents (R4.2) and what is in the trash, including everything inside a trashed document or folder, do not count toward the private document limit. Restoring counts everything that comes back. |
 | R7.2 | **Paid plan:** $5 per editor per month through Stripe, billed at the org level. Unlimited private documents and editors. |
 | R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
 | R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |
-| R7.5 | At a limit, the blocked action (a new private document, a fourth editor) shows why and offers the upgrade. Everything that exists stays editable. Making a project public is always allowed; making it private is checked against the limit. |
+| R7.5 | At a limit, the blocked action (a new private document, a restore, an import, a fourth editor, making a project private) says the same thing wherever it happens: what the limit is, then, where the server sells a plan, the upgrade for an owner, or a line telling anyone else to ask an owner. Everything that exists stays editable. An admin can always make a project public; making it private is checked against the limit. |
 | R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. An org left with more editors than the free plan includes has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
 | R7.7 | Limits are a deployment setting and are **off by default**, so a self-hosted server has no limits and needs no billing setup. With Stripe unconfigured, billing navigation and upgrade prompts are hidden. |
 

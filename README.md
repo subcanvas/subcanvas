@@ -87,7 +87,7 @@ Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web as
 
 ## Public projects and moderation
 
-An admin can make a project public: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the org can edit. Public pages are not indexed by search engines, and each carries a Report button.
+An admin or owner can make a project public, when creating it or later: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the org can edit. Public pages are not indexed by search engines, and each carries a Report button.
 
 Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL). To take a project offline, whatever its org sets:
 
@@ -111,7 +111,7 @@ A deployment that sells subscriptions turns on two things:
    ```sql
    update private.config set free_private_document_limit = 100, free_editor_limit = 3;
    ```
-   Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
+   Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions do not count, nor does anything in the trash or inside something that is), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
 2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security
