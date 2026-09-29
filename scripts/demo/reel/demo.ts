@@ -27,7 +27,7 @@
  *                         .subcanvas files, so the video shows what anyone
  *                         gets with no setup. Default react/react.
  *   DEMO_REPOSITORY_BOX   A box on that repository's top sheet. Default Packages.
- *   DEMO_AGENT_PROMPT     What the agent in scene 3 is asked. The default asks
+ *   DEMO_AGENT_PROMPT     What the agent in scene 5 is asked. The default asks
  *                         for the arrow missing from the Core libraries sheet.
  *   DEMO_CLAUDE           The Claude Code CLI the agent runs as. Default claude.
  *                         Its session is recorded once and kept (see
@@ -58,22 +58,23 @@
  * on Product Hunt, so a caption on the picture says each scene's point, and
  * the narration says the same:
  *
- *   1. Into Subcanvas's own diagram: a box, then a box inside it, each
- *      opening into the diagram inside. Its names and arrows come from
- *      .subcanvas files written by hand, and the caption says so.
- *   2. An arrow there, opened into the page that says why it exists.
- *   3. An agent draws one: a recorded Claude Code session over the MCP
+ *   1. A repository with no .subcanvas files imported on camera, so a
+ *      repository becomes a diagram in the first five seconds: its main
+ *      folders become boxes automatically.
+ *   2. One of them opens onto the diagram inside it.
+ *   3. Subcanvas's own diagram, whose .subcanvas files name the boxes and
+ *      add the arrows.
+ *   4. An arrow there, opened into the page that says why it exists.
+ *   5. An agent draws one: a recorded Claude Code session over the MCP
  *      server, played back in a terminal beside the sheet while its edit is
- *      made again, live (see agent.ts).
- *   4. A repository with no .subcanvas files imported on camera: its main
- *      folders become boxes on their own, and one opens onto its packages.
- *   5. Share and Copy embed; against production, the embed in a README.
- *   6. The end card.
+ *      made again (see agent.ts).
+ *   6. Share and Copy embed; against production, the embed in a README.
+ *   7. The end card.
  *
  * Canvas shots are in view mode with the sidebar collapsed, both set in the
  * prelude: no editing tools, and nothing from the demo account on screen.
  *
- * Two orgs: the import in scene 4 is real and lands in a fresh org, but the
+ * Two orgs: the import in scene 1 is real and lands in a fresh org, but the
  * page it produces has ids nobody knows in advance, and reelscript can only
  * navigate to addresses the script knows. So the other scenes play on
  * imports made ahead of time (once, and kept) in the staging org, whose
@@ -94,7 +95,7 @@ import { dirname, resolve } from "node:path"
 import { execFileSync } from "node:child_process"
 
 import { chromium, type Page } from "@playwright/test"
-import { createDemo, playbackEvents } from "@reelscript/cli"
+import { createDemo } from "@reelscript/cli"
 
 import { madeBy, mcpClient, recordAgent, replay, undo, type AgentRun, type Made } from "./agent"
 
@@ -114,7 +115,7 @@ const email = process.env.DEMO_EMAIL ?? "reel-demo@subcanvas.test"
 const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
 const orgName = process.env.DEMO_ORG_NAME ?? "Acme"
 const stageSlug = process.env.DEMO_STAGE_ORG ?? "reel-demo"
-// What the agent in scene 3 is asked, typed on camera as it was given.
+// What the agent in scene 5 is asked, as Claude Code shows it on camera.
 const agentPrompt =
   process.env.DEMO_AGENT_PROMPT ??
   "Read src/lib/sync and add the arrow missing from the Core libraries diagram in my subcanvas project. Answer in one short sentence."
@@ -139,7 +140,8 @@ if (!reason) throw new Error(`demo: ${arrowFile} has no arrow "${arrow}" with a 
 // class. reelscript hands these to Playwright, so its `:has-text()`,
 // `:text-is()` and `>> visible=true` all work.
 
-const NODE = (title: string) => `.react-flow__node[aria-label^="Node: ${title},"]`
+// A box by its title: "Box: Billing", or "Box: Billing, holds a whiteboard".
+const NODE = (title: string) => `.react-flow__node:is([aria-label="Box: ${title}"], [aria-label^="Box: ${title},"])`
 // The mark in a box's corner that opens the whiteboard inside it.
 const INSIDE = (title: string) => `${NODE(title)} button[aria-label="Open the whiteboard inside"]`
 // The canvas of the sheet that has this box on it. The whiteboard is centred
@@ -147,7 +149,6 @@ const INSIDE = (title: string) => `${NODE(title)} button[aria-label="Open the wh
 // is drawn.
 const SHEET = (title: string) => `.react-flow:has(${NODE(title)}) .react-flow__pane`
 const PANEL = 'aside[aria-label="Object settings"]'
-const OPEN_DOCUMENT = `${PANEL} section[aria-label="Document"] :is(button, a):has-text("Open")`
 const EDGE_LABEL = (label: string) => `.react-flow__edgelabel-renderer span:text-is("${label}")`
 // The mark beside an arrow's label that opens what the arrow holds.
 const EDGE_MARK = (label: string) =>
@@ -185,7 +186,7 @@ async function importInto(page: Page, slug: string, repo: string): Promise<strin
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
   // A clean import goes straight to the whiteboard; one with notes stops to
   // show them first.
-  const opened = dialog.getByRole("button", { name: "Open the whiteboard" })
+  const opened = dialog.getByRole("button", { name: "Open the diagram" })
   await Promise.race([
     page.waitForURL(/\/d\/[0-9a-f-]{36}/).catch(() => {}),
     opened.waitFor().then(() => opened.click()).catch(() => {}),
@@ -208,7 +209,7 @@ async function openBox(page: Page, title: string): Promise<string> {
 async function createOrg(page: Page, slug: string) {
   await page.goto(`${base}/onboarding`)
   await page.getByLabel("Name").fill(orgName)
-  await page.getByLabel("URL").fill(slug)
+  await page.getByLabel("Web address").fill(slug)
   await page.getByRole("button", { name: "Create org" }).click()
   await page.waitForURL(`${base}/${slug}`)
 }
@@ -468,7 +469,9 @@ function paced(events: [number, string][], from: number, to: number, ms: number)
 
 // The prelude, cut from the video: reelscript's browser signs in, puts the
 // canvas in view mode and collapses the sidebar (both kept for the rest of
-// the session), then opens the first sheet, so the video starts on it.
+// the session), then opens the empty org the import lands in, so the video
+// starts on its Import button.
+const IMPORT_BUTTON = 'button:has-text("Import from GitHub")'
 await demo.browser.goto(`${base}/login`, { settle: 600 })
 await demo.type("#email", email, { wpm: 1200 })
 await demo.type("#password", password, { wpm: 1200 })
@@ -482,57 +485,87 @@ await demo.press("e")
 await demo.press("Control+Backslash")
 await demo.wait(300)
 await move(OFF, 100)
-await open(stage.self.top, SHEET(into[0]))
+await open(`${base}/${slug}`, IMPORT_BUTTON)
+zoom(IMPORT_BUTTON, 1.4, 0) // close enough on the empty org to read it
 const preludeActions = demo.getTimeline().length
 
 // The pace: each caption stays up at least a second and a half plus a
 // second for every three words, so it can be read with the picture. Zooms
 // stop at 1.6x: the pages are captured at 1x, and closer than that the
-// text goes soft.
+// text goes soft. A muted viewer sees a repository become a diagram within
+// the first five seconds.
 
-// 1. Into Subcanvas's own diagram, two boxes deep: a push toward each box,
-// a cut into it at the click, and a settle.
-mark("Into Subcanvas's diagram")
-caption("Architecture diagrams where any box can open.")
-say("Architecture diagrams where any box can open.")
-await demo.wait(900) // the whole window first
-zoom(NODE(into[0]), 1.6, 2000)
-await move(INSIDE(into[0]), 1800)
-await demo.wait(400)
-await clickThrough(SHEET(into[1]), 1.3)
-await move(REST, 900)
-still("Architecture diagrams where any box can open.", 700)
-await demo.wait(700) // the sheet inside, before going deeper
-zoom(NODE(into[1]), 1.6, 1600)
-await move(INSIDE(into[1]), 1400)
+// 1. A repository with no .subcanvas files, imported on camera: its main
+// folders become boxes on their own.
+mark("Import a repository")
+caption("Turn a GitHub repo into a diagram you can click into.")
+say("Turn a GitHub repo into a diagram you can click into.")
+await demo.wait(500)
+await move(IMPORT_BUTTON, 900)
+await demo.cursor.click()
+await demo.wait(200)
+zoom('[role="dialog"]', 1.6, 600)
 await demo.wait(300)
-caption("Subcanvas's own repo: names and arrows written by hand.")
-say("This is Subcanvas's own repository. Its names and arrows are written by hand.")
-await clickThrough(EDGE_LABEL(arrow), 1.25)
+await demo.type("#import-repository", repository, { wpm: 300 })
+await demo.wait(300)
+await move('[role="dialog"] button:text-is("Import")', 600)
+note("Import sped up")
+await demo.cursor.click()
+await demo.wait(importWait)
+await demo.waitFor(SHEET(repositoryBox), { settle: 150 })
+zoom(SHEET(repositoryBox), 1.45, 0)
+caption("Its main folders become boxes, automatically.")
+say("Its main folders become boxes, automatically.")
+await move(REST, 700)
+still("Paste a GitHub repo. Its main folders become boxes.", 400)
+await demo.wait(500)
+noteEnd()
+await demo.wait(2300)
+
+// 2. A box opens onto the diagram inside it: the push toward it, a cut at
+// the click, and a settle.
+mark("Into a box")
+caption("Any box opens into the diagram inside it.")
+say("Any box opens into the diagram inside it.")
+zoom(NODE(repositoryBox), 1.6, 1500)
+await move(INSIDE(repositoryBox), 1300)
+await demo.wait(300)
+await clickThrough(SHEET("React"), 1.2)
+await move(REST, 800)
+still("Any box opens into the diagram inside it.", 800)
+await demo.wait(2200)
+
+// 3. Arrows, on Subcanvas's own diagram, where .subcanvas files name the
+// boxes and say what talks to what.
+mark("Arrows from .subcanvas files")
+caption("Arrows come from a few lines of YAML in each folder.")
+say("In Subcanvas's own repo, a few lines of YAML per folder add the arrows.")
+await open(stage.self.deeper, EDGE_LABEL(arrow))
+zoom(MIDDLE, 1.25, 0)
 zoom(MIDDLE, 1.32, 5400) // a slow drift, so the hold is not a still
 await move(REST, 900)
-await demo.wait(4300)
+await demo.wait(4500)
 
-// 2. An arrow, opened into the page that says why it is there. The arrow
+// 4. An arrow, opened into the page that says why it is there. The arrow
 // is set to open as a page (in the preparation), so there is no panel.
 mark("An arrow's reason")
-caption("An arrow can open into why it is there.")
-say("An arrow can open into why it is there.")
+caption("An arrow opens into why it is there.")
+say("An arrow opens into why it is there.")
 await move(EDGE_MARK(arrow), 1100)
 await demo.wait(300)
 await clickThrough(REASON, 1.45, { x: 720, y: 190 }, 1.45)
 zoom(REASON, 1.45, 0)
 await move(REST, 700)
-still("An arrow can open into why it is there.", 900)
+still("An arrow opens into why it is there.", 900)
 await demo.wait(2700)
 
-// 3. An agent draws one: a Claude Code session, recorded before the camera
+// 5. An agent draws one: a Claude Code session, recorded before the camera
 // rolled (see agent.ts), played back in a terminal beside the sheet. At the
 // moment in it when its arrow appeared on the whiteboard, the same edit is
-// made again, live, and the arrow arrives on the sheet.
+// made again, and the arrow arrives on the sheet.
 mark("An agent draws an arrow")
-caption("Or ask an agent. Subcanvas speaks MCP.")
-say("Or ask an agent to draw them. Subcanvas speaks MCP.")
+caption("Or ask Claude Code to draw the arrows. It reads the code.")
+say("Or ask Claude Code to draw the arrows. It reads the code.")
 const agentArrow = String(
   ((agent.writes.find((write) => write.name === "connect_nodes")?.input.edges as { label?: string }[] | undefined) ?? [])[0]
     ?.label ?? ""
@@ -545,7 +578,7 @@ if (!agentArrow) throw new Error("demo: the agent's arrow has no label to find i
 const terminalSize = { width: agent.cols * 8.4 + 24, height: agent.rows * 18 + 20 }
 await demo.browser.place({ x: 16, y: 44, width: 1600 - 48 - terminalSize.width, height: 768 })
 await open(stage.self.deeper, EDGE_LABEL(arrow))
-note("Claude Code session replayed, sped up")
+note("Claude Code session and its edit replayed, sped up")
 await demo.terminal.open({
   title: `${selfName} — claude`,
   prompt: "",
@@ -563,7 +596,7 @@ await demo.call(async () => {
   const made = await replay(mcpClient(base, token), agent)
   writeFileSync(replayedFile, JSON.stringify(made) + "\n")
 })
-say("It read the code, and drew the arrow itself.")
+say("It found the missing one, and drew it.")
 await demo.terminal.print("", { events: paced(agent.events, agent.editAt, Infinity, 1600), maxGapMs: Infinity })
 // Closer, on the arrow it drew and its answer together: at 1.3x the view is
 // 1231 pixels of the desktop wide, so centred 97 pixels inside the
@@ -573,52 +606,19 @@ await demo.waitFor(EDGE_LABEL(agentArrow), { settle: 150, window: "browser" })
 demo.zoom.to({ x: 97, y: 350 }, { scale: 1.3, duration: 900, window: "terminal" })
 await move({ x: 470, y: 700 }, 800, "browser")
 noteEnd()
-still("Or ask an agent to draw them. Subcanvas speaks MCP.", 600)
+still("Ask Claude Code to draw the missing arrows.", 600)
 await demo.wait(2600)
 
-// 4. A repository with no .subcanvas files, imported on camera: its main
-// folders become boxes on their own, and a box opens onto its packages.
-mark("Import a repository with no .subcanvas files")
-caption("Start from any public repo.")
-say("Start from any public repository.")
-// The terminal goes behind the browser's rectangle, which comes back to its
-// full size and to the front, hiding it.
+// 6. The embed, for a README. The terminal goes behind the browser's
+// rectangle, which comes back to its full size and to the front, hiding it.
+// The cursor goes along the header to Share, clear of the mode toggle
+// under it, whose tooltip would say "View".
+mark("Share, Copy embed")
+caption("Put the live diagram in your README. It keeps itself up to date.")
+say("Put the live diagram in your README. It keeps itself up to date.")
 demo.zoom.out({ duration: 0 })
 await demo.terminal.place({ x: 700, y: 140, ...terminalSize })
 await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
-await demo.browser.goto(`${base}/${slug}`, { settle: 400 })
-await move('button:has-text("Import from GitHub")', 900)
-await demo.cursor.click()
-await demo.wait(200)
-zoom('[role="dialog"]', 1.6, 600)
-await demo.wait(300)
-await demo.type("#import-repository", repository, { wpm: 300 })
-await demo.wait(400)
-await move('[role="dialog"] button:text-is("Import")', 700)
-note("Import sped up")
-await demo.cursor.click()
-await demo.wait(importWait)
-await demo.waitFor(SHEET(repositoryBox), { settle: 150 })
-zoom(SHEET(repositoryBox), 1.45, 0)
-caption("Its main folders become boxes on their own.")
-say("Its main folders become boxes on their own. The import is a one-time copy.")
-await move(REST, 700)
-await demo.wait(500)
-noteEnd()
-await demo.wait(600)
-zoom(NODE(repositoryBox), 1.6, 1500)
-await move(INSIDE(repositoryBox), 1300)
-await demo.wait(300)
-await clickThrough(SHEET("React"), 1.2)
-await move(REST, 800)
-still("Its main folders become boxes on their own.", 800)
-await demo.wait(2400)
-
-// 5. The embed, for a README. The cursor goes along the header to Share,
-// clear of the mode toggle under it, whose tooltip would say "View".
-mark("Share, Copy embed")
-caption("Public diagrams embed in your README and update within minutes.")
-say("Public diagrams embed in your README, and update within minutes.")
 await open(stage.self.top, SHEET(into[0]))
 await move({ x: 1180, y: 22 }, 800)
 await move('button:has-text("Share")', 400)
@@ -645,7 +645,7 @@ if (readmeUrl) {
   await demo.wait(3500)
 }
 
-// 6. The end card.
+// 7. The end card.
 mark("End card")
 captionEnd()
 demo.zoom.out({ duration: 500 })
@@ -674,12 +674,14 @@ function lengthOf(action: ReturnType<typeof demo.getTimeline>[number]): number {
     case "terminal.open":
       return 300
     case "terminal.print": {
-      // Timed chunks end 250 ms after the last. Text is spread over
-      // `duration` (default: 150 ms plus 60 a line, at most 2.5 s), after
-      // 80 ms, and ends 250 ms later.
+      // Timed chunks end 250 ms after the last. They are paced here
+      // (`paced`), so reelscript plays them as they are: no speed-up and no
+      // gaps capped. Text is spread over `duration` (default: 150 ms plus 60
+      // a line, at most 2.5 s), after 80 ms, and ends 250 ms later.
       if (action.events) {
-        const played = playbackEvents(action.events, { speed: action.speed, maxGapMs: action.maxGapMs })
-        return (played.at(-1)?.[0] ?? 0) + 250
+        if ((action.speed ?? 1) !== 1 || action.maxGapMs !== Infinity)
+          throw new Error("demo: pace terminal events with paced(), and play them with maxGapMs: Infinity")
+        return (action.events.at(-1)?.[0] ?? 0) + 250
       }
       const lines = (action.text ?? "").split("\n").length
       const total = action.duration ?? Math.min(2500, 150 + 60 * lines)

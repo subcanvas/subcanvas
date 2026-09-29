@@ -5,22 +5,23 @@ it drives a headless Chromium through the real app one frame at a time and
 writes a 60 fps, 1920x1080 mp4 with narration. Nothing is screen-recorded,
 so after an interface change the video is re-rendered, not re-shot.
 
-About 45 seconds, for Product Hunt, where it autoplays muted. A caption on
+About 44 seconds, for Product Hunt, where it autoplays muted. A caption on
 the picture says each scene's point, and the narration says the same:
 
-1. Into this repository's own diagram, two boxes deep, each box opening
-   into the diagram inside it. Its names and arrows come from `.subcanvas`
-   files written by hand, and the caption says so.
-2. An arrow there, opened into the page that says why it exists.
-3. An agent draws one: a recorded Claude Code session over the MCP server,
-   played back in a terminal beside the sheet while its edit is made again,
-   live (see "The agent" below).
-4. `react/react` imported on camera, from GitHub like any import. It has no
-   `.subcanvas` files, so its main folders become boxes on their own, and
-   one opens onto its packages. The cut wait is marked as sped up.
-5. Share and Copy embed, then the embed in a README when `DEMO_README_URL`
+1. `react/react` imported on camera, from GitHub like any import, so a
+   repository becomes a diagram in the first five seconds. It has no
+   `.subcanvas` files, so its main folders become boxes automatically. The
+   cut wait is marked as sped up.
+2. Its Packages box opens onto the diagram inside it.
+3. This repository's own diagram, where `.subcanvas` files (a few lines of
+   YAML in each folder) name the boxes and add the arrows.
+4. An arrow there, opened into the page that says why it exists.
+5. An agent draws one: a recorded Claude Code session over the MCP server,
+   played back in a terminal beside the sheet while its edit is made again
+   (see "The agent" below).
+6. Share and Copy embed, then the embed in a README when `DEMO_README_URL`
    is set.
-6. The end card.
+7. The end card.
 
 Canvas shots are in view mode with the sidebar collapsed (set in the
 prelude), so no editing tools and nothing of the demo account show. Against
@@ -34,9 +35,9 @@ its first frame is the mark at rest).
 
 ## Render it locally
 
-It needs a reelscript newer than 0.2.0, for `waitFor` (with `settle`), a
-click with no `duration`, zooms kept `within` the window, the `menubar`
-option, and terminal output played from timed `events` at a fixed size.
+It needs reelscript 0.3.0 or newer, for `waitFor` (with `settle`), a click
+with no `duration`, zooms kept `within` the window, the `menubar` option,
+and terminal output played from timed `events` at a fixed size.
 
 ```sh
 # Once: the CLI (or `npm i -g @reelscript/cli`), its browser, and ffmpeg
@@ -84,7 +85,7 @@ are made from GitHub and the agent runs against them.
 
 ## The agent
 
-Scene 3 is a real Claude Code session, recorded and played back. The first
+Scene 5 is a real Claude Code session, recorded and played back. The first
 render records it once: Claude Code runs interactively, in a terminal of its
 own (macOS `script -r`, driven by `expect`), in `/tmp/subcanvas`, a clean
 copy of this checkout's committed files, with the Subcanvas MCP server

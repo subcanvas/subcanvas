@@ -269,8 +269,9 @@ async function editsSince(mcp: Mcp, whiteboardId: string, before: Set<string>): 
   type Edge = { id: string; doc_id?: string; doc_type?: string; open_mode?: string } & Record<string, unknown>
   const added = ((board.data.edges as Edge[] | undefined) ?? []).filter((edge) => !before.has(edge.id))
   const writes: AgentRun["writes"] = []
-  for (const { id, doc_id, doc_type, open_mode: _, ...edge } of added) {
+  for (const { id, doc_id, doc_type, ...edge } of added) {
     // Its ends, label, direction and style, as connect_nodes takes them.
+    delete edge.open_mode
     writes.push({ name: "connect_nodes", input: { whiteboard_id: whiteboardId, edges: [edge] }, data: { edge_ids: [id] } })
     if (doc_id && doc_type === "text") {
       const document = await mcp("read_text_document", { document_id: doc_id })
