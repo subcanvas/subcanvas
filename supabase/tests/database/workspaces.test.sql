@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(38);
 
 -- Personal and team workspaces, and deleting an account. Uses its own email
 -- domain, names, slugs and ids so it passes against a local database that
@@ -158,6 +158,8 @@ insert into public.documents (id, org_id, project_id, type, title, created_by) v
 insert into public.document_updates (document_id, update, created_by) values (:shared_doc, '\x00', :leaver);
 insert into public.org_invites (org_id, email, role, invited_by) values
   (:shared, 'someone@pgtap-ws.test', 'viewer', :leaver);
+insert into auth.audit_log_entries (id, payload)
+values (gen_random_uuid(), json_build_object('action', 'login', 'actor_id', :leaver, 'actor_username', 'pgtap-leaver@pgtap-ws.test'));
 insert into storage.objects (bucket_id, name) values
   ('media-images', :'own' || '/' || :own_project || '/' || :own_doc || '/0a000000-0000-0000-0000-00000000f001.png'),
   ('media-videos', :solo || '/' || :solo_project || '/' || :solo_doc || '/0a000000-0000-0000-0000-00000000f002.mp4'),
@@ -205,6 +207,8 @@ select results_eq(
   'the account is deleted, returning the files of the workspaces that went with it');
 
 select is((select count(*) from auth.users where id = :leaver), 0::bigint, 'the account is gone');
+select is((select count(*) from auth.audit_log_entries where payload ->> 'actor_id' = :leaver), 0::bigint,
+  'and Auth''s record of its sign-ins');
 select is((select count(*) from public.profiles where id = :leaver), 0::bigint, 'and its profile');
 select is((select count(*) from public.orgs where id in (:'own', :solo)), 0::bigint,
   'the personal workspace and the team workspace nobody else was in are gone');

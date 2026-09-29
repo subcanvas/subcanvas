@@ -426,6 +426,9 @@ begin
 
   delete from public.orgs o where o.id = any (v_doomed) and o.personal_owner is null;
   delete from auth.users u where u.id = p_user_id;
+  -- Auth's record of their sign-ins, which names them by email and is kept
+  -- apart from the user, so nothing cascades to it.
+  delete from auth.audit_log_entries a where a.payload ->> 'actor_id' = p_user_id::text;
 end;
 $$;
 
