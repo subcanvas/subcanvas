@@ -10,6 +10,7 @@ import {
   inspector,
   nodeDocument,
   nodeLabelled,
+  personalSlug,
   signIn,
   signUpWithOrg,
   whiteboardTools,
@@ -122,7 +123,7 @@ test.describe("on a phone", () => {
     // Two people's worth of signing in.
     test.setTimeout(150_000)
     const id = freshId()
-    const { account, slug } = await signUpWithOrg(page)
+    const { account } = await signUpWithOrg(page)
     await createProject(page, "Proj")
     const top = `Top ${id}`
     await createWhiteboard(page, top)
@@ -137,7 +138,8 @@ test.describe("on a phone", () => {
     try {
       const touch = await phone.newPage()
       await signIn(touch, account)
-      await touch.waitForURL(`/${slug}`)
+      // Signing in lands in the personal workspace; the board is in the team one.
+      await touch.waitForURL(`/${personalSlug(account)}`)
       await touch.goto(board)
       // A finger starts in view mode, where nothing can be deleted.
       await touch.getByRole("button", { name: "Edit mode" }).tap()
