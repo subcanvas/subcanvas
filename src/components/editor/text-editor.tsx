@@ -98,7 +98,7 @@ export default function TextEditor({
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
-      uploadFile: uploader(home),
+      uploadFile: uploader(home, showRefusal),
       resolveFileUrl,
       dictionary: { ...en, multi_column: multiColumnLocales.en },
       dropCursor: multiColumnDropCursor,

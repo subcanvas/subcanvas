@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { createContext, use, useCallback } from "react"
 import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { ASK_AN_OWNER, type Upgrade } from "@/lib/billing/limit"
 
 // Every refusal at a plan limit reads the same, wherever it happens: what
@@ -48,9 +48,9 @@ export function LimitRefusal({ refused }: { refused: Refused }) {
       <p className="text-destructive">{refused.error}</p>
       {advice === "ask" && <p className="text-graphite">{ASK_AN_OWNER}</p>}
       {advice === "offer" && (
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={billingHref} />}>
+        <Link href={billingHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
           Upgrade
-        </Button>
+        </Link>
       )}
     </div>
   )

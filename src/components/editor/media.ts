@@ -1,9 +1,17 @@
 "use client"
 
 import { useEffect } from "react"
-import { toast } from "sonner"
 
-import { classifyMedia, mediaDocumentId, mediaHref, mediaPath, parseMediaPath, type MediaHome } from "@/lib/whiteboard/media"
+import type { Refused } from "@/components/limit-refusal"
+import {
+  classifyMedia,
+  isFreePlanStorageLimit,
+  mediaDocumentId,
+  mediaHref,
+  mediaPath,
+  parseMediaPath,
+  type MediaHome,
+} from "@/lib/whiteboard/media"
 import { copyMediaTo, uploadMedia } from "@/lib/whiteboard/media-upload"
 import { rememberLocalMedia, signedMediaUrl } from "@/lib/whiteboard/media-urls"
 
@@ -48,8 +56,9 @@ function removeBlock(documentId: string, blockId: string) {
 
 // What BlockNote calls with a file that was pasted, dropped, or picked. It
 // has already put an empty block where the file goes; a file that is not
-// taken leaves nothing behind but a message saying why.
-export function uploader(home: MediaHome) {
+// taken leaves nothing behind but a message saying why, which `refuse` shows
+// (the free plan's storage cap as a plan limit).
+export function uploader(home: MediaHome, refuse: (refused: Refused) => void) {
   return async (file: File, blockId?: string) => {
     try {
       const format = classifyMedia(file)
@@ -62,7 +71,10 @@ export function uploader(home: MediaHome) {
     } catch (error) {
       if (blockId) removeBlock(home.documentId, blockId)
       const message = error instanceof Error ? error.message : "The upload failed. Try again."
-      toast.error(message.startsWith(file.name) ? message : `${file.name} was not added. ${message}`)
+      refuse({
+        error: message.startsWith(file.name) ? message : `${file.name} was not added. ${message}`,
+        ...(isFreePlanStorageLimit(message) ? { limit: true as const } : {}),
+      })
       throw error
     }
   }
