@@ -714,7 +714,7 @@ export type Database = {
           p_reason: string
           p_reporter_email?: string
         }
-        Returns: undefined
+        Returns: string
       }
       viewer_count: { Args: { p_document_id: string }; Returns: number }
       viewer_heartbeat: {
