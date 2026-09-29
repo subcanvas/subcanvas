@@ -7,16 +7,15 @@ import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 
 // For the pages outside the app, where there is no account menu: signs out
-// and goes to sign in. With `next`, signing in again comes back to it, which
-// is what someone signed in as the wrong account wants.
-export function SignOutButton({ next }: { next?: string }) {
+// and goes to sign in.
+export function SignOutButton() {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
   function signOut() {
     startTransition(async () => {
       await createClient().auth.signOut()
-      router.push(next ? `/login?next=${encodeURIComponent(next)}` : "/login")
+      router.push("/login")
       router.refresh()
     })
   }

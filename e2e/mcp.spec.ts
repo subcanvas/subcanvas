@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test"
 
-import { cardTitled, createProject, freshAccount, freshId, signUp, signUpWithOrg } from "./support/app"
+import {
+  cardTitled,
+  createProject,
+  freshAccount,
+  freshId,
+  personalSlug,
+  signIn,
+  signOut,
+  signUp,
+  signUpWithOrg,
+} from "./support/app"
 import {
   callTool,
   connectThroughOAuth,
@@ -132,6 +142,37 @@ test("an approved agent is listed in Profile, and once revoked its token is refu
   // And its refresh token is gone, so the client cannot get another.
   await expect(client.callTool({ name: "list_workspaces", arguments: {} })).rejects.toThrow()
   await client.close().catch(() => {})
+})
+
+test("signed in as the wrong account, the consent page signs out, and connecting again works as the right one", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
+  const right = await signUp(page)
+  await signOut(page)
+  const wrong = await signUp(page)
+
+  // Not you? A request belongs to the account that opened it, so signing
+  // out refuses it, and the app is told no.
+  const refused = await connectThroughOAuth(page, { baseURL: baseURL!, email: wrong.email, decision: "sign-out" })
+  expect(refused.client).toBeNull()
+  expect(refused.params.get("error")).toBe("access_denied")
+  // The browser went back to the app with the refusal, signed out here.
+  await page.waitForURL(/\/callback\?error=access_denied/)
+  await page.goto("/login")
+  await expect(page.getByLabel("Email")).toBeVisible()
+
+  // Connecting again from the app asks again, and the right account says yes.
+  await signIn(page, right)
+  await page.waitForURL(`/${personalSlug(right)}`)
+  const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: right.email, decision: "approve" })
+  if (!client) throw new Error("No client after approval")
+
+  // The agent is the account that approved it.
+  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { slug: string }[] }
+  expect(workspaces.map((workspace) => workspace.slug)).toEqual([personalSlug(right)])
+  await client.close()
 })
 
 test("cancelling on the consent page gives the agent no token", async ({ page, baseURL }) => {

@@ -54,6 +54,7 @@ const NOT_EXPOSED: Record<string, string> = {
   // The consent screen is where a person lets an agent in. An agent must
   // never be able to answer it.
   "oauth/consent/actions.decideAuthorization": "approving an agent is the one thing an agent must not do",
+  "oauth/consent/actions.signOutInstead": "answers the consent screen, and signs a person out",
 }
 
 const APP = join(__dirname, "../../app")

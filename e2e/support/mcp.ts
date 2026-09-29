@@ -132,7 +132,8 @@ export type Consent = {
   baseURL: string
   // Who the browser is signed in as; the consent page says so.
   email: string
-  decision: "approve" | "deny"
+  // "sign-out" is "Not you? Sign out", which refuses the request too.
+  decision: "approve" | "deny" | "sign-out"
   clientName?: string
 }
 
@@ -172,13 +173,12 @@ export async function connectThroughOAuth(page: Page, consent: Consent) {
     await expect(page.getByText(`You are signed in as ${consent.email}.`)).toBeVisible()
     // The code goes to a loopback address, and the page says what that means.
     await expect(page.getByText("It is an app running on this computer.")).toBeVisible()
-    await page
-      .getByRole("button", { name: decision === "approve" ? `Allow ${clientName}` : "Cancel", exact: true })
-      .click()
+    const button = { approve: `Allow ${clientName}`, deny: "Cancel", "sign-out": "Sign out" }[decision]
+    await page.getByRole("button", { name: button, exact: true }).click()
 
     const params = await callback.received
     expect(params.get("state")).toBe(provider.expectedState)
-    if (decision === "deny") return { client: null, provider, params }
+    if (decision !== "approve") return { client: null, provider, params }
 
     const code = params.get("code")
     if (!code) throw new Error(`No code came back: ${params}`)

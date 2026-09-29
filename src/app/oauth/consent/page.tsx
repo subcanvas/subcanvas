@@ -2,11 +2,10 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { AuthShell } from "@/components/auth-shell"
-import { SignOutButton } from "@/components/sign-out-button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireUser } from "@/lib/auth"
 
-import { ConsentForm } from "./consent-form"
+import { ConsentForm, SignOutInstead } from "./consent-form"
 
 export const metadata: Metadata = { title: "Connect an app" }
 
@@ -18,8 +17,9 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
   const { authorization_id: authorizationId } = await searchParams
   if (typeof authorizationId !== "string") return <Invalid />
 
-  const here = `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`
-  const { supabase, user } = await requireUser(here)
+  const { supabase, user } = await requireUser(
+    `/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`
+  )
   const { data, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId)
   if (error || !data) return <Invalid />
   // Already approved for this client: Supabase skips the question.
@@ -36,9 +36,8 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
         <CardHeader>
           <CardTitle>Let {data.client.name} use Subcanvas as you?</CardTitle>
           <CardDescription>
-            {/* The browser may be signed in as someone other than the person
-                connecting: signing out comes back here as whoever signs in. */}
-            You are signed in as {user.email}. Not you? <SignOutButton next={here} />
+            You are signed in as {user.email}. Not you? <SignOutInstead authorizationId={authorizationId} /> and
+            connect again from the app.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
