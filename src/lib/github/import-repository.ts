@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { limitMessage } from "@/lib/billing/limit"
+import { projectRefusal } from "@/lib/documents/operations"
 import type { Database } from "@/lib/supabase/database.types"
 import { writeNewDocuments } from "@/lib/sync/server-document"
 import { uuidV5 } from "@/lib/whiteboard/description-document"
@@ -88,13 +89,7 @@ export async function importRepository(
     })
     .select("id")
     .single()
-  if (projectError)
-    return {
-      error:
-        projectError.code === "42501"
-          ? "You do not have permission to create projects."
-          : projectError.message,
-    }
+  if (projectError) return { error: projectRefusal(projectError, makePublic ? "public" : "private") }
 
   // Half a project is worse than none, however it came to be half.
   const discard = () => supabase.rpc("discard_import", { p_project_id: project.id })
@@ -127,7 +122,7 @@ async function write(
   const { error } = await supabase.from("documents").insert(rows)
   if (error) {
     // A private project counts against the free plan like any other.
-    const limit = limitMessage(error.code)
+    const limit = limitMessage(error.code, error.message)
     return limit ? { error: limit, limit: true } : { error: error.message }
   }
   const written = await writeNewDocuments(supabase, contents)
