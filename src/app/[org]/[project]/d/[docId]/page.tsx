@@ -8,6 +8,7 @@ import { ReferencedBy } from "@/components/referenced-by"
 import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { readDocumentSource } from "@/lib/github/source"
+import { abuseContact } from "@/lib/legal"
 import { parseVia } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
@@ -41,7 +42,7 @@ export default async function DocumentPage({
       .is("deleted_at", null)
       .maybeSingle(),
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
-    supabase.from("projects").select("name, visibility").eq("id", projectId).maybeSingle(),
+    supabase.from("projects").select("name, visibility, taken_down_at").eq("id", projectId).maybeSingle(),
   ])
   if (!document || !project) notFound()
 
@@ -87,6 +88,7 @@ export default async function DocumentPage({
         visibility={project.visibility}
         canChange={hasRole(role, "admin") && canEdit}
         whiteboard={document.type === "whiteboard" ? { docId: document.id, title: document.title } : undefined}
+        takenDown={project.taken_down_at ? { contact: abuseContact() } : null}
       />
     </div>
   )

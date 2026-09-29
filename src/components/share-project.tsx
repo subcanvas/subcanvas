@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Code, Copy, Globe, Lock } from "lucide-react"
+import { Check, Code, Copy, EyeOff, Globe, Lock } from "lucide-react"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
@@ -33,22 +33,27 @@ import { publicProjectPath } from "@/lib/public-route"
 //
 // On a whiteboard's page it is given that whiteboard, and once the project
 // is public it also offers the snippet that embeds it in a README.
+//
+// A project the operator took down (`takenDown`) is public to nobody,
+// whatever its setting, so it offers no link and says whom to write to.
 export function ShareProject({
   project,
   visibility,
   canChange,
   whiteboard,
+  takenDown = null,
 }: {
   project: ProjectRef
   visibility: "private" | "public"
   canChange: boolean
   whiteboard?: { docId: string; title: string }
+  takenDown?: { contact: string | null } | null
 }) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState<"link" | "embed" | null>(null)
   const [pending, startTransition] = useTransition()
   const isPublic = visibility === "public"
-  const Icon = isPublic ? Globe : Lock
+  const Icon = takenDown ? EyeOff : isPublic ? Globe : Lock
   const link =
     typeof window === "undefined" ? "" : `${window.location.origin}${publicProjectPath(project.projectId)}`
 
@@ -86,15 +91,19 @@ export function ShareProject({
           }
         />
         <PopoverContent align="end" className="w-80">
-          <PopoverHeader>
-            <PopoverTitle>{isPublic ? "Public project" : "Private project"}</PopoverTitle>
-            <PopoverDescription>
-              {isPublic
-                ? "Anyone with the link can view every document in it. Only members can edit."
-                : "Only members of your org can see it."}
-            </PopoverDescription>
-          </PopoverHeader>
-          {isPublic && (
+          {takenDown ? (
+            <TakenDown projectId={project.projectId} contact={takenDown.contact} />
+          ) : (
+            <PopoverHeader>
+              <PopoverTitle>{isPublic ? "Public project" : "Private project"}</PopoverTitle>
+              <PopoverDescription>
+                {isPublic
+                  ? "Anyone with the link can view every document in it. Only members can edit."
+                  : "Only members of your org can see it."}
+              </PopoverDescription>
+            </PopoverHeader>
+          )}
+          {isPublic && !takenDown && (
             <div className="flex gap-1.5">
               <Input
                 readOnly
@@ -109,7 +118,7 @@ export function ShareProject({
               </Button>
             </div>
           )}
-          {isPublic && whiteboard && (
+          {isPublic && !takenDown && whiteboard && (
             <div className="flex items-center gap-3">
               <p className="flex-1 text-xs text-muted-foreground">
                 A picture for a README that stays current.
@@ -129,13 +138,16 @@ export function ShareProject({
               </Button>
             </div>
           )}
+          {/* While taken down, making it public would change nothing. */}
           {canChange ? (
-            <Button variant="ghost" size="sm" className="justify-start" onClick={() => setConfirming(true)}>
-              {isPublic ? <Lock /> : <Globe />}
-              {isPublic ? "Make private" : "Make public"}
-            </Button>
+            (isPublic || !takenDown) && (
+              <Button variant="ghost" size="sm" className="justify-start" onClick={() => setConfirming(true)}>
+                {isPublic ? <Lock /> : <Globe />}
+                {isPublic ? "Make private" : "Make public"}
+              </Button>
+            )
           ) : (
-            !isPublic && <p className="text-xs text-muted-foreground">An admin can make it public.</p>
+            !isPublic && !takenDown && <p className="text-xs text-muted-foreground">An admin can make it public.</p>
           )}
         </PopoverContent>
       </Popover>
@@ -159,5 +171,33 @@ export function ShareProject({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function TakenDown({ projectId, contact }: { projectId: string; contact: string | null }) {
+  return (
+    <PopoverHeader>
+      <PopoverTitle>Taken down</PopoverTitle>
+      <PopoverDescription>
+        Whoever runs this server has taken this project down. Its public link shows nothing, whatever the
+        setting here. Members can still open and edit it.
+      </PopoverDescription>
+      <PopoverDescription>
+        {contact ? (
+          <>
+            To ask why, or to ask for it back, email{" "}
+            <a
+              className="font-medium text-cobalt underline underline-offset-4"
+              href={`mailto:${contact}?subject=${encodeURIComponent(`Taken-down project ${projectId}`)}`}
+            >
+              {contact}
+            </a>
+            .
+          </>
+        ) : (
+          "To ask why, or to ask for it back, write to whoever runs this server."
+        )}
+      </PopoverDescription>
+    </PopoverHeader>
   )
 }

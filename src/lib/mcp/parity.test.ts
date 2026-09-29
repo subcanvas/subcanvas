@@ -49,6 +49,10 @@ const NOT_EXPOSED: Record<string, string> = {
   // first org does. Creating further orgs waits for the members tools,
   // since a new org is only useful once people can be invited to it.
   "onboarding/actions.createOrg": "the first org is created by a person during sign-up",
+  // A report is a reader's word to the operator about a public page, and it
+  // emails the operator. An agent acts inside its own person's orgs, and one
+  // that could file reports could flood that inbox.
+  "p/[projectId]/actions.reportAbuse": "a person's report to the operator; it emails them",
   // The consent screen is where a person lets an agent in. An agent must
   // never be able to answer it.
   "oauth/consent/actions.decideAuthorization": "approving an agent is the one thing an agent must not do",
