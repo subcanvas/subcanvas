@@ -134,32 +134,32 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
 
       {/* A personal workspace is neither left nor deleted on its own. */}
       {!org.personal && (
-      <SettingsSection id="general-danger" title="Danger zone" danger>
-        <div className="divide-y divide-rule">
-          <DangerRow
-            title="Leave this workspace"
-            detail={
-              onlyOwner
-                ? "You are the only owner. Make someone else an owner in Members first, or delete the workspace."
-                : "You lose access to its projects. Nothing you made is deleted."
-            }
-          >
-            {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
-          </DangerRow>
-          {isOwner && (
+        <SettingsSection id="general-danger" title="Danger zone" danger>
+          <div className="divide-y divide-rule">
             <DangerRow
-              title="Delete this workspace"
+              title="Leave this workspace"
               detail={
-                subscribed
-                  ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
-                  : "Deletes every project, whiteboard, and document in it, for every member. It cannot be undone."
+                onlyOwner
+                  ? "You are the only owner. Make someone else an owner in Members first, or delete the workspace."
+                  : "You lose access to its projects. Nothing you made is deleted."
               }
             >
-              {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
+              {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
             </DangerRow>
-          )}
-        </div>
-      </SettingsSection>
+            {isOwner && (
+              <DangerRow
+                title="Delete this workspace"
+                detail={
+                  subscribed
+                    ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
+                    : "Deletes every project, whiteboard, and document in it, for every member. It cannot be undone."
+                }
+              >
+                {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
+              </DangerRow>
+            )}
+          </div>
+        </SettingsSection>
       )}
     </main>
   )
