@@ -85,7 +85,26 @@ test("signs an agent in through the consent page, and it works as that person", 
   const { project_id } = (await callTool(client, "create_project", { org_id: orgs[0].id, name: projectName })) as {
     project_id: string
   }
-  await callTool(client, "create_document", { project_id, type: "whiteboard", title: boardName })
+  const { document_id: board } = (await callTool(client, "create_document", {
+    project_id,
+    type: "whiteboard",
+    title: boardName,
+  })) as { document_id: string }
+
+  // A node deleted by an agent takes what it held to the trash, as on the canvas.
+  const inside = `Inside ${id}`
+  const { node_ids } = (await callTool(client, "add_nodes", { whiteboard_id: board, nodes: [{ title: inside }] })) as {
+    node_ids: string[]
+  }
+  const { document_id: held } = (await callTool(client, "attach_document", {
+    whiteboard_id: board,
+    object_id: node_ids[0],
+    type: "whiteboard",
+  })) as { document_id: string }
+  const deleted = (await callTool(client, "delete_nodes", { whiteboard_id: board, node_ids })) as {
+    trashed_document_ids: string[]
+  }
+  expect(deleted.trashed_document_ids).toEqual([held])
   await client.close()
 
   // What the agent made is there for the person, in the browser.
@@ -93,6 +112,8 @@ test("signs an agent in through the consent page, and it works as that person", 
   await page.getByRole("link", { name: projectName }).click()
   await page.waitForURL(`/${slug}/${project_id}`)
   await expect(page.getByRole("link", { name: boardName, exact: true })).toBeVisible()
+  await page.goto(`/${slug}/${project_id}/trash`)
+  await expect(page.getByRole("main").getByRole("listitem").filter({ hasText: inside })).toContainText("Whiteboard")
 })
 
 test("an approved agent is listed in Profile, and once revoked its token is refused at once", async ({
