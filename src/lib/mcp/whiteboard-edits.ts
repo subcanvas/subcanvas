@@ -177,10 +177,12 @@ export function updateNodes(doc: Y.Doc, patches: NodePatch[]): EditResult<{ ids:
 }
 
 // Removing a node also removes what is inside it and its edges.
+// Also returns the files the deleted media nodes showed, which may now be
+// shown by nothing (media-release.ts decides).
 export function deleteNodes(
   doc: Y.Doc,
   ids: string[]
-): EditResult<{ nodes: string[]; edges: string[] }> {
+): EditResult<{ nodes: string[]; edges: string[]; media: string[] }> {
   const yNodes = nodesMap(doc)
   const yEdges = edgesMap(doc)
   const unknown = ids.filter((id) => !yNodes.has(id))
@@ -200,9 +202,13 @@ export function deleteNodes(
     .filter(([, map]) => doomed.has(map.get("source") as string) || doomed.has(map.get("target") as string))
     .map(([id]) => id)
 
+  const media = [...doomed].flatMap((id) => {
+    const path = yNodes.get(id)?.get("mediaPath")
+    return typeof path === "string" ? [path] : []
+  })
   for (const id of doomed) yNodes.delete(id)
   for (const id of edges) yEdges.delete(id)
-  return { nodes: [...doomed], edges }
+  return { nodes: [...doomed], edges, media }
 }
 
 export type EdgeStyle = {

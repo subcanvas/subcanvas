@@ -65,7 +65,7 @@ describe("whiteboard edits", () => {
     expect(readEdge(edge, edgesMap(doc).get(edge)!)).toMatchObject({
       sourceHandle: "bottom", targetHandle: "top", direction: "forward", shape: "spline", stroke: "solid", label: "calls",
     })
-    expect(ids(edits.deleteNodes(doc, [b]))).toEqual({ nodes: [b], edges: [edge] })
+    expect(ids(edits.deleteNodes(doc, [b]))).toEqual({ nodes: [b], edges: [edge], media: [] })
     expect(edgesMap(doc).size).toBe(0)
   })
 

@@ -39,6 +39,24 @@ export type FlowEdge = Edge<{ wb: WbEdge }>
 
 const DRAG_WRITE_INTERVAL_MS = 40
 
+// What left the whiteboard, or came back to it, in one step taken here: a
+// deletion, an undo, a redo. Objects are nodes and arrows; a media node's
+// file is named with it. What they held follows them (the canvas sends it
+// to the trash and back), so deleting a box means the same wherever it is
+// done, and undo brings all of it back.
+export type HeldObject = { id: string; mediaPath: string | null }
+export type ObjectsChange = { removed: HeldObject[]; returned: HeldObject[] }
+
+function objectsOf(yNodes: Y.Map<Y.Map<unknown>>, yEdges: Y.Map<Y.Map<unknown>>) {
+  const objects = new Map<string, string | null>()
+  for (const [id, map] of yNodes) {
+    const mediaPath = map.get("mediaPath")
+    objects.set(id, typeof mediaPath === "string" ? mediaPath : null)
+  }
+  for (const id of yEdges.keys()) objects.set(id, null)
+  return objects
+}
+
 // React Flow needs a parent before its children.
 function parentsFirst(nodes: WbNode[]) {
   const byId = new Map(nodes.map((node) => [node.id, node]))
@@ -117,9 +135,13 @@ function toFlowEdge(
 // Binds a whiteboard Y.Doc to React Flow's controlled nodes and edges.
 // Yjs owns the content. React Flow owns what is local to this screen:
 // selection, measured sizes, and in-flight drags.
-export function useWhiteboard(doc: Y.Doc, editable: boolean) {
+export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change: ObjectsChange) => void) {
   const yNodes = useMemo(() => nodesMap(doc), [doc])
   const yEdges = useMemo(() => edgesMap(doc), [doc])
+  const objectsListener = useRef(onObjects)
+  useEffect(() => {
+    objectsListener.current = onObjects
+  })
 
   const [nodes, setNodes] = useState<FlowNode[]>([])
   const [edges, setEdges] = useState<FlowEdge[]>([])
@@ -193,6 +215,21 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     [transact]
   )
 
+  // Runs a step and tells the listener which objects it took away or
+  // brought back.
+  const followObjects = useCallback(
+    (step: () => void) => {
+      const before = objectsOf(yNodes, yEdges)
+      step()
+      const after = objectsOf(yNodes, yEdges)
+      const left = (from: Map<string, string | null>, to: Map<string, string | null>) =>
+        [...from].filter(([id]) => !to.has(id)).map(([id, mediaPath]) => ({ id, mediaPath }))
+      const change = { removed: left(before, after), returned: left(after, before) }
+      if (change.removed.length || change.returned.length) objectsListener.current?.(change)
+    },
+    [yNodes, yEdges]
+  )
+
   // Removing a node also removes what is inside it and its edges.
   const removeObjects = useCallback(
     (nodeIds: string[], edgeIds: string[] = []) => {
@@ -206,15 +243,17 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
             grew = true
           }
       }
-      transactAsOneStep(() => {
-        for (const id of doomed) yNodes.delete(id)
-        for (const id of edgeIds) yEdges.delete(id)
-        for (const [id, map] of yEdges)
-          if (doomed.has(map.get("source") as string) || doomed.has(map.get("target") as string))
-            yEdges.delete(id)
-      })
+      followObjects(() =>
+        transactAsOneStep(() => {
+          for (const id of doomed) yNodes.delete(id)
+          for (const id of edgeIds) yEdges.delete(id)
+          for (const [id, map] of yEdges)
+            if (doomed.has(map.get("source") as string) || doomed.has(map.get("target") as string))
+              yEdges.delete(id)
+        })
+      )
     },
-    [transactAsOneStep, yNodes, yEdges]
+    [followObjects, transactAsOneStep, yNodes, yEdges]
   )
 
   const onNodesChange = useCallback(
@@ -467,7 +506,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
     moveNodes,
     applyArrangement,
     // Not while looking only: undo would change the whiteboard too.
-    undo: () => editable && undoManager.current?.undo(),
-    redo: () => editable && undoManager.current?.redo(),
+    undo: () => editable && followObjects(() => undoManager.current?.undo()),
+    redo: () => editable && followObjects(() => undoManager.current?.redo()),
   }
 }

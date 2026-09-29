@@ -3,9 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/lib/supabase/database.types"
 
 // A whiteboard's pictures and videos are files in Storage, and Storage is
-// not part of the database's cascades. Deleting a node never deletes its
-// file: a copy of the node may show the same file, and undo has to be able
-// to bring the node back. Files go when their whiteboard goes for good.
+// not part of the database's cascades. Files go when their document goes
+// for good, and a removed node's file goes once nothing can bring the node
+// back (lib/whiteboard/media-release.ts).
 //
 // So whatever is about to delete rows for good asks first which files that
 // orphans, deletes the rows, and then removes the files. In that order: if
