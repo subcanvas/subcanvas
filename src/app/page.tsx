@@ -214,7 +214,7 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free until your org needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
+                  ? "Free until your workspace needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
                   : "Nothing to pay yet. There is no paid plan while Subcanvas is this new."}
               </p>
             </div>
@@ -235,7 +235,7 @@ export default async function Home() {
                   />
                   <Plan
                     start={start}
-                    name="Team"
+                    name="Pro"
                     price="$5"
                     unit="per editor, per month"
                     highlight
@@ -257,7 +257,7 @@ export default async function Home() {
                   points={[
                     "Public and private projects alike",
                     "As many editors and viewers as you like",
-                    "1 GB of pictures and videos per org",
+                    "1 GB of pictures and videos per workspace",
                     "A paid plan comes later, and this work stays yours",
                   ]}
                 />

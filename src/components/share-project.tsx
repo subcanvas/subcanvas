@@ -91,7 +91,7 @@ export function ShareProject({
             <PopoverDescription>
               {isPublic
                 ? "Anyone with the link can view every document in it. Only members can edit."
-                : "Only members of your org can see it."}
+                : "Only members of your workspace can see it."}
             </PopoverDescription>
           </PopoverHeader>
           {isPublic && (
@@ -146,7 +146,7 @@ export function ShareProject({
             <DialogTitle>{isPublic ? "Make this project private?" : "Make this project public?"}</DialogTitle>
             <DialogDescription>
               {isPublic
-                ? "Only members of your org will be able to see it. Links people already have will stop working. Its documents will count toward the free plan's private document limit."
+                ? "Only members of your workspace will be able to see it. Links people already have will stop working. Its documents will count toward the free plan's private document limit."
                 : "Anyone on the internet with a link will be able to read every document in this project, including nested ones and node descriptions. They will not be able to edit. Do not do this for anything confidential."}
             </DialogDescription>
           </DialogHeader>

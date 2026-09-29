@@ -24,7 +24,7 @@ const CHOICES = [
     value: "private",
     label: "Private",
     icon: Lock,
-    detail: "Only members of your org can see it.",
+    detail: "Only members of your workspace can see it.",
   },
   {
     value: "public",

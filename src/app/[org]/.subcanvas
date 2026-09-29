@@ -1,5 +1,5 @@
-title: Org workspace
-description: Everything a signed-in member sees. An org's projects, members, and billing, and inside a project, its document tree, whiteboards, and pages.
+title: Workspace
+description: Everything a signed-in member sees. A workspace's projects, members, and billing, and inside a project, its document tree, whiteboards, and pages.
 connects:
   - to: src/components/tree
     label: project tree

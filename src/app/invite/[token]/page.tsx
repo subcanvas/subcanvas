@@ -36,8 +36,8 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
           <CardHeader>
             <CardTitle>This invite is no longer valid</CardTitle>
             <CardDescription>
-              It may have expired or already been used. Ask an admin of the org for
-              a new one.
+              It may have expired or already been used. Ask an admin of the workspace
+              for a new one.
             </CardDescription>
           </CardHeader>
         ) : (

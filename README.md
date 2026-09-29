@@ -25,7 +25,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 
 - **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. The import is a one-time copy.
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
-- **Live together.** Everyone you invite edits at once, with cursors. Viewers are free.
+- **Live together.** Your account comes with a personal workspace; make a team workspace and everyone you invite to it edits at once, with cursors. Viewers are free.
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
 - **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them: [docs/MCP.md](docs/MCP.md).
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
@@ -73,7 +73,7 @@ Three layers, each answering something the others cannot:
 - **`pnpm db:test`**: pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
 - **`pnpm test:e2e`**: Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
 
-The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything. Next refuses a second development server in one checkout, so with `pnpm dev` already open, start that one from another checkout of the repository (a `git worktree` will do) and point the suite at it with `E2E_DEV_BASE_URL`. The billing specs run only when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set (sandbox values, see the billing step above) and skip otherwise; the three MCP sign-in specs need `[auth.oauth_server]` from `config.toml`, which a stack started before that setting only picks up after `supabase stop && supabase start`.
+The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, workspace and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything. Next refuses a second development server in one checkout, so with `pnpm dev` already open, start that one from another checkout of the repository (a `git worktree` will do) and point the suite at it with `E2E_DEV_BASE_URL`. The billing specs run only when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set (sandbox values, see the billing step above) and skip otherwise; the three MCP sign-in specs need `[auth.oauth_server]` from `config.toml`, which a stack started before that setting only picks up after `supabase stop && supabase start`.
 
 ```sh
 pnpm test:e2e                       # all of it
@@ -87,9 +87,9 @@ Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web as
 
 ## Public projects and moderation
 
-An admin can make a project public: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the org can edit. Public pages are not indexed by search engines, and each carries a Report button.
+An admin can make a project public: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the workspace can edit. Public pages are not indexed by search engines, and each carries a Report button.
 
-Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL). To take a project offline, whatever its org sets:
+Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL). To take a project offline, whatever its workspace sets:
 
 ```sql
 update public.projects set taken_down_at = now() where id = '<project id>';
@@ -111,7 +111,7 @@ A deployment that sells subscriptions turns on two things:
    ```sql
    update private.config set free_private_document_limit = 100, free_editor_limit = 3;
    ```
-   Free orgs then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A paid org has no limits.
+   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (node descriptions and trashed documents do not count), and 3 editors. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limits.
 2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security
