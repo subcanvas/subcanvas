@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { buttonVariants } from "@/components/ui/button"
 import { ASK_AN_OWNER, type Upgrade } from "@/lib/billing/limit"
+import { cn } from "@/lib/utils"
 
 // Every refusal at a plan limit reads the same, wherever it happens: what
 // the limit is (the message, from lib/billing/limit.ts), then what this
@@ -48,7 +49,7 @@ export function LimitRefusal({ refused }: { refused: Refused }) {
       <p className="text-destructive">{refused.error}</p>
       {advice === "ask" && <p className="text-graphite">{ASK_AN_OWNER}</p>}
       {advice === "offer" && (
-        <Link href={billingHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
+        <Link href={billingHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           Upgrade
         </Link>
       )}
