@@ -259,7 +259,7 @@ export const documentTools = [
     title: "Restore a document or folder from the trash",
     group: "Documents",
     description:
-      "Takes a document or folder out of the trash, with everything inside it, and puts it back where it was. If what it was in is still in the trash, it goes to the top level of the project instead. A document that a whiteboard node or arrow held, whose node or arrow has since been deleted, stays under that whiteboard as a document of its own; its description becomes a text document. Can fail on the free plan when what comes back would exceed the private-document allowance.",
+      "Takes a document or folder out of the trash, with everything inside it, and puts it back where it was. If what it was in is still in the trash, it goes to the top level of the project instead. A document that a whiteboard node or arrow held, whose node or arrow has since been deleted, stays under that whiteboard as a document of its own; a description becomes a page like any other. Can fail on the free plan when what comes back would exceed the private-document allowance.",
     input: {
       kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
       id: id("A document or folder that is in the trash (see `get_project` with `include_trash`)."),

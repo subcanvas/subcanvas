@@ -85,7 +85,7 @@ test("deleting a box sends the whiteboard inside it to the trash, and undo bring
   await expect(treeRow(page, inner)).toBeVisible()
 })
 
-test("a box's notes go to the trash with it, and come back as a page of their own", async ({ page }) => {
+test("a box's description goes to the trash with it, and comes back as a page of its own", async ({ page }) => {
   const id = freshId()
   await signUpWithOrg(page)
   await createProject(page, "Proj")
@@ -106,7 +106,7 @@ test("a box's notes go to the trash with it, and come back as a page of their ow
 
   await openTrash(page)
   const row = trashRow(page, box)
-  await expect(row).toContainText("Notes of a box or arrow")
+  await expect(row).toContainText("Description of a box or arrow")
   await row.getByRole("button", { name: "Restore" }).click()
   await expect(page.getByText("Restored under the whiteboard it was on")).toBeVisible()
   await expect(page.getByText("The trash is empty.")).toBeVisible()

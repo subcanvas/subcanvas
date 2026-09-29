@@ -36,7 +36,7 @@ const SHOWN_AS = {
   folder: { icon: Folder, label: "Folder" },
   whiteboard: { icon: Workflow, label: "Whiteboard" },
   text: { icon: FileText, label: "Page" },
-  notes: { icon: StickyNote, label: "Notes of a box or arrow" },
+  notes: { icon: StickyNote, label: "Description of a box or arrow" },
 }
 
 // Where a restored item went, when it could not go back where it was.
