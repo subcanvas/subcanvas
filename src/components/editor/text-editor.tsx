@@ -49,6 +49,14 @@ import {
 
 export type EditorUser = { id: string; name: string; color: string }
 
+// The app says picture, not image (REQUIREMENTS.md, glossary), so BlockNote's
+// own words for its image block say so too. Search aliases are left alone.
+function picturesNotImages<T>(value: T): T {
+  if (typeof value === "string") return value.replace(/\bimage\b/g, "picture").replace(/\bImage\b/g, "Picture") as T
+  if (Array.isArray(value) || value === null || typeof value !== "object") return value
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, picturesNotImages(inner)])) as T
+}
+
 // The slash menu draws a heading wherever the group changes, so items of
 // one group must be next to each other: ours join BlockNote's groups at
 // their ends, and the groups keep the order they first appear in.
@@ -98,7 +106,7 @@ export default function TextEditor({
       schema,
       uploadFile: uploader(home),
       resolveFileUrl,
-      dictionary: { ...en, multi_column: multiColumnLocales.en },
+      dictionary: { ...picturesNotImages(en), multi_column: multiColumnLocales.en },
       dropCursor: multiColumnDropCursor,
       collaboration: {
         provider,
