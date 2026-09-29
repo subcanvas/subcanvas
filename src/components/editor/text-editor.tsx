@@ -47,7 +47,9 @@ import {
   type TextDocumentContext,
 } from "./document-link-block"
 
-export type EditorUser = { id: string; name: string; color: string }
+// `avatarUrl` is the profile picture others see beside this person's name
+// in the document (PresenceAvatars); carets and cursors show the name.
+export type EditorUser = { id: string; name: string; color: string; avatarUrl?: string | null }
 
 // The slash menu draws a heading wherever the group changes, so items of
 // one group must be next to each other: ours join BlockNote's groups at

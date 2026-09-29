@@ -13,6 +13,7 @@ import {
   whiteboardTools,
 } from "./support/app"
 import { expectSavedByNow, inviteAndJoin, othersHere } from "./support/collab"
+import { memberRow } from "./support/members"
 
 // Two people on one whiteboard: the owner, and someone they invited who is
 // looking at the same sheet from a browser context of their own. Edits go
@@ -34,7 +35,7 @@ async function ownerAndEditor(page: Page, browser: Browser) {
   await expect(whiteboardTools(page)).toBeVisible()
   await editor.page.goto(boardUrl)
   await expect(whiteboardTools(editor.page)).toBeVisible()
-  return { boardUrl, editor }
+  return { slug, boardUrl, editor }
 }
 
 test("a node added by one person appears for the other, and a title typed by the other comes back", async ({ page, browser }) => {
@@ -113,6 +114,39 @@ test("the other person's avatar and cursor are there while they are on the page,
     // get a presence sync, and the provider drops the departed caret then,
     // rather than after the awareness protocol's thirty-second timeout.
     await expect(canvas(page).getByText(editor.account.email)).toHaveCount(0, { timeout: 10_000 })
+  } finally {
+    await editor.context.close()
+  }
+})
+
+// A 1 by 1 PNG, served in place of a picture on the internet.
+const PICTURE = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64"
+)
+
+test("the other person's picture is on their avatar, in the document and on the Members page", async ({ page, browser }) => {
+  const { slug, boardUrl, editor } = await ownerAndEditor(page, browser)
+  try {
+    // A picture is an address on the internet; the owner's browser is
+    // answered here instead, so the test needs no network.
+    const picture = `https://pictures.example.test/${freshId()}.png`
+    await page.route("https://pictures.example.test/**", (route) =>
+      route.fulfill({ contentType: "image/png", body: PICTURE })
+    )
+
+    await editor.page.goto(`/${slug}/settings/profile`)
+    const section = editor.page.getByRole("region", { name: "Picture" })
+    await section.getByLabel("Picture address").fill(picture)
+    await section.getByRole("button", { name: "Save", exact: true }).click()
+    await expect(editor.page.getByText("Picture saved.")).toBeVisible()
+    await editor.page.goto(boardUrl)
+    await expect(whiteboardTools(editor.page)).toBeVisible()
+
+    await expect(othersHere(page, 1).locator("img")).toHaveAttribute("src", picture)
+
+    await page.goto(`/${slug}/settings/members`)
+    await expect(memberRow(page, editor.account.email).locator("img")).toHaveAttribute("src", picture)
   } finally {
     await editor.context.close()
   }

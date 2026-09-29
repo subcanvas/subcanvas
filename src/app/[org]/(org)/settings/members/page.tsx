@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { PageHeader } from "@/components/page-header"
+import { PersonAvatar } from "@/components/person-avatar"
 import { emailConfigured } from "@/lib/email"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
@@ -28,7 +29,7 @@ export default async function MembersPage({
   const [{ data: members }, { data: invites }] = await Promise.all([
     supabase
       .from("org_members")
-      .select("user_id, role, profiles (email, display_name)")
+      .select("user_id, role, profiles (email, display_name, avatar_url)")
       .eq("org_id", org.id)
       .order("created_at"),
     isAdmin
@@ -70,13 +71,12 @@ export default async function MembersPage({
               <TableRow key={member.user_id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <span
+                    <PersonAvatar
                       aria-hidden
-                      className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium text-white"
-                      style={{ backgroundColor: userColor(member.user_id) }}
-                    >
-                      {(member.profiles?.display_name ?? member.profiles?.email ?? "?").charAt(0).toUpperCase()}
-                    </span>
+                      name={member.profiles?.display_name ?? member.profiles?.email ?? ""}
+                      picture={member.profiles?.avatar_url}
+                      color={userColor(member.user_id)}
+                    />
                     <div className="min-w-0">
                       <div className="truncate font-medium">
                         {member.profiles?.display_name ?? member.profiles?.email}

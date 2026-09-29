@@ -40,7 +40,7 @@ export default async function DocumentPage({
       .eq("org_id", org.id)
       .is("deleted_at", null)
       .maybeSingle(),
-    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+    supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
     supabase.from("projects").select("name, visibility").eq("id", projectId).maybeSingle(),
   ])
   if (!document || !project) notFound()
@@ -98,6 +98,7 @@ export default async function DocumentPage({
     id: user.id,
     name: profile?.display_name ?? user.email ?? "Someone",
     color: userColor(user.id),
+    avatarUrl: profile?.avatar_url ?? null,
   }
   const title = (compact: boolean) => (
     <DocumentTitle

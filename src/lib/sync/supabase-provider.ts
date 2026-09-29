@@ -47,7 +47,8 @@ export type SaveStatus = "saved" | "saving" | "error"
 
 // Who is in the document, from Realtime presence. Viewers appear too: the
 // channel lets every member publish presence, though only editors broadcast.
-export type Peer = { id: string; name: string; color: string }
+// The picture is the person's profile picture, an https address, or null.
+export type Peer = { id: string; name: string; color: string; avatarUrl: string | null }
 
 type Listener = () => void
 type UpdateMessage = { id: string; i: number; n: number; d: string }
@@ -150,7 +151,10 @@ export class SupabaseProvider {
   // Announces this person to everyone else in the document.
   setUser(user: Peer) {
     const changed =
-      this.me?.id !== user.id || this.me.name !== user.name || this.me.color !== user.color
+      this.me?.id !== user.id ||
+      this.me.name !== user.name ||
+      this.me.color !== user.color ||
+      this.me.avatarUrl !== user.avatarUrl
     this.me = user
     if (changed && this.status === "connected") this.track()
   }
@@ -171,11 +175,16 @@ export class SupabaseProvider {
     for (const entries of Object.values(
       this.channel.presenceState<Peer & { session?: string; client?: number }>()
     ))
-      for (const { id, name, color, session, client } of entries) {
+      for (const { id, name, color, avatarUrl, session, client } of entries) {
         if (session !== this.sessionId) connections++
         if (typeof client === "number") clients.add(client)
         if (typeof id === "string" && id !== this.me?.id && !seen.has(id))
-          seen.set(id, { id, name: String(name ?? ""), color: String(color ?? "") })
+          seen.set(id, {
+            id,
+            name: String(name ?? ""),
+            color: String(color ?? ""),
+            avatarUrl: typeof avatarUrl === "string" && avatarUrl.startsWith("https://") ? avatarUrl : null,
+          })
       }
     this.otherConnections = connections
     this.forgetDeparted(clients)
@@ -183,7 +192,12 @@ export class SupabaseProvider {
     const next = [...seen.values()].sort((a, b) => a.id.localeCompare(b.id))
     const same =
       next.length === this.peers.length &&
-      next.every((peer, i) => peer.id === this.peers[i].id && peer.name === this.peers[i].name)
+      next.every(
+        (peer, i) =>
+          peer.id === this.peers[i].id &&
+          peer.name === this.peers[i].name &&
+          peer.avatarUrl === this.peers[i].avatarUrl
+      )
     if (same) return
     this.peers = next
     this.emit()
