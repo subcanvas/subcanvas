@@ -56,27 +56,23 @@ For when a person cannot delete their account themselves. Before anything, confi
    ```sql
    select id, email, created_at from auth.users where email = lower('<email>');
    ```
-2. Every workspace needs an owner, so the database refuses to delete someone who is the only owner of one. List those workspaces, with how many other members each has:
+2. See what deleting it would do to each workspace the person is in:
    ```sql
-   select o.id, o.name, o.slug,
-          (select count(*) from public.org_members x where x.org_id = o.id and x.user_id <> '<user id>') as others
-   from public.orgs o
-   join public.org_members m on m.org_id = o.id and m.user_id = '<user id>' and m.role = 'owner'
-   where not exists (
-     select 1 from public.org_members x
-     where x.org_id = o.id and x.role = 'owner' and x.user_id <> '<user id>'
-   );
+   select * from private.account_deletion_plan('<user id>');
    ```
-3. For each one, ask the person what they want:
+   `delete`: their personal workspace, or a team workspace nobody else is in, which goes with everything in it. `leave`: a team workspace other people are in, which keeps what they made there. `only_owner` and `subscribed` stop the deletion, as they would in Profile.
+3. For each `only_owner`, ask the person what they want:
    - Someone else becomes its owner:
      ```sql
      update public.org_members set role = 'owner'
      where org_id = '<workspace id>' and user_id = (select id from public.profiles where email = lower('<their email>'));
      ```
-   - Or the workspace goes too. If it has a subscription, cancel it in Stripe first, or its card goes on being charged. Then:
-     ```sql
-     delete from public.orgs where id = '<workspace id>';
-     ```
-     Deleting it here, rather than from its Settings, leaves its pictures and videos in Storage: list them with the query in [DEPLOYMENT.md](DEPLOYMENT.md#things-to-know) and remove them in the dashboard's Storage browser.
-4. Delete the account under **Authentication → Users** in the dashboard (the user's menu, **Delete user**). Their profile and memberships go with it. What they created, and invites they sent, stay in their workspaces with no author.
+   - Or the workspace goes too: they delete it from its Settings, or you run `delete from public.orgs where id = '<workspace id>';` (its files then stay in Storage; list them with the query in [DEPLOYMENT.md](DEPLOYMENT.md#things-to-know) and remove them in the dashboard's Storage browser).
+
+   For each `subscribed`, cancel the subscription in Stripe first, or its card goes on being charged.
+4. Delete the account, in one transaction, with the same function Profile uses:
+   ```sql
+   select * from public.delete_account('<user id>');
+   ```
+   It deletes the workspaces marked `delete` with everything in them, then the account, its profile and memberships. What they made in the workspaces they left stays there with no author. It returns the pictures and videos of the deleted workspaces: remove those in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
 5. Reply to say it is done.
