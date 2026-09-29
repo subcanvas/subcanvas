@@ -12,7 +12,7 @@ env:
   DEMO_REPOSITORY: subcanvas/subcanvas
 
 prelude:
-  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}", org: Demo }
+  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}" }
 
 steps:
   - clip: import

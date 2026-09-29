@@ -1,6 +1,6 @@
 import { formatBytes } from "@/lib/whiteboard/media"
 
-// How much of the org's storage for pictures and videos is in use. Drawn in
+// How much of the workspace's storage for pictures and videos is in use. Drawn in
 // ink, not cobalt, because it is something to read and not to press, and
 // never red: being full destroys nothing, it only stops new files.
 export function StorageMeter({ used, limit }: { used: number; limit: number }) {
@@ -33,7 +33,7 @@ export function StorageMeter({ used, limit }: { used: number; limit: number }) {
       <p className="max-w-xl text-sm leading-relaxed text-graphite">
         {full
           ? "New pictures and videos are refused until there is room. "
-          : "Pictures and videos on every whiteboard in this org count toward it. "}
+          : "Pictures and videos on every whiteboard in this workspace count toward it. "}
         A file counts until the whiteboard it is on is deleted from the trash.
       </p>
     </div>

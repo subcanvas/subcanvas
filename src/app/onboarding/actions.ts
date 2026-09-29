@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 
 export type CreateOrgState = { error: string } | null
 
+// Creates a team workspace, with the person who asked as its owner.
 export async function createOrg(
   _prev: CreateOrgState,
   formData: FormData
@@ -13,7 +14,7 @@ export async function createOrg(
   const name = String(formData.get("name") ?? "").trim()
   const slug = String(formData.get("slug") ?? "").trim().toLowerCase()
 
-  if (!name) return { error: "Enter a name for your org." }
+  if (!name) return { error: "Enter a name for the workspace." }
 
   const supabase = await createClient()
   const { data: org, error } = await supabase.rpc("create_org", {
@@ -22,11 +23,11 @@ export async function createOrg(
   })
 
   if (error) {
-    if (error.code === "23505") return { error: "That URL is taken. Try another." }
+    if (error.code === "23505") return { error: "That address is taken. Try another." }
     if (error.code === "23514")
       return {
         error:
-          "That URL is reserved or invalid. Use up to 40 lowercase letters, numbers, and hyphens.",
+          "That address is reserved or invalid. Use up to 40 lowercase letters, numbers, and hyphens.",
       }
     return { error: error.message }
   }

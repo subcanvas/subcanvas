@@ -10,8 +10,9 @@ import { removeMember } from "../members/actions"
 
 // Authorization is RLS: admins rename, owners delete, anyone leaves. A write
 // that a policy filters out affects nothing, which is reported as "not
-// allowed". Two triggers say no on their own terms: an org keeps at least
-// one owner, and an org with a running subscription cannot be deleted.
+// allowed". Triggers say no on their own terms: a workspace keeps at least
+// one owner, one with a running subscription cannot be deleted, and a
+// personal workspace is neither left nor deleted apart from its account.
 
 export type ActionResult = { error: string } | { ok: true }
 
@@ -26,7 +27,7 @@ export async function renameOrg(orgId: string, name: string): Promise<ActionResu
   if (error) return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
   if (!data.length) return NOT_ALLOWED
 
-  // The name is in the sidebar and the heading of every page of the org.
+  // The name is in the sidebar and the heading of every page of the workspace.
   revalidatePath("/[org]", "layout")
   return { ok: true }
 }
@@ -41,23 +42,24 @@ export async function leaveOrg(slug: string, orgId: string): Promise<ActionResul
   return removeMember(slug, orgId, user.id)
 }
 
-// `confirmation` is the org's name as the person typed it. It is compared
+// `confirmation` is the workspace's name as the person typed it. It is compared
 // here as well as in the dialog, so nothing but a deliberate request deletes.
 export async function deleteOrg(orgId: string, confirmation: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: org } = await supabase.from("orgs").select("name").eq("id", orgId).maybeSingle()
   if (!org) return NOT_ALLOWED
-  if (confirmation.trim() !== org.name) return { error: "That is not the org's name." }
+  if (confirmation.trim() !== org.name) return { error: "That is not the workspace's name." }
 
   const media = await listMedia(supabase, orgId)
   const { data, error } = await supabase.from("orgs").delete().eq("id", orgId).select("id")
   if (error) return { error: error.message }
   if (!data.length) return NOT_ALLOWED
 
-  // The org's pictures and videos (media-cleanup.ts). Nobody is a member of
-  // an org that is gone, so this one step is done by the system, where it has
-  // the key to. A self-hosted server without one keeps the files, which
-  // nobody can reach any more: docs/DEPLOYMENT.md says how to clear them.
+  // The workspace's pictures and videos (media-cleanup.ts). Nobody is a
+  // member of a workspace that is gone, so this one step is done by the
+  // system, where it has the key to. A self-hosted server without one keeps
+  // the files, which nobody can reach any more: docs/DEPLOYMENT.md says how
+  // to clear them.
   if (media.length && process.env.SUPABASE_SECRET_KEY) await removeMedia(createAdminClient(), media)
 
   revalidatePath("/[org]", "layout")

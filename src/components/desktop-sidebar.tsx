@@ -10,7 +10,7 @@ import { Sidebar, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
 // The sidebar on a wide screen. Collapsed, it is a rail that still earns its
-// width: the org's pages as icons and the account menu, under the button
+// width: the workspace's pages as icons and the account menu, under the button
 // that brings the rest back. A project's documents need the open sidebar.
 export function DesktopSidebar({
   slug,
@@ -30,7 +30,7 @@ export function DesktopSidebar({
         <Button variant="ghost" size="icon" aria-label="Show the sidebar" title="Show the sidebar (⌘\)" onClick={toggleSidebar}>
           <PanelLeftOpen />
         </Button>
-        <nav aria-label="Org" className="mt-1 flex flex-col items-center gap-1 border-t border-rule pt-2">
+        <nav aria-label="Workspace" className="mt-1 flex flex-col items-center gap-1 border-t border-rule pt-2">
           {orgPages(slug).map((page) => (
             <Link
               key={page.href}

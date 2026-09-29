@@ -92,7 +92,7 @@ export function LeaveOrg({ slug, orgId, orgName }: { slug: string; orgId: string
         <DialogFooter>
           <DialogClose render={<Button variant="outline">Cancel</Button>} />
           <Button variant="destructive" disabled={pending} onClick={leave}>
-            {pending ? "Leaving…" : "Leave the org"}
+            {pending ? "Leaving…" : "Leave the workspace"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -139,10 +139,10 @@ export function DeleteOrg({
             <DialogTitle>Delete {orgName}?</DialogTitle>
             <DialogDescription>
               {projects === 0
-                ? "This deletes the org for every member."
+                ? "This deletes the workspace for every member."
                 : projects === 1
-                  ? "This deletes the org, its 1 project, and every whiteboard and document in it, for every member."
-                  : `This deletes the org, its ${projects} projects, and every whiteboard and document in them, for every member.`}{" "}
+                  ? "This deletes the workspace, its 1 project, and every whiteboard and document in it, for every member."
+                  : `This deletes the workspace, its ${projects} projects, and every whiteboard and document in them, for every member.`}{" "}
               It cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -169,7 +169,7 @@ export function DeleteOrg({
           <DialogFooter>
             <DialogClose render={<Button variant="outline">Cancel</Button>} />
             <Button type="submit" variant="destructive" disabled={pending || typed.trim() !== orgName}>
-              {pending ? "Deleting…" : "Delete this org"}
+              {pending ? "Deleting…" : "Delete this workspace"}
             </Button>
           </DialogFooter>
         </form>
