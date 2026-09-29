@@ -22,6 +22,7 @@ import {
   refusedTool,
   RESOURCE_METADATA_PATH,
 } from "./support/mcp"
+import { takeDown } from "./support/database"
 
 // The MCP server, reached the way an agent reaches it: over HTTP from Node,
 // signed in through the real OAuth flow with the browser as the person.
@@ -121,6 +122,27 @@ test("signs an agent in through the consent page, and it works as that person", 
     trashed_document_ids: string[]
   }
   expect(deleted.trashed_document_ids).toEqual([held])
+
+  // A project the operator took down reads as taken down, as it does in the
+  // app, and has no embed to hand out.
+  const { project_id: shown } = (await callTool(client, "create_project", {
+    workspace_id: workspaces[1].id,
+    name: `Shown ${id}`,
+    visibility: "public",
+  })) as { project_id: string }
+  const { document_id: shownBoard } = (await callTool(client, "create_document", {
+    project_id: shown,
+    type: "whiteboard",
+    title: `Shown board ${id}`,
+  })) as { document_id: string }
+  takeDown(shown)
+  const listed = (await callTool(client, "list_projects", { workspace_id: workspaces[1].id })) as {
+    projects: { id: string; visibility: string; taken_down: boolean }[]
+  }
+  expect(listed.projects.find((project) => project.id === shown)).toEqual(
+    expect.objectContaining({ visibility: "public", taken_down: true })
+  )
+  expect(await refusedTool(client, "get_embed_snippet", { whiteboard_id: shownBoard })).toMatch(/taken down/)
   await client.close()
 
   // What the agent made is there for the person, in the browser.

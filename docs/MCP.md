@@ -64,6 +64,8 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `import_github_repository` | Draw a GitHub repository as a project | writes |
 | `get_embed_snippet` | Get the embed snippet of a public whiteboard | reads |
 
+A project the operator took down after a report (docs/OPERATIONS.md) is public to nobody, whatever its visibility says: `list_projects`, `get_project` and `set_project_visibility` say `taken_down: true` and why, as the app does, and `get_embed_snippet` refuses its whiteboards.
+
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.
 
 Blocks are read and written as Markdown. The blocks Markdown has no syntax for are written like this, both ways:

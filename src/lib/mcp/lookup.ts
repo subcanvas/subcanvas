@@ -39,7 +39,7 @@ export async function findTypedDocument(
 export async function findProject({ supabase }: ToolContext, projectId: string) {
   const { data } = await supabase
     .from("projects")
-    .select("id, org_id, name, visibility, source, created_at")
+    .select("id, org_id, name, visibility, taken_down_at, source, created_at")
     .eq("id", projectId)
     .maybeSingle()
   return data

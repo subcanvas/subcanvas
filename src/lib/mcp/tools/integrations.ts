@@ -72,6 +72,11 @@ export const integrationTools = [
       if (!project) return NO_PROJECT
       if (project.visibility !== "public")
         return { error: "This whiteboard's project is private, so an embed of it would show nothing. Make the project public first." }
+      if (project.taken_down_at)
+        return {
+          error:
+            "This whiteboard's project was taken down by the operator after a report, so nobody outside the workspace can read it and an embed of it would show nothing. The project's Share menu in the app says whom to write to.",
+        }
 
       const snippet = embedSnippet({
         origin: context.origin,
