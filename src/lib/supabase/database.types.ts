@@ -618,6 +618,20 @@ export type Database = {
         Args: { p_document_id: string; p_state: string; p_up_to_id: number }
         Returns: undefined
       }
+      create_invite: {
+        Args: {
+          p_email: string
+          p_org_id: string
+          p_role: Database["public"]["Enums"]["org_role"]
+        }
+        Returns: {
+          expires_at: string
+          id: string
+          may_email: boolean
+          renewed: boolean
+          token: string
+        }[]
+      }
       create_org: {
         Args: { p_name: string; p_slug: string }
         Returns: {
@@ -659,6 +673,8 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           email: string
+          expires_at: string
+          inviter: string
           org_name: string
           org_slug: string
           role: Database["public"]["Enums"]["org_role"]
