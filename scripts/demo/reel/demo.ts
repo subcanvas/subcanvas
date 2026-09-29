@@ -641,6 +641,11 @@ if (readmeUrl) {
   demo.zoom.out({ duration: 0 })
   await demo.browser.goto(readmeUrl, { settle: 0 })
   await demo.waitFor(EMBED, { timeout: 30_000, settle: 300 })
+  // It is below the fold, under the file list: brought to the middle of
+  // the window before the first frame of the page is shot.
+  await demo.call(({ page }) =>
+    page?.locator(EMBED).first().evaluate((image) => image.scrollIntoView({ block: "center", behavior: "instant" }))
+  )
   zoom(EMBED, 1.3, 0)
   await demo.wait(3500)
 }
