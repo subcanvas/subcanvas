@@ -51,7 +51,7 @@ const PIECE_BYTES = 8 * 1024 * 1024
 // A file is read into the zip this much at a time.
 const SLICE_BYTES = 4 * 1024 * 1024
 
-const LOST = "The connection to the server was lost."
+const LOST = "the server could not send it"
 const TOO_LARGE = "the zip would pass 4 GB, the most one zip can hold"
 const TOO_MANY = "the zip would pass 65,000 files, the most one zip can hold"
 const NOT_FETCHED = "could not be fetched from storage"
@@ -199,18 +199,37 @@ export async function buildProjectZip({
   for (const folder of layout.folders) writer.directory(folder.path)
   report()
 
-  // One batch, asked for again once if the connection drops.
+  // One batch. An answer may carry only some of it (the server stops at a
+  // size a host allows), so what is missing is asked for again. When asking
+  // fails twice, the documents are asked for one at a time, and one that
+  // still cannot be had is left out: a single document too large to send,
+  // or a connection that is gone.
   async function read(ids: string[]): Promise<ExportedDocument[]> {
-    for (let attempt = 1; ; attempt++) {
+    const found = new Map<string, ExportedDocument>()
+    let pending = ids
+    let size = ids.length
+    let failures = 0
+    while (pending.length) {
+      const asking = pending.slice(0, size)
       try {
-        const found = new Map<string, ExportedDocument>()
-        for await (const document of source.documents(ids)) found.set(document.id, document)
-        return ids.map((id) => found.get(id) ?? { id, error: LOST })
+        let got = 0
+        for await (const document of source.documents(asking)) {
+          found.set(document.id, document)
+          got++
+        }
+        if (!got) throw new Error("The answer held no documents.")
+        failures = 0
       } catch {
         stopped()
-        if (attempt === 2) return ids.map((id) => ({ id, error: LOST }))
+        if (++failures === 2) {
+          if (size > 1) size = 1
+          else found.set(asking[0], { id: asking[0], error: LOST })
+          failures = 0
+        }
       }
+      pending = pending.filter((id) => !found.has(id))
     }
+    return ids.map((id) => found.get(id)!)
   }
 
   for (let at = 0; at < layout.documents.length; at += BATCH) {

@@ -32,7 +32,7 @@ This is the layout a Notion export has, which is what lets Import files read it 
 
 ### How it is made
 
-The zip is put together in your browser. The server converts documents a batch at a time and streams them back (`/api/projects/<id>/export/documents`), and pictures and videos come straight from Storage; no file passes through the app, and no answer from the server is larger than one batch. So a project of any size exports the same way, on any host: Vercel, for one, caps a function's answer at about 4.5 MB.
+The zip is put together in your browser. The server converts documents a few at a time and sends each one back as it is done (`/api/projects/<id>/export/documents`), and pictures and videos come straight from Storage, so no file passes through the app. An answer from the server stops at 4 MB and the browser asks again for the rest, and each request converts at most a batch of documents. So a large project exports the same way as a small one, within a host's limits: Vercel, for one, caps a function's answer at 4.5 MB.
 
 Every read goes through your own session, or through none on a public project, so row-level security decides what is in the export exactly as it decides what the pages show. Nothing on the way uses the secret key. A viewer's export and an editor's hold the same documents; a visitor to a public project can download its documents one at a time.
 
@@ -40,7 +40,7 @@ Keep the tab open until the zip is saved. Stopping, or closing the dialog, throw
 
 ### Limits
 
-A zip made this way holds up to 4 GB and 65,000 files, which is what a zip can hold without the ZIP64 extension. Pictures and videos that would pass either are left out and listed in `README.txt`. The browser holds the zip until it is saved, so a project with gigabytes of video needs the room for it.
+A zip made this way holds up to 4 GB and 65,000 files, which is what a zip can hold without the ZIP64 extension. Pictures and videos that would pass either are left out and listed in `README.txt`. So is a document too large to send in one answer, which on Vercel means more than about 4 MB: a page's Markdown, or a whiteboard's picture and contents together. Downloading such a document on its own fails there for the same reason. The list of a project's folders and documents comes in one answer as well, which on Vercel puts the ceiling at roughly ten thousand documents in one project. The browser holds the zip until it is saved, so a project with gigabytes of video needs the room for it.
 
 ## The whiteboard file
 

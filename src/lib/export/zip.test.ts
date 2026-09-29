@@ -190,6 +190,30 @@ describe("a project's export", () => {
     expect(manifest.left_out).toHaveLength(2)
   })
 
+  it("asks again for what an answer did not carry, and leaves out only a document that cannot be sent", async () => {
+    const base = source()
+    let requests = 0
+    const zip = await buildProjectZip({
+      source: {
+        ...base,
+        // Each answer carries one document, as a server at its size budget
+        // does, and the whiteboard's answer always fails.
+        documents: async function* (ids) {
+          requests++
+          if (ids[0] === BOARD) throw new Error("413")
+          for await (const document of base.documents(ids.slice(0, 1))) yield document
+        },
+      },
+      origin: ORIGIN,
+    })
+    const names = (await listZip(zip.blob)).map((entry) => entry.name)
+    expect(names).toContain("Guides/Setup.md")
+    expect(names).toContain("Board/API.md")
+    expect(names).not.toContain("Board.json")
+    expect(zip.leftOut).toContainEqual({ path: "Board.json", reason: "the server could not send it" })
+    expect(requests).toBeGreaterThan(4)
+  })
+
   it("comes back through Import files as its pages, with their pictures, and without its whiteboards or README", async () => {
     const { zip } = await exported()
     const collected = await collect([{ path: "Launch plan.zip", file: zip.blob }])

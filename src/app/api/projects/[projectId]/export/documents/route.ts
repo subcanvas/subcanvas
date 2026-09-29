@@ -7,9 +7,12 @@ import { createClient } from "@/lib/supabase/server"
 
 // Some documents of a project, converted for its export: each text document
 // as Markdown, each whiteboard as its picture and its contents. The browser
-// asks for a few at a time (lib/export/zip.ts). The answer is streamed, one
-// line of JSON per document as it is done, so no response is held whole in
-// memory or runs into a host's cap on a response's size.
+// asks for a few at a time (lib/export/zip.ts), and the answer is one line
+// of JSON per document, sent as each is done.
+//
+// A host may cap a response's size (Vercel: 4.5 MB), so an
+// answer carries at most BUDGET_BYTES, or one document when that alone is
+// more, and the browser asks again for the rest.
 
 // BlockNote's headless editor needs Node.
 export const runtime = "nodejs"
@@ -17,6 +20,7 @@ export const runtime = "nodejs"
 export const maxDuration = 60
 
 const MAX_BATCH = 50
+const BUDGET_BYTES = 4_000_000
 
 export async function GET(request: NextRequest, context: RouteContext<"/api/projects/[projectId]/export/documents">) {
   const { projectId } = await context.params
@@ -46,11 +50,18 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
 
   const encoder = new TextEncoder()
   const iterator = lines()
+  let sent = 0
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       const { value, done } = await iterator.next()
-      if (done) controller.close()
-      else controller.enqueue(encoder.encode(`${JSON.stringify(value)}\n`))
+      const line = done ? null : encoder.encode(`${JSON.stringify(value)}\n`)
+      // A document that does not fit is left for the next request.
+      if (!line || (sent && sent + line.length > BUDGET_BYTES)) {
+        await iterator.return(undefined)
+        return controller.close()
+      }
+      sent += line.length
+      controller.enqueue(line)
     },
     async cancel() {
       await iterator.return(undefined)
