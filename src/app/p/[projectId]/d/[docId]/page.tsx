@@ -37,10 +37,12 @@ export default async function PublicDocumentPage({
   ])
   if (!document || !project) notFound()
 
-  const { data: ancestors } = await supabase.rpc("document_ancestors", {
-    p_document_id: document.id,
-  })
-  if (ancestors?.some((ancestor) => ancestor.deleted_at !== null)) notFound()
+  // A document inside a trashed document or folder is in the trash too.
+  const [{ data: ancestors }, { data: live }] = await Promise.all([
+    supabase.rpc("document_ancestors", { p_document_id: document.id }),
+    supabase.rpc("document_is_live", { p_document_id: document.id }),
+  ])
+  if (!live) notFound()
 
   let trail: Crumb[]
   if (via.length) {

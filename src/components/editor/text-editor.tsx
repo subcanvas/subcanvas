@@ -28,6 +28,7 @@ import { toast } from "sonner"
 import { prosemirrorToYXmlFragment } from "y-prosemirror"
 
 import { DocumentPicker } from "@/components/document-picker"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { limitMessage } from "@/lib/billing/limit"
 import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
 import { createClient } from "@/lib/supabase/client"
@@ -87,6 +88,7 @@ export default function TextEditor({
   autoFocus?: boolean
 }) {
   const router = useRouter()
+  const showRefusal = useShowRefusal()
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
@@ -216,13 +218,14 @@ export default function TextEditor({
       })
       .select("id")
       .single()
-    if (error)
-      return void toast.error(
-        limitMessage(error.code) ??
-          (error.code === "42501"
-            ? "You do not have permission to create documents."
-            : error.message)
+    if (error) {
+      const limit = limitMessage(error.code, error.message)
+      return showRefusal(
+        limit
+          ? { error: limit, limit: true }
+          : { error: error.code === "42501" ? "You do not have permission to create documents." : error.message }
       )
+    }
     insertLink(data.id)
     router.refresh()
   }

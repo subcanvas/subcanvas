@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { checkImport, importBatch } from "@/app/[org]/[project]/import-actions"
 import type { ProjectRef } from "@/app/[org]/[project]/tree-actions"
+import { LimitRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -61,7 +62,6 @@ export function ImportDialog({
   project,
   target,
   dropped,
-  canUpgrade,
   onClose,
 }: {
   project: ProjectRef
@@ -69,7 +69,6 @@ export function ImportDialog({
   // Files dropped on the tree, still being listed. Without them the dialog
   // opens by asking for some.
   dropped: Promise<PickedFile[]> | null
-  canUpgrade: boolean
   onClose: () => void
 }) {
   const [stage, setStage] = useState<Stage>(dropped ? { step: "reading" } : { step: "choose" })
@@ -359,11 +358,7 @@ export function ImportDialog({
                   : `${stage.imported.toLocaleString("en")} of ${count(stage.plan.documents.length, "document")} made it. What was imported stays; the rest was not added.`}
               </DialogDescription>
             </DialogHeader>
-            {stage.error && (
-              <p role="alert" className="text-sm text-destructive">
-                {stage.error}
-              </p>
-            )}
+            {stage.error && <LimitRefusal refused={{ error: stage.error, limit: stage.limit }} />}
             <Notes
               notes={[
                 ...stage.plainText.map((title) => `“${title}” could not be converted, and was imported as plain text.`),
@@ -376,11 +371,6 @@ export function ImportDialog({
               ]}
             />
             <DialogFooter>
-              {stage.limit && canUpgrade && (
-                <Button variant="outline" nativeButton={false} render={<Link href={`/${project.slug}/settings/billing`} />}>
-                  Upgrade
-                </Button>
-              )}
               {stage.imported > 0 ? (
                 <Button
                   nativeButton={false}

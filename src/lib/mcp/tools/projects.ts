@@ -9,7 +9,7 @@ import { defineTool, id } from "../tool"
 
 const visibility = z
   .enum(["private", "public"])
-  .describe("A public project can be read by anyone with its address. Only members can change it.")
+  .describe("A public project can be read by anyone with its address; only members can edit it. Making one public takes the admin or owner role.")
 
 function outline(nodes: TreeNode[], depth = 0): string[] {
   return nodes.flatMap((node) => [
@@ -100,10 +100,10 @@ export const projectTools = [
     title: "Get a project and its document tree",
     group: "Orgs and projects",
     description:
-      "Returns one project and the tree of everything in it: folders, whiteboards, and text documents, nested the way the sidebar shows them. A document nested under a whiteboard lives inside one of that whiteboard's nodes or arrows. Documents in the trash are left out; pass `include_trash` to list them separately.",
+      "Returns one project and the tree of everything in it: folders, whiteboards, and text documents, nested the way the sidebar shows them. A document nested under a whiteboard lives inside one of that whiteboard's nodes or arrows. What is in the trash is left out, with everything inside it; pass `include_trash` to list the trash separately.",
     input: {
       project_id: id("The project, from `list_projects`."),
-      include_trash: z.boolean().default(false).describe("Also list the documents in this project's trash."),
+      include_trash: z.boolean().default(false).describe("Also list the documents and folders in this project's trash."),
     },
     kind: "read",
     run: async (context, { project_id, include_trash }) => {
@@ -113,26 +113,43 @@ export const projectTools = [
       const [{ data: folders }, { data: documents }, slug] = await Promise.all([
         context.supabase
           .from("folders")
-          .select("id, name, parent_folder_id, position")
+          .select("id, name, parent_folder_id, position, deleted_at")
           .eq("project_id", project_id),
         context.supabase
           .from("documents")
-          .select("id, title, type, folder_id, parent_document_id, position, deleted_at")
-          .eq("project_id", project_id)
-          .eq("kind", "standard"),
+          .select("id, title, type, kind, folder_id, parent_document_id, position, deleted_at")
+          .eq("project_id", project_id),
         orgSlug(context, project.org_id),
       ])
-      const live = (documents ?? []).filter((document) => document.deleted_at === null)
-      const trash = (documents ?? [])
-        .filter((document) => document.deleted_at !== null)
-        .map(({ id: documentId, title, type, deleted_at }) => ({ id: documentId, title, type, deleted_at }))
-      const tree = buildTree((folders ?? []) as FolderRow[], live as DocumentRow[])
+      // The tree is walked from the top, so what is inside something in the
+      // trash is left out with it.
+      const live = (documents ?? []).filter((document) => document.kind === "standard" && document.deleted_at === null)
+      const liveFolders = (folders ?? []).filter((folder) => folder.deleted_at === null)
+      // A description in the trash is the notes of a node or arrow that was deleted.
+      const trash = [
+        ...(folders ?? [])
+          .filter((folder) => folder.deleted_at !== null)
+          .map(({ id: folderId, name, deleted_at }) => ({ kind: "folder" as const, id: folderId, title: name, deleted_at })),
+        ...(documents ?? [])
+          .filter((document) => document.deleted_at !== null)
+          .map(({ id: documentId, title, type, kind, deleted_at }) => ({
+            kind: "document" as const,
+            id: documentId,
+            title,
+            type,
+            ...(kind === "description" ? { notes_of_a_deleted_object: true } : {}),
+            deleted_at,
+          })),
+      ]
+      const tree = buildTree(liveFolders as FolderRow[], live as DocumentRow[])
 
       return {
         text: [
           `Project "${project.name}" (${project.id}), ${project.visibility}`,
           ...(tree.length ? outline(tree) : ["(empty)"]),
-          ...(include_trash ? [`In the trash: ${trash.length ? trash.map((d) => `"${d.title}" (${d.id})`).join(", ") : "nothing"}`] : []),
+          ...(include_trash
+            ? [`In the trash: ${trash.length ? trash.map((item) => `${item.kind === "folder" ? "folder" : item.type} "${item.title}" (${item.id})`).join(", ") : "nothing"}`]
+            : []),
         ].join("\n"),
         data: {
           project: {
@@ -155,7 +172,7 @@ export const projectTools = [
     title: "Create a project",
     group: "Orgs and projects",
     description:
-      "Creates an empty project in an org. Needs the editor role or higher. Follow with `create_document` to put a first whiteboard or text document in it.",
+      "Creates an empty project in an org. Needs the editor role or higher, and the admin role or higher to create it public. Follow with `create_document` to put a first whiteboard or text document in it.",
     input: {
       org_id: id("The org to create it in, from `list_orgs`."),
       name: z.string().min(1).max(200).describe("The project's name."),
@@ -184,7 +201,7 @@ export const projectTools = [
     title: "Make a project public or private",
     group: "Orgs and projects",
     description:
-      "Changes who can read a project. Public means anyone with the address can read every document in it, without signing in; ask the person before making something public. Making a project private can fail on the free plan when it would hold more private documents than the plan allows.",
+      "Changes who can read a project. Needs the admin role or higher. Public means anyone with the address can read every document in it, without signing in; ask the person before making something public. Making a project private can fail on the free plan when it would hold more private documents than the plan allows.",
     input: { project_id: id("The project."), visibility },
     kind: "idempotent-write",
     covers: ["[org]/[project]/tree-actions.setProjectVisibility"],

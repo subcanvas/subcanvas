@@ -3,9 +3,9 @@
 import { ArrowUpRight, FileText, Link2, Unlink, Workflow } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
-import { toast } from "sonner"
 
 import { DocumentPicker } from "@/components/document-picker"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { TextDocument } from "@/components/editor/text-document"
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -58,6 +58,7 @@ export function ObjectDocument({
   const router = useRouter()
   const meta = useDocumentMeta(docId)
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
   const [picking, setPicking] = useState(false)
   // Focus the editor only when this person just created the document.
   const [justCreated, setJustCreated] = useState(false)
@@ -68,7 +69,7 @@ export function ObjectDocument({
         type === "text"
           ? await ensureDescriptionDocument(createClient(), context, objectId, objectTitle)
           : await createChildWhiteboard(createClient(), context, objectId, objectTitle)
-      if ("error" in result) return void toast.error(result.error)
+      if ("error" in result) return showRefusal(result)
 
       setJustCreated(type === "text")
       onChange({ docId: result.id, docType: type })

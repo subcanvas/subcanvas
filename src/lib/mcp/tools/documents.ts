@@ -237,65 +237,65 @@ export const documentTools = [
 
   defineTool({
     name: "trash_document",
-    title: "Move a document to the trash",
+    title: "Move a document or folder to the trash",
     group: "Documents",
     description:
-      "Moves a document to its project's trash, along with everything nested inside it. Nothing is destroyed: `restore_document` brings it back. Call `list_references` first when other documents may link to it, since those links will show it as trashed.",
-    input: { document_id: id("The document.") },
+      "Moves a document, or a folder, to its project's trash along with everything inside it. Nothing is destroyed: `restore_document` brings it back. Call `list_references` first when other documents may link to a document, since those links will show it as trashed.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("The document or folder."),
+    },
     kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.trashDocument"],
-    run: async (context, { document_id }) => {
-      const result = await operations.trashDocument(context.supabase, document_id)
+    covers: ["[org]/[project]/tree-actions.trashItem"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.trashItem(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Moved to the trash. `restore_document` brings it back.", data: { document_id } }
+      return { text: "Moved to the trash. `restore_document` brings it back.", data: { id: itemId, kind } }
     },
   }),
 
   defineTool({
     name: "restore_document",
-    title: "Restore a document from the trash",
+    title: "Restore a document or folder from the trash",
     group: "Documents",
     description:
-      "Takes a document out of the trash and puts it back where it was. If its parent document is still in the trash, it is restored to the top level of the project instead. Can fail on the free plan when restoring would exceed the private-document allowance.",
-    input: { document_id: id("A document that is in the trash (see `get_project` with `include_trash`).") },
+      "Takes a document or folder out of the trash, with everything inside it, and puts it back where it was. If what it was in is still in the trash, it goes to the top level of the project instead. A document that a whiteboard node or arrow held, whose node or arrow has since been deleted, stays under that whiteboard as a document of its own; its description becomes a text document. Can fail on the free plan when what comes back would exceed the private-document allowance.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("A document or folder that is in the trash (see `get_project` with `include_trash`)."),
+    },
     kind: "idempotent-write",
-    covers: ["[org]/[project]/tree-actions.restoreDocument"],
-    run: async (context, { document_id }) => {
-      const result = await operations.restoreDocument(context.supabase, document_id)
+    covers: ["[org]/[project]/tree-actions.restoreItem"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.restoreItem(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Restored.", data: { document_id } }
+      return {
+        text: {
+          place: "Restored where it was.",
+          top: "Restored to the top level of the project, since what it was in is still in the trash.",
+          whiteboard: "Restored under the whiteboard that held it, since the node or arrow that held it is gone.",
+        }[result.restoredTo],
+        data: { id: itemId, kind, restored_to: result.restoredTo },
+      }
     },
   }),
 
   defineTool({
     name: "delete_document_forever",
-    title: "Delete a trashed document forever",
+    title: "Delete a trashed document or folder forever",
     group: "Documents",
     description:
-      "Permanently deletes a document that is already in the trash, with everything nested inside it. This cannot be undone, so only do it when the person asked for exactly this. A document that is not in the trash is refused: trash it first.",
-    input: { document_id: id("A document that is in the trash.") },
-    kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.deleteDocumentForever"],
-    run: async (context, { document_id }) => {
-      const result = await operations.deleteDocumentForever(context.supabase, document_id)
-      if ("error" in result) return result
-      return { text: "Deleted forever.", data: { document_id } }
+      "Permanently deletes a document or folder that is already in the trash, with everything inside it and the pictures and videos they show. This cannot be undone, so only do it when the person asked for exactly this. Anything not in the trash is refused: trash it first.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("A document or folder that is in the trash."),
     },
-  }),
-
-  defineTool({
-    name: "delete_folder",
-    title: "Delete a folder",
-    group: "Documents",
-    description:
-      "Deletes an empty folder. A folder that still holds folders or documents is refused: move or trash what is in it first. Documents of that folder that are already in the trash move to the top level, so they can still be restored.",
-    input: { folder_id: id("The folder.") },
     kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.deleteFolder"],
-    run: async (context, { folder_id }) => {
-      const result = await operations.deleteFolder(context.supabase, folder_id)
+    covers: ["[org]/[project]/tree-actions.deleteItemForever"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.deleteItemForever(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Deleted the folder.", data: { folder_id } }
+      return { text: "Deleted forever.", data: { id: itemId, kind } }
     },
   }),
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,12 +26,13 @@ export function InviteForm({ slug, orgId }: { slug: string; orgId: string }) {
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<Role>("editor")
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
 
   function submit(event: React.FormEvent) {
     event.preventDefault()
     startTransition(async () => {
       const result = await createInvite(slug, orgId, email, role)
-      if ("error" in result) toast.error(result.error)
+      if ("error" in result) showRefusal(result)
       else {
         setEmail("")
         toast.success("Invite created. Copy the link to share it.")

@@ -15,8 +15,9 @@ export type ToolContext = {
   origin: string
 }
 
-// `text` is what a model reads; `data` is the same result for code.
-export type ToolResult = { error: string } | { text: string; data: Record<string, unknown> }
+// `text` is what a model reads; `data` is the same result for code. `limit`
+// marks the free plan's limit, which the server words for the agent.
+export type ToolResult = { error: string; limit?: true } | { text: string; data: Record<string, unknown> }
 
 export type ToolGroup = "Orgs and projects" | "Documents" | "Text documents" | "Whiteboards" | "GitHub and embeds"
 

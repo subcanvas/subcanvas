@@ -27,7 +27,8 @@ export default async function ProjectLayout({
     supabase
       .from("folders")
       .select("id, name, parent_folder_id, position")
-      .eq("project_id", project.id),
+      .eq("project_id", project.id)
+      .is("deleted_at", null),
     supabase
       .from("documents")
       .select("id, title, type, folder_id, parent_document_id, position")
@@ -51,7 +52,6 @@ export default async function ProjectLayout({
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={canEdit}
       canDelete={hasRole(role, "admin")}
-      canUpgrade={billingConfigured()}
       trashHref={`/${org.slug}/${project.id}/trash`}
     />
   )

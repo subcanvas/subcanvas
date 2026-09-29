@@ -38,10 +38,9 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `create_folder` | Create a folder | writes |
 | `rename_document` | Rename a document or folder | writes |
 | `move_document` | Move a document or folder | writes |
-| `trash_document` | Move a document to the trash | destructive |
-| `restore_document` | Restore a document from the trash | writes |
-| `delete_document_forever` | Delete a trashed document forever | destructive |
-| `delete_folder` | Delete a folder | destructive |
+| `trash_document` | Move a document or folder to the trash | destructive |
+| `restore_document` | Restore a document or folder from the trash | writes |
+| `delete_document_forever` | Delete a trashed document or folder forever | destructive |
 | `list_references` | List what links to a document | reads |
 | `read_text_document` | Read a text document | reads |
 | `append_markdown` | Append Markdown to a text document | writes |
@@ -76,7 +75,9 @@ Blocks are read and written as Markdown. The blocks Markdown has no syntax for a
 
 A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
 
-Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
+Deleting works as it does in the app. A document or folder goes to the project's trash with everything inside it, and `restore_document` brings it back; only something already in the trash can be deleted for good. Deleting a node or arrow (`delete_nodes`, `delete_edges`) sends what it held, its description or the whiteboard inside it, to the trash too, and the result names what went there. A plan limit is refused with what the limit is, and, where the server sells a plan, that an owner can upgrade.
+
+Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it, and its file with it, since an agent has no undo. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
 
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.
 

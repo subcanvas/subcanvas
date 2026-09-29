@@ -309,6 +309,7 @@ export type Database = {
       folders: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
           name: string
           org_id: string
@@ -318,6 +319,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name: string
           org_id: string
@@ -327,6 +329,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name?: string
           org_id?: string
@@ -634,7 +637,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      delete_folder: { Args: { p_folder_id: string }; Returns: undefined }
       discard_import: { Args: { p_project_id: string }; Returns: undefined }
       document_ancestors: {
         Args: { p_document_id: string }
@@ -646,6 +648,7 @@ export type Database = {
           type: Database["public"]["Enums"]["document_type"]
         }[]
       }
+      document_is_live: { Args: { p_document_id: string }; Returns: boolean }
       document_references: {
         Args: { p_document_id: string }
         Returns: {
@@ -653,6 +656,13 @@ export type Database = {
           source_document_id: string
           source_title: string
           source_type: Database["public"]["Enums"]["document_type"]
+        }[]
+      }
+      folder_media_objects: {
+        Args: { p_folder_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
         }[]
       }
       get_invite: {
@@ -699,6 +709,19 @@ export type Database = {
           p_reporter_email?: string
         }
         Returns: undefined
+      }
+      restore_document: {
+        Args: { p_document_id: string; p_object_gone?: boolean }
+        Returns: {
+          folder_id: string
+          parent_document_id: string
+        }[]
+      }
+      restore_folder: {
+        Args: { p_folder_id: string }
+        Returns: {
+          parent_folder_id: string
+        }[]
       }
       viewer_count: { Args: { p_document_id: string }; Returns: number }
       viewer_heartbeat: {

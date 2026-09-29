@@ -5,6 +5,7 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { setProjectVisibility, type ProjectRef } from "@/app/[org]/[project]/tree-actions"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -47,6 +48,7 @@ export function ShareProject({
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState<"link" | "embed" | null>(null)
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
   const isPublic = visibility === "public"
   const Icon = isPublic ? Globe : Lock
   const link =
@@ -55,7 +57,7 @@ export function ShareProject({
   function change() {
     startTransition(async () => {
       const result = await setProjectVisibility(project, isPublic ? "private" : "public")
-      if ("error" in result) toast.error(result.error)
+      if ("error" in result) showRefusal(result)
       else toast.success(isPublic ? "This project is now private." : "This project is now public.")
       setConfirming(false)
     })

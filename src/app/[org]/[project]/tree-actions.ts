@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import * as operations from "@/lib/documents/operations"
+import type { ItemKind } from "@/lib/documents/operations"
 import { createClient } from "@/lib/supabase/server"
 import type { Container, DocumentType } from "@/lib/tree"
 
@@ -74,27 +75,23 @@ export async function listReferences(id: string): Promise<string[]> {
   return operations.listReferences(await createClient(), id)
 }
 
-export async function trashDocument(project: ProjectRef, id: string): Promise<ActionResult> {
+export async function trashItem(project: ProjectRef, kind: ItemKind, id: string): Promise<ActionResult> {
   const supabase = await createClient()
-  return finish(project, await operations.trashDocument(supabase, id))
+  return finish(project, await operations.trashItem(supabase, kind, id))
 }
 
-export async function restoreDocument(project: ProjectRef, id: string): Promise<ActionResult> {
-  const supabase = await createClient()
-  return finish(project, await operations.restoreDocument(supabase, id))
-}
-
-export async function deleteDocumentForever(
+export async function restoreItem(
   project: ProjectRef,
+  kind: ItemKind,
   id: string
-): Promise<ActionResult> {
+): Promise<ActionResult & Partial<operations.Restored>> {
   const supabase = await createClient()
-  return finish(project, await operations.deleteDocumentForever(supabase, id))
+  return finish(project, await operations.restoreItem(supabase, kind, id))
 }
 
-export async function deleteFolder(project: ProjectRef, id: string): Promise<ActionResult> {
+export async function deleteItemForever(project: ProjectRef, kind: ItemKind, id: string): Promise<ActionResult> {
   const supabase = await createClient()
-  return finish(project, await operations.deleteFolder(supabase, id))
+  return finish(project, await operations.deleteItemForever(supabase, kind, id))
 }
 
 export async function setProjectVisibility(

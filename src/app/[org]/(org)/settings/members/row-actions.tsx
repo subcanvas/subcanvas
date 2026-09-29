@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { toast } from "sonner"
 
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,11 +27,12 @@ import {
 
 function useAction() {
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
 
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
     startTransition(async () => {
       const result = await action()
-      if ("error" in result) toast.error(result.error)
+      if ("error" in result) showRefusal(result)
       else onOk?.()
     })
   }
