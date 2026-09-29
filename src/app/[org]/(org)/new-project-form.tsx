@@ -34,7 +34,7 @@ const CHOICES = [
   },
 ] as const
 
-// `privateLimit` is the org's limit on private documents, when it has one.
+// `privateLimit` is the limit on private documents, when there is one.
 export function NewProject({ slug, orgId, privateLimit }: { slug: string; orgId: string; privateLimit: number | null }) {
   const [state, action, pending] = useActionState(createProject.bind(null, slug, orgId), null)
   const [visibility, setVisibility] = useState<"private" | "public">("private")

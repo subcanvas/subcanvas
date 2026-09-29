@@ -244,5 +244,5 @@ assert.ok(!(await ok(outsider, "list_orgs")).orgs.some((candidate) => candidate.
 
 const unused = listed.filter((name) => !used.has(name))
 assert.deepEqual(unused, [], "every tool is exercised")
-console.log(`\nAll ${listed.length} tools exercised. Project ${project_id}, whiteboard ${board}, text document ${page}.`)
+console.log(`\nAll ${listed.length} tools exercised. Project ${project_id}, whiteboard ${board}, page ${page}.`)
 await Promise.all([owner.close(), viewer.close(), outsider.close()])

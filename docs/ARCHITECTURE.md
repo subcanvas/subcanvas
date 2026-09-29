@@ -133,8 +133,8 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
 ```
 /                                        landing page, for everyone
 /login, /auth/callback, /auth/password   signing in, and setting a password
-/auth/home                               sends a signed-in person to their first org
-/onboarding                              creating a first org
+/auth/home                               sends a signed-in person to their first workspace
+/onboarding                              creating a first workspace
 /invite/[token]                          accepting an invite
 /[org]                                   project list
 /[org]/agents                            connecting an agent (docs/MCP.md)
@@ -167,5 +167,5 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
 | 5 | **Side panel.** Settings for nodes, edges, and groups. Description documents created on first edit and edited in the panel. | Requirements R4.1 to R4.6 work. |
 | 6 | **Nesting.** Attach new or link existing documents, double-click navigation, open mode, `via` breadcrumbs, the document link block, "Linked from", delete warnings. | The microservice example from the requirements intro works end to end. |
 | 7 | **Presence.** Cursors, carets, avatars. | Visible across two browsers. |
-| 8 | **Billing.** Document limit trigger, upgrade prompt, Stripe Checkout, Customer Portal, webhooks, seat sync. | A free org is blocked at its private-document limit (`private.config`, 100 on subcanvas.app), upgrades, and is unblocked. |
+| 8 | **Billing.** Document limit trigger, upgrade prompt, Stripe Checkout, Customer Portal, webhooks, seat sync. | A free workspace is blocked at its private-document limit (`private.config`, 100 on subcanvas.app), upgrades, and is unblocked. |
 | 9 | **Launch.** Landing page, themes, image uploads, self-hosting guide, README. | A stranger can self-host from the docs. |

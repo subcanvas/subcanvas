@@ -88,7 +88,7 @@ export default async function DocumentPage({
         visibility={project.visibility}
         canChange={hasRole(role, "admin") && canEdit}
         privateLimit={privateDocumentLimit(plan)}
-        document={{ id: document.id, title: document.title, type: document.type, via }}
+        current={{ id: document.id, title: document.title, type: document.type, via }}
       />
     </div>
   )

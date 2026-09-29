@@ -41,14 +41,15 @@ export function ShareProject({
   visibility,
   canChange,
   privateLimit,
-  document,
+  current,
 }: {
   project: ProjectRef
   visibility: "private" | "public"
   canChange: boolean
-  // The org's limit on private documents, when it has one.
+  // The limit on private documents, when there is one.
   privateLimit: number | null
-  document?: { id: string; title: string; type: "whiteboard" | "text"; via: string[] }
+  // The document on screen, if any.
+  current?: { id: string; title: string; type: "whiteboard" | "text"; via: string[] }
 }) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState<"link" | "project" | "embed" | null>(null)
@@ -57,8 +58,8 @@ export function ShareProject({
   const Icon = isPublic ? Globe : Lock
   const origin = typeof window === "undefined" ? "" : window.location.origin
   const projectLink = `${origin}${publicProjectPath(project.projectId)}`
-  const link = document
-    ? `${origin}${documentHref({ slug: PUBLIC_SLUG, projectId: project.projectId }, document.id, document.via)}`
+  const link = current
+    ? `${origin}${documentHref({ slug: PUBLIC_SLUG, projectId: project.projectId }, current.id, current.via)}`
     : projectLink
 
   function change() {
@@ -108,7 +109,7 @@ export function ShareProject({
               <Input
                 readOnly
                 aria-label={
-                  document ? `Link to this ${document.type === "whiteboard" ? "whiteboard" : "page"}` : "Link to this project"
+                  current ? `Link to this ${current.type === "whiteboard" ? "whiteboard" : "page"}` : "Link to this project"
                 }
                 value={link}
                 className="h-8 font-mono text-xs"
@@ -120,7 +121,7 @@ export function ShareProject({
               </Button>
             </div>
           )}
-          {isPublic && document?.type === "whiteboard" && (
+          {isPublic && current?.type === "whiteboard" && (
             <div className="flex items-center gap-3">
               <p className="flex-1 text-xs text-muted-foreground">
                 A picture for a README that stays current.
@@ -131,7 +132,7 @@ export function ShareProject({
                 onClick={() =>
                   copy(
                     "embed",
-                    embedSnippet({ origin, projectId: project.projectId, docId: document.id, title: document.title })
+                    embedSnippet({ origin, projectId: project.projectId, docId: current.id, title: current.title })
                   )
                 }
               >
@@ -140,7 +141,7 @@ export function ShareProject({
               </Button>
             </div>
           )}
-          {isPublic && document && (
+          {isPublic && current && (
             <Button variant="ghost" size="sm" className="justify-start" onClick={() => copy("project", projectLink)}>
               {copied === "project" ? <Check /> : <Link2 />}
               {copied === "project" ? "Copied" : "Copy the project's link"}

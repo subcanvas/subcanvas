@@ -22,7 +22,7 @@ import { importFromGitHub, type ImportState } from "./actions"
 
 // Draws a public GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md.
-// `privateLimit` is the org's limit on private documents, when it has one.
+// `privateLimit` is the limit on private documents, when there is one.
 export function ImportProject({ slug, privateLimit }: { slug: string; privateLimit: number | null }) {
   const router = useRouter()
   // An import that stops to show its notes leaves the page behind the dialog

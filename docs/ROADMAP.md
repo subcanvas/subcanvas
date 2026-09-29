@@ -45,7 +45,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 2. Full-access MCP server
 
-**Status: first version built** ([MCP.md](MCP.md)). Built: the endpoint at `/mcp`, sign-in through Supabase Auth's OAuth server with the consent page, tools for orgs (list), projects (create, rename, make public or private), folders and documents, pages by block, whiteboards, GitHub import and embeds, live announcement of edits over Realtime's HTTP broadcast, the "Connect an agent" page, Connected agents with Revoke in Settings → Profile, and the parity test. Not built: tools for members, invites, billing, and org administration, the "read only" and "only these projects" choices at consent, the "agent is editing" notice, and rate limits. Deliberately left to people, with the reasons in the parity test and in MCP.md: deleting a project or an org, a person's own name and picture, and approving or revoking agents.
+**Status: first version built** ([MCP.md](MCP.md)). Built: the endpoint at `/mcp`, sign-in through Supabase Auth's OAuth server with the consent page, tools for orgs (list), projects (create, rename, make public or private), folders and documents, pages by block, whiteboards, GitHub import and embeds, live announcement of edits over Realtime's HTTP broadcast, the "Connect an agent" page, Connected agents with Revoke in Settings → Profile, and the parity test. Not built: tools for members, invites, billing, and workspace administration, the "read only" and "only these projects" choices at consent, the "agent is editing" notice, and rate limits. Deliberately left to people, with the reasons in the parity test and in MCP.md: deleting a project or a workspace, a person's own name and picture, and approving or revoking agents.
 
 **Principle: nothing a human can do that an agent cannot.** An agent connected to Subcanvas over the [Model Context Protocol](https://modelcontextprotocol.io) can read and change everything its user can, with the same permissions and the same limits.
 
@@ -64,7 +64,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 | Question | Recommendation |
 |---|---|
-| Should destructive tools (delete a project, remove a member) ask for confirmation? | Decided: what cannot be undone (deleting a project or an org) has no tool at all, and removing members waits for the members tools. The rest is marked destructive in its MCP annotations, so clients can ask their user, and documents go to the trash, where the agent gets the same safety net as a person. |
+| Should destructive tools (delete a project, remove a member) ask for confirmation? | Decided: what cannot be undone (deleting a project or a workspace) has no tool at all, and removing members waits for the members tools. The rest is marked destructive in its MCP annotations, so clients can ask their user, and documents go to the trash, where the agent gets the same safety net as a person. |
 | Can a user limit an agent to one project or to read-only? | Yes, at connection time: the OAuth consent screen offers "everything I can do" (the default), "read only", and "only these projects". |
 | Are agents billed as editors? | No. An agent acts as its user, who is already counted. |
 | Can an agent watch a document and react to changes? | Later, as an optional live mode. It needs a long-lived process outside the serverless deployment, which is a cost for us and for self-hosters, so it waits for a use case that needs it. |
