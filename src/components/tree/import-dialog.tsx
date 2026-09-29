@@ -190,8 +190,8 @@ export function ImportDialog({
             <DialogHeader>
               <DialogTitle>Import files</DialogTitle>
               <DialogDescription>
-                Markdown and text files become documents in {target.name}, and folders stay folders.
-                A zip works too: a Notion export (Markdown &amp; CSV), an Obsidian vault, a wiki.
+                Markdown, HTML and text files become documents in {target.name}, and folders stay folders.
+                A zip works too: a Notion export (choose HTML), an Obsidian vault, a wiki.
               </DialogDescription>
             </DialogHeader>
 
@@ -258,7 +258,8 @@ export function ImportDialog({
               </p>
             )}
             <p className="text-xs leading-relaxed text-graphite">
-              Everything is read in your browser. Only the text of the notes is sent.
+              Everything is read in your browser. Only the text of the notes and the pictures and videos they
+              show are sent.
             </p>
           </div>
         )}
@@ -270,7 +271,7 @@ export function ImportDialog({
               <DialogDescription>
                 {stage.plan.documents.length
                   ? `${count(stage.plan.documents.length, "document")}${stage.plan.folders.length ? ` in ${count(stage.plan.folders.length, "folder")}` : ""} will be added to ${target.name}.`
-                  : "None of these files are Markdown, text, or CSV."}
+                  : "None of these files are Markdown, HTML, text, or CSV."}
               </DialogDescription>
             </DialogHeader>
             {stage.plan.documents.length > 0 && (
