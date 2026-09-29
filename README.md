@@ -73,7 +73,7 @@ Three layers, each answering something the others cannot:
 - **`pnpm db:test`**: pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
 - **`pnpm test:e2e`**: Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
 
-The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything. Next refuses a second development server in one checkout, so with `pnpm dev` already open, start that one from another checkout of the repository (a `git worktree` will do) and point the suite at it with `E2E_DEV_BASE_URL`. The billing specs run only when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set (sandbox values, see the billing step above) and skip otherwise; the three MCP sign-in specs need `[auth.oauth_server]` from `config.toml`, which a stack started before that setting only picks up after `supabase stop && supabase start`.
+The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open, and so are the app's own emails, invites and abuse reports, which `.env.example` sends to Mailpit's SMTP port; the specs that read those skip when `SMTP_HOST` is not set. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything. Next refuses a second development server in one checkout, so with `pnpm dev` already open, start that one from another checkout of the repository (a `git worktree` will do) and point the suite at it with `E2E_DEV_BASE_URL`. The billing specs run only when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set (sandbox values, see the billing step above) and skip otherwise; the three MCP sign-in specs need `[auth.oauth_server]` from `config.toml`, which a stack started before that setting only picks up after `supabase stop && supabase start`.
 
 ```sh
 pnpm test:e2e                       # all of it
@@ -89,11 +89,13 @@ Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web as
 
 An admin can make a project public: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the org can edit. Public pages are not indexed by search engines, and each carries a Report button.
 
-Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL). To take a project offline, whatever its org sets:
+Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL), and are emailed to `ABUSE_EMAIL` (or `LEGAL_CONTACT`) when the server sends email. To take a project offline, whatever its org sets:
 
 ```sql
 update public.projects set taken_down_at = now() where id = '<project id>';
 ```
+
+Its members then see that it was taken down and whom to write to. Reviewing reports, reversing a takedown, and deleting an account by hand are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ### Embedding a diagram
 

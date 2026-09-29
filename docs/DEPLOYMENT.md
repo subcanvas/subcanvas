@@ -35,7 +35,7 @@ In the Supabase dashboard, under **Authentication**:
 | URL Configuration → Redirect URLs | `https://your-domain/**` |
 | Sign In / Providers → Email | On (the default). Subcanvas signs people in with a password or an emailed link. |
 
-**Set up email before inviting anyone.** Supabase's built-in mailer sends only a few emails an hour, which is enough to try things and not enough for a team. Under Authentication → Emails → SMTP Settings, add an SMTP provider (Resend, Postmark, Amazon SES), and add the DNS records that provider asks for to your domain.
+**Set up email before inviting anyone.** Supabase's built-in mailer sends only a few emails an hour, which is enough to try things and not enough for a team. Under Authentication → Emails → SMTP Settings, add an SMTP provider (Resend, Postmark, Amazon SES), and add the DNS records that provider asks for to your domain. That covers sign-in links and password resets, which Supabase sends. Invitations and abuse reports are sent by the app itself, through the `SMTP_` variables in step 4; the same provider and credentials serve both.
 
 **Agents (optional).** To let people connect Claude, Cursor, and other MCP clients, turn on Supabase's OAuth server as described in [MCP.md](MCP.md#turning-it-on).
 
@@ -52,6 +52,8 @@ Give your host these environment variables (they are also listed in [`.env.examp
 | `SUPABASE_SECRET_KEY` | A secret key. Server only. It bypasses row-level security, so never give it to a build that runs untrusted code, such as a preview deployment of someone's pull request. Billing uses it, and so does deleting an org, to remove the org's pictures and videos from Storage. Without billing you can leave it out: a deleted org's files then stay in the buckets, unreachable, until you remove them (below). |
 | `OAUTH_CLIENT_ID_GITHUB`, `OAUTH_CLIENT_SECRET_GITHUB` | Optional, both or neither. Server only. The id and secret of a GitHub OAuth app, the one behind "Continue with GitHub" or any other. Import from GitHub uses them to read public repositories at 5,000 requests an hour; without them GitHub allows this server 60 an hour, about 20 imports. They read nothing a stranger could not, and there is no token to create or rotate. |
 | `NEXT_PUBLIC_AUTH_PROVIDERS` | Optional: `google`, `github`, or `google,github` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Optional. Server only. The SMTP server the app sends its own email through: invitations, and abuse reports to you. `SMTP_PORT` is 587 when unset; on 465 the connection is encrypted from the start, and on other ports it switches to encryption when the server offers it. `EMAIL_FROM` is the sender, for example `Subcanvas <hello@your-domain>`, on a domain your provider has verified. With Resend: host `smtp.resend.com`, port `465`, user `resend`, and an API key as the password. Without `SMTP_HOST` the app sends no email, and admins copy each invite's link and send it themselves. |
+| `ABUSE_EMAIL` | Optional. Where abuse reports are emailed, and the address given to a workspace whose project you took down. `LEGAL_CONTACT` when unset; with neither, reports are only in the database. See [OPERATIONS.md](OPERATIONS.md). |
 | `LEGAL_OPERATOR`, `LEGAL_CONTACT`, `LEGAL_GOVERNING_LAW` | Optional, all three or none: the person or company running the server, the address for legal and privacy requests, and the US state whose law governs (for example `California`). When set, the server has a Terms of Service at `/terms` and a Privacy Policy at `/privacy`, linked from the landing page and the sign-in card. The text describes subcanvas.app's setup (Supabase, Vercel, Resend, Stripe, Cloudflare; no analytics), so read both pages and change what does not match yours before publishing them under your name. Google requires both links on its OAuth consent screen. |
 
 **On Vercel:** import your copy of the repository, add the variables (the secret key to the Production environment only), and add your domain.
@@ -75,7 +77,7 @@ docker build -t subcanvas \
 docker run -p 3000:3000 --env-file subcanvas.env subcanvas
 ```
 
-The `NEXT_PUBLIC_` values are compiled into the browser bundle, which is why they are build arguments: changing one means rebuilding the image. Everything else in the table (the `LEGAL_` variables, `SUPABASE_SECRET_KEY`, the Stripe keys) is read when the container runs, so it goes in the env file, and secrets never end up in an image layer. The container listens on port 3000 as a non-root user and keeps no state: all data is in Supabase, so it can be replaced or run in several copies freely. Put it behind something that terminates TLS.
+The `NEXT_PUBLIC_` values are compiled into the browser bundle, which is why they are build arguments: changing one means rebuilding the image. Everything else in the table (the `LEGAL_` and `SMTP_` variables, `SUPABASE_SECRET_KEY`, the Stripe keys) is read when the container runs, so it goes in the env file, and secrets never end up in an image layer. The container listens on port 3000 as a non-root user and keeps no state: all data is in Supabase, so it can be replaced or run in several copies freely. Put it behind something that terminates TLS.
 
 Point your domain at the host, open it, sign in, and create your org.
 
@@ -97,11 +99,11 @@ Environment secrets, unlike repository secrets, are released only to approved ru
 ## Things to know
 
 - **Anyone who finds your server can sign up** and create their own org. They cannot see yours: every org's data is isolated by row-level security. Restricting who may sign up is not built yet.
-- **Invites are links.** An admin creates an invite and sends the link themselves; the app does not email it.
+- **Invites are emailed when the app can send email** (`SMTP_HOST`); without it, an admin copies each invite's link and sends it. Either way the link works once, only for the invited address, for 7 days. Each person can have 50 invites emailed a day, so that a server open to sign-ups is not a way to send spam; past that, invites are still made and their links are there to copy.
 - **Your providers' limits are yours to check.** Supabase's free plan pauses a project after a week without activity, and caps real-time connections and messages. Vercel's Hobby plan does not allow commercial use.
 - **Back up the database.** Supabase's paid plans take daily backups. On any plan, `supabase db dump` writes a copy you can keep.
 - **Pictures and videos are files, not rows.** They live in Supabase Storage, which `supabase db dump` does not copy: back the two `media-` buckets up separately if they matter to you (they speak S3). They do not count toward the plan limits; how much each org may keep is capped only if you set a limit ([below](#limiting-storage-optional)). Deleting a node never deletes its file, because a copy of the node may show the same file and undo must be able to bring it back; files are removed when their whiteboard is deleted from the trash for good. What that leaves behind is the files of nodes deleted from whiteboards that still exist, and, on a server without `SUPABASE_SECRET_KEY`, the files of deleted orgs. To list the second kind: `select bucket_id, name from storage.objects where bucket_id like 'media-%' and split_part(name, '/', 1)::uuid not in (select id from public.orgs);` and remove them in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
-- **Public projects.** An admin can make a project readable by anyone with the link. Reports and takedowns are described in the [README](../README.md#public-projects-and-moderation); they are SQL for now.
+- **Public projects.** An admin can make a project readable by anyone with the link. Reports are emailed to you when the app sends email. Reviewing them, taking a project down, and reversing a takedown are SQL, described in [OPERATIONS.md](OPERATIONS.md) with deleting an account by hand.
 - **There is no published Docker image.** The repository has a `Dockerfile` (section 4), and the image has to be built with your own Supabase URL and key, so a public one would be of little use.
 
 ## Limiting storage (optional)
