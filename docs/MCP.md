@@ -84,6 +84,8 @@ Pictures and videos on a whiteboard are read, not written. `read_whiteboard` rep
 
 Members and invites, billing, creating, renaming, leaving, or deleting an org, deleting a project, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
 
+Downloads and exports ([EXPORTING.md](EXPORTING.md)) have no tools either. A tool's result is text for an agent to read, and a project's zip is a file. What is in it an agent already reads, better suited to editing: `read_text_document` returns the same Markdown as a download, block by block with ids, and `read_whiteboard` the same contents as a whiteboard's JSON file. The reasons are kept in the same test, beside the routes that serve the downloads.
+
 ## Security model
 
 In plain words: **the agent is you, and the database decides what you may do.**
