@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(40);
 
 -- Personal and team workspaces, and deleting an account. Uses its own email
 -- domain, names, slugs and ids so it passes against a local database that
@@ -241,9 +241,20 @@ select is(
   'every reference to a person cascades or clears when they are deleted');
 
 -- The operator deleting a user in the dashboard deletes their personal
--- workspace with them.
+-- workspace with them, with what they made in it: a project and a
+-- whiteboard whose created_by would otherwise be cleared in the same pass
+-- that deletes them.
+insert into public.projects (id, org_id, name, created_by)
+values ('0a000000-0000-0000-0000-000000000a01', (select id from public.orgs where personal_owner = :plain), 'Theirs', :plain);
+insert into public.documents (id, org_id, project_id, type, title, created_by)
+values ('0a000000-0000-0000-0000-000000000a02', (select id from public.orgs where personal_owner = :plain),
+        '0a000000-0000-0000-0000-000000000a01', 'whiteboard', 'Board', :plain);
+select ok((select created_by = :plain from public.projects where id = '0a000000-0000-0000-0000-000000000a01'),
+  'a project in a personal workspace says who made it');
 select lives_ok(format($$ delete from auth.users where id = %L $$, :plain),
   'a user can be deleted from the dashboard');
+select is((select count(*) from public.projects where id = '0a000000-0000-0000-0000-000000000a01'), 0::bigint,
+  'and what they made in their personal workspace goes too');
 select is((select count(*) from public.orgs where name = 'Mine'), 0::bigint,
   'and their personal workspace goes with them');
 

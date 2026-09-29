@@ -169,8 +169,8 @@ before insert or update or delete on public.org_members
 for each row execute function private.guard_personal_workspace_members();
 
 -- It can be renamed, but it stays personal, stays its owner's, and is
--- deleted only with its owner's profile, by cascade: not by its owner, and
--- not by the operator either.
+-- deleted only with its owner's profile (delete_personal_workspace, below):
+-- not by its owner, and not by the operator either.
 create function private.guard_personal_workspace()
 returns trigger
 language plpgsql security definer set search_path = ''
@@ -184,6 +184,7 @@ begin
   end if;
 
   if old.personal_owner is not null
+     and current_setting('subcanvas.deleting_profile', true) is distinct from old.personal_owner::text
      and exists (select 1 from public.profiles where id = old.personal_owner)
   then
     raise exception 'A personal workspace is deleted only with its account.' using errcode = 'P0001';
@@ -195,6 +196,30 @@ $$;
 create trigger guard_personal_workspace
 before update or delete on public.orgs
 for each row execute function private.guard_personal_workspace();
+
+-- A profile takes its personal workspace with it, and first. Left to the
+-- foreign key's cascade, the workspace would go in the same pass as the
+-- profile's other foreign keys are cleared (projects.created_by and the
+-- like are set null), and in an order Postgres does not promise: a project
+-- of the workspace could be updated after the workspace was gone, and the
+-- whole deletion refused. Deleted here, before the profile row, everything
+-- in it is gone before anything else is touched. Covers every way a profile
+-- goes: delete_account, and deleting the user in the dashboard.
+create function private.delete_personal_workspace()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  perform set_config('subcanvas.deleting_profile', old.id::text, true);
+  delete from public.orgs where personal_owner = old.id;
+  perform set_config('subcanvas.deleting_profile', '', true);
+  return old;
+end;
+$$;
+
+create trigger delete_personal_workspace
+before delete on public.profiles
+for each row execute function private.delete_personal_workspace();
 
 -- Nobody is invited to a personal workspace. A trigger of its own, so that
 -- it stands apart from org_invites' policies and functions.
