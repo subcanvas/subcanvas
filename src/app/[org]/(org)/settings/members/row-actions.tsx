@@ -131,6 +131,16 @@ export function InviteActions({
 }) {
   const { pending, run } = useAction()
   const [sending, startSending] = useTransition()
+  const showRefusal = useShowRefusal()
+
+  // Sending again can meet the editor limit, which is said as everywhere else.
+  function sendAgain() {
+    startSending(async () => {
+      const result = await resendInvite(slug, inviteId)
+      if ("error" in result) showRefusal(result)
+      else announceInvite(result)
+    })
+  }
 
   async function copyLink() {
     await navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
@@ -144,7 +154,7 @@ export function InviteActions({
           variant="outline"
           size="sm"
           disabled={sending}
-          onClick={() => startSending(async () => announceInvite(await resendInvite(slug, inviteId)))}
+          onClick={sendAgain}
         >
           {sending ? "Sending…" : "Send again"}
         </Button>

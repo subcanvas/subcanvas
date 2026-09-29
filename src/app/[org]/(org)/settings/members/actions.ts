@@ -79,7 +79,7 @@ export async function removeMember(
 export type InviteDelivery = SendResult | "limit"
 
 export type InviteResult =
-  | { error: string }
+  | { error: string; limit?: true }
   | { ok: true; email: string; renewed: boolean; delivery: InviteDelivery }
 
 export async function createInvite(
