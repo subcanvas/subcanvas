@@ -55,12 +55,18 @@ export async function identify(token: string): Promise<Caller | null> {
   const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud]
   if (!audience.includes("authenticated")) return null
 
-  return {
-    userId: claims.sub,
-    token,
-    clientId: typeof claims.client_id === "string" ? claims.client_id : null,
-    expiresAt: claims.exp,
+  const clientId = typeof claims.client_id === "string" ? claims.client_id : null
+  // A token issued to an agent is also checked with Supabase Auth, which
+  // refuses it once its session is gone. Revoking an agent (Settings →
+  // Profile → Connected agents) deletes its sessions, so this makes a revoke
+  // take effect at the agent's next request rather than when the token runs
+  // out, up to an hour later. It costs one request to Auth per call.
+  if (clientId) {
+    const { error: revoked } = await verifier.auth.getUser(token)
+    if (revoked) return null
   }
+
+  return { userId: claims.sub, token, clientId, expiresAt: claims.exp }
 }
 
 // A client that sends the caller's token with every request and keeps no

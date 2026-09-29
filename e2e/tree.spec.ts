@@ -71,7 +71,7 @@ test("a document is made in a folder, renamed, moved, trashed, restored and dele
 
   // A document inside the folder. Creating one opens it, and its title is
   // the database's default until it is renamed.
-  await rowMenu(page, folderA, "New text document inside")
+  await rowMenu(page, folderA, "New page inside")
   await page.waitForURL(/\/d\//)
   await expect(documentRow(page, "Untitled")).toBeVisible()
 
@@ -87,7 +87,7 @@ test("a document is made in a folder, renamed, moved, trashed, restored and dele
   const folderB = `Folder B ${id}`
   await createFolder(page, folderB)
   await page.goto(`/${slug}/${projectId}`)
-  await expect(page.getByText("Pick a sheet")).toBeVisible()
+  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
   await expandFolder(page, folderA)
   await documentRow(page, doc).dragTo(folderRow(page, folderB))
 
@@ -157,7 +157,7 @@ test("a document linked from two whiteboards says so, and warns before it is tra
 
   // The document that will be linked to.
   await page.getByRole("button", { name: "Add to project" }).click()
-  await page.getByRole("menuitem", { name: "New text document", exact: true }).click()
+  await page.getByRole("menuitem", { name: "New page", exact: true }).click()
   await page.waitForURL(/\/d\//)
   const target = `Target ${id}`
   await renameRow(page, "Untitled", target)
@@ -172,7 +172,7 @@ test("a document linked from two whiteboards says so, and warns before it is tra
     // known by its tools showing, and the last board's are still showing
     // while the new one loads.
     await page.goto(`/${slug}/${projectId}`)
-    await expect(page.getByText("Pick a sheet")).toBeVisible()
+    await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
     await createWhiteboard(page, board)
     await addNode(page, `Ref ${id}`)
     await linkExisting(page, target)

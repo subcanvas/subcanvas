@@ -1,4 +1,3 @@
-import { importLocalImage } from "./images"
 import { baseName, kindOf, resolveRelative, withoutExtension } from "./paths"
 
 // Notes link to each other by file: `[text](./other.md)` in Markdown,
@@ -9,17 +8,23 @@ import { baseName, kindOf, resolveRelative, withoutExtension } from "./paths"
 export type LinkTargets = {
   // The address of the document a path in the import became, if it did.
   byPath: (path: string) => string | null
+  // The same document's id, for a link drawn as the document's card.
+  idByPath?: (path: string) => string | null
   // The same for a note named the way Obsidian names them: by file name,
   // with or without folders in front, wherever the note is.
   byName: (name: string, fromPath: string) => string | null
   // The path of a file that is not a note, such as an image, named the way
   // Obsidian names them: by file name alone, wherever it is.
   fileNamed: (name: string) => string | null
+  // Where a picture among the import's files will be, once it is uploaded
+  // with the document that shows it; null when it cannot be brought in.
+  imageUrl?: (path: string) => string | null
 }
 
 export type Rewritten = {
   markdown: string
-  // Images kept in the import's own files, which are not brought in.
+  // Images the notes show from the import's own files that cannot be brought
+  // in: missing from the import, or of a kind this app does not keep.
   localImages: number
   // Links to files that are not part of the import, left as plain text.
   unlinked: number
@@ -100,11 +105,11 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
     return path ? targets.byPath(path) : null
   }
 
-  // An image among the import's files: shown from where it was put, or, left
+  // An image among the import's files: shown from where it will be, or, left
   // behind, replaced by the words that described it.
   const localImage = (path: string | null, alt: string, fallback: string) => {
-    const image = importLocalImage(path)
-    if (image.status === "imported") return `![${alt}](${image.url})`
+    const url = path ? (targets.imageUrl?.(path) ?? null) : null
+    if (url) return `![${alt}](${url})`
     localImages++
     return alt || withoutExtension(baseName(fallback))
   }
@@ -151,4 +156,67 @@ export function rewriteLinks(markdown: string, fromPath: string, targets: LinkTa
   )
 
   return { markdown: rewritten, localImages, unlinked }
+}
+
+// The same for a page read as HTML (lib/import/html-file.ts), in place: a
+// link to a page of the import points at its document, and one to a page
+// that was not imported becomes its words. A link marked as a page's own
+// (Notion's "link to page", and each subpage in its parent) becomes the
+// document's card, which is how a text document shows what it holds.
+export function rewriteHtmlLinks(root: Element, fromPath: string, targets: LinkTargets): Omit<Rewritten, "markdown"> {
+  let localImages = 0
+  let unlinked = 0
+  const doc = root.ownerDocument
+
+  // Images first, so that the link Notion wraps round each one is not taken
+  // for a link. Those among the import's files are uploaded with the page;
+  // one that cannot be leaves the words that described it, on a line of
+  // their own.
+  for (const image of Array.from(root.querySelectorAll("img"))) {
+    const src = image.getAttribute("src") ?? ""
+    if (/^https?:\/\//i.test(src)) continue
+    const path = src ? resolveRelative(fromPath, pathOf(src)) : null
+    const url = path ? (targets.imageUrl?.(path) ?? null) : null
+    const figure = image.closest("figure") ?? image
+    if (url) {
+      image.setAttribute("src", url)
+      // The link Notion wraps round a picture goes to the file, not a page.
+      const wrapper = image.parentElement?.tagName === "A" ? image.parentElement : null
+      wrapper?.replaceWith(image)
+      continue
+    }
+    localImages++
+    // A caption says what the image shows, then its alt text, then its name.
+    const words =
+      figure.querySelector("figcaption")?.textContent?.trim() ||
+      image.getAttribute("alt")?.trim() ||
+      withoutExtension(baseName(pathOf(src))) ||
+      "image"
+    const line = doc.createElement("p")
+    line.textContent = words
+    figure.replaceWith(line)
+  }
+  for (const link of Array.from(root.querySelectorAll("a[href]"))) {
+    const url = link.getAttribute("href")!.trim()
+    if (!url || isElsewhere(url)) continue
+    const path = resolveRelative(fromPath, pathOf(url))
+    const holder = link.closest("[data-page-link]")
+    const id = path && holder ? (targets.idByPath?.(path) ?? null) : null
+    if (holder && id) {
+      const card = doc.createElement("div")
+      card.setAttribute("data-content-type", "documentLink")
+      card.setAttribute("data-doc-id", id)
+      holder.replaceWith(card)
+      continue
+    }
+    const href = path ? targets.byPath(path) : null
+    if (href) link.setAttribute("href", href)
+    else {
+      unlinked++
+      link.replaceWith(...Array.from(link.childNodes))
+    }
+  }
+  for (const holder of Array.from(root.querySelectorAll("[data-page-link]"))) holder.removeAttribute("data-page-link")
+
+  return { localImages, unlinked }
 }

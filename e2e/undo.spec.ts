@@ -20,19 +20,19 @@ import { clickCanvas } from "./support/collab"
 // The platform's command key is ⌘ on a Mac and Ctrl elsewhere, which is
 // what ControlOrMeta stands for.
 
-// A node fresh from the toolbar is called "Node", the same word as the tool
+// A box fresh from the toolbar is called "Box", the same word as the tool
 // that made it, so its label cannot be told from the tool's by text alone.
 // Its accessible name can: every node is a group named after its kind and
 // title.
 const freshNode = (page: Page) =>
-  page.getByRole("application").getByRole("group", { name: "Node: Node", exact: true })
+  page.getByRole("application").getByRole("group", { name: "Box: Box", exact: true })
 
 // Adds a node from the toolbar and waits for it to be saved before giving it
 // a title, so the add and the title are two steps to undo. Yjs merges
 // changes made within half a second of each other into one step, and
 // "Saved" comes at least a second after the add.
 async function addNodeInTwoSteps(page: Page, title: string) {
-  await whiteboardTools(page).getByRole("button", { name: "Node", exact: true }).click()
+  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
   await expect(freshNode(page)).toBeVisible()
   await expectSaved(page)
   await inspector(page).getByLabel("Title").fill(title)
@@ -58,7 +58,7 @@ test("⌘Z takes back the title and then the node; ⇧⌘Z brings them back in o
 
   await page.keyboard.press("ControlOrMeta+z")
   // The words the sheet shows when it holds nothing.
-  await expect(page.getByText("An empty sheet")).toBeVisible()
+  await expect(page.getByText("Nothing here yet")).toBeVisible()
 
   await page.keyboard.press("Shift+ControlOrMeta+z")
   await expect(freshNode(page)).toBeVisible()
@@ -89,7 +89,7 @@ test("the toolbar's Undo and Redo do the same", async ({ page }) => {
   await expect(nodeLabelled(page, title)).toHaveCount(0)
 
   await undo.click()
-  await expect(page.getByText("An empty sheet")).toBeVisible()
+  await expect(page.getByText("Nothing here yet")).toBeVisible()
 
   await redo.click()
   await expect(freshNode(page)).toBeVisible()

@@ -8,7 +8,7 @@ test("signs up with a password, changes it, and signs back in with the new one",
   const account = await signUp(page)
 
   // Nobody's first account has an org, so sign-up lands on onboarding.
-  await expect(cardTitled(page, "Create your org")).toBeVisible()
+  await expect(cardTitled(page, "Name your org")).toBeVisible()
   const slug = await createOrg(page, account.id)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
 
@@ -18,7 +18,7 @@ test("signs up with a password, changes it, and signs back in with the new one",
   const changed = { ...account, password: `changed-${account.id}` }
   await page.getByLabel("New password").fill(changed.password)
   await page.getByRole("button", { name: "Save password" }).click()
-  // It sends you back where you were: the home page, which knows the org.
+  // With nowhere else asked for, it sends you to your own work: the org.
   await page.waitForURL(`/${slug}`)
 
   await signOut(page)

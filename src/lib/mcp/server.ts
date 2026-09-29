@@ -18,8 +18,17 @@ const INSTRUCTIONS = [
 // One server per request, for one caller. Nothing is kept between requests,
 // so it runs on serverless functions, and a tool can only ever reach the
 // Supabase client of the person whose token came with the request.
+//
+// The tools are the same for the life of a deployment, and the server says
+// so (`listChanged: false`). Otherwise a client on the 2026-07-28 protocol
+// holds a `subscriptions/listen` request open to hear about changes, and the
+// function is cut off at its time limit and reopened, once a minute, for as
+// long as the agent stays connected.
 export function createServer(caller: Pick<Caller, "userId" | "token">, origin: string) {
-  const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS })
+  const server = new McpServer(SERVER_INFO, {
+    instructions: INSTRUCTIONS,
+    capabilities: { tools: { listChanged: false } },
+  })
   const context: ToolContext = { supabase: createUserClient(caller.token), userId: caller.userId, origin }
 
   for (const tool of tools)

@@ -1,4 +1,5 @@
 import { headers } from "next/headers"
+import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
 import { buttonVariants } from "@/components/ui/button"
@@ -38,6 +39,13 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
         title="Connect an agent"
         description="Claude, ChatGPT, Cursor, or anything else that speaks the Model Context Protocol can read and edit Subcanvas as you. Add this address, sign in, approve. There is no key to copy."
       />
+      <p className="-mt-4 text-sm text-graphite">
+        The agents you have approved are listed in{" "}
+        <Link href={`/${slug}/settings/profile#profile-agents`} className="font-medium text-ink underline underline-offset-4">
+          Settings → Profile
+        </Link>
+        , where you can disconnect any of them.
+      </p>
 
       <div className="flex flex-col gap-2">
         <h2 className="font-mono text-xs tracking-wide text-graphite uppercase">Server address</h2>

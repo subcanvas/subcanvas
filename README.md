@@ -1,8 +1,36 @@
 # Subcanvas
 
-An open-source Notion/Excalidraw hybrid. Build whiteboards and text documents that nest inside each other: click a node on an architecture diagram to open that service's own diagram, or click an edge to read the protocol between two services.
+**Turn a GitHub repo into a diagram you can click into.** Paste a public repository and each main folder becomes a box with its README inside; a box opens into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a page of notes, as many levels deep as you need.
 
-Status: early development. See [REQUIREMENTS.md](REQUIREMENTS.md) for what is being built and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model and build order. What comes after v1 is in [docs/ROADMAP.md](docs/ROADMAP.md). To run your own, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Agents connect over the Model Context Protocol and work as the person who connected them: see [docs/MCP.md](docs/MCP.md). A public GitHub repository can be imported as a project; a [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to. Notes from Notion, Obsidian, Google Docs, and plain folders of Markdown come in through Import files: see [docs/IMPORTING.md](docs/IMPORTING.md).
+<!-- The demo, made from scripts/demo/out/demo.mp4 by scripts/demo/readme-preview.sh. -->
+<p align="center">
+  <a href="https://subcanvas.app">
+    <img alt="Subcanvas in 49 seconds: a repository becomes a diagram, a box opens into the whiteboard inside it, an agent adds an arrow over MCP, and the diagram goes into a README" src="docs/media/demo.webp" width="880">
+  </a>
+</p>
+
+<p align="center"><strong>Try it</strong> at <a href="https://subcanvas.app">subcanvas.app</a> (free, private projects included) · <strong>Run your own</strong> with <a href="docs/DEPLOYMENT.md">docs/DEPLOYMENT.md</a> · <strong>AGPL-3.0</strong></p>
+
+This repository's own diagram, drawn live by subcanvas.app from its folders and `.subcanvas` files. Click it to open the boxes.
+
+<!-- Share, then Copy embed, on the whiteboard at subcanvas.app. -->
+<p align="center">
+  <a href="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg?theme=dark">
+      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg" width="880">
+    </picture>
+  </a>
+</p>
+
+- **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. The import is a one-time copy.
+- **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
+- **Live together.** Everyone you invite edits at once, with cursors. Viewers are free.
+- **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
+- **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them: [docs/MCP.md](docs/MCP.md).
+- **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
+
+Subcanvas is live at subcanvas.app and changing fast. What is being built is in [REQUIREMENTS.md](REQUIREMENTS.md), the data model and build order in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and what comes next in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Stack
 
@@ -41,9 +69,9 @@ After changing `supabase/config.toml`, restart the stack with `supabase stop && 
 
 Three layers, each answering something the others cannot:
 
-- **`pnpm test`** — Vitest, over code that needs no browser and no database. It is the one that runs in a second, so keep it that way: nothing here may start a server.
-- **`pnpm db:test`** — pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
-- **`pnpm test:e2e`** — Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
+- **`pnpm test`**: Vitest, over code that needs no browser and no database. It is the one that runs in a second, so keep it that way: nothing here may start a server.
+- **`pnpm db:test`**: pgTAP, over the migrations. Row-level security is the real permission system, and this is where it is proved.
+- **`pnpm test:e2e`**: Playwright, in `e2e/`. A browser signs up, makes a project and a whiteboard, draws on it, reloads, and looks again: the only check that sees a Yjs document reach Postgres and come back. It also reads a public project with no account at all.
 
 The end-to-end suite needs the local stack (`supabase start`) and builds the app before it serves it, on port 3310, so it never fights a `pnpm dev` on 3000. Every spec makes its own account, org and project, named after a fresh id, so the specs run in any order, run in parallel, and leave a shared database alone: nothing is deleted. Sign-in links are read back out of Mailpit, the same inbox a person developing here would open. One spec, `github-import`, runs against a second, development server (port 3410, or `E2E_DEV_PORT`) started with `SUBCANVAS_IMPORT_FIXTURES` pointing at `e2e/fixtures/github`: "Import from GitHub" reads a repository that is a folder there, so no test asks api.github.com for anything. Next refuses a second development server in one checkout, so with `pnpm dev` already open, start that one from another checkout of the repository (a `git worktree` will do) and point the suite at it with `E2E_DEV_BASE_URL`. The billing specs run only when `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set (sandbox values, see the billing step above) and skip otherwise; the three MCP sign-in specs need `[auth.oauth_server]` from `config.toml`, which a stack started before that setting only picks up after `supabase stop && supabase start`.
 

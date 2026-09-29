@@ -1,10 +1,11 @@
 import { ImageResponse } from "next/og"
 
-export const alt = "Subcanvas: a whiteboard where every box opens"
+export const alt = "Subcanvas: turn a GitHub repo into a diagram you can click into"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
-// The link preview: the headline beside a stack of sheets.
+// The link preview: the headline beside a stack of sheets, a folder's box
+// with a whiteboard inside.
 export default function OpengraphImage() {
   const sheet = (offset: number) => ({
     position: "absolute" as const,
@@ -51,8 +52,8 @@ export default function OpengraphImage() {
           </div>
           Subcanvas
         </div>
-        <div style={{ marginTop: 44, width: 600, fontSize: 76, lineHeight: 1.02, fontWeight: 700, letterSpacing: -2 }}>
-          A whiteboard where every box opens.
+        <div style={{ marginTop: 40, width: 610, fontSize: 64, lineHeight: 1.04, fontWeight: 700, letterSpacing: -2 }}>
+          Turn a GitHub repo into a diagram you can click into.
         </div>
         <div style={sheet(36)} />
         <div style={sheet(18)} />
@@ -63,11 +64,11 @@ export default function OpengraphImage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 34,
+            fontSize: 30,
             fontWeight: 600,
           }}
         >
-          Open me
+          services/payments
         </div>
       </div>
     ),

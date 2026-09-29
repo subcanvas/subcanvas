@@ -29,7 +29,7 @@ test("the tools can be pressed while the object panel is open", async ({ page })
   await expect(inspector(page)).toBeVisible()
 
   // No closing the panel first: this is the press that used to be swallowed.
-  await whiteboardTools(page).getByRole("button", { name: "Node", exact: true }).click()
+  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
 
   const second = `Second ${id}`
   await inspector(page).getByLabel("Title").fill(second)

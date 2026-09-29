@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://subcanvas.app"),
   title: { default: "Subcanvas", template: "%s · Subcanvas" },
   description:
-    "A whiteboard where every box opens. Put a whole whiteboard, or a page of notes, inside any box or arrow, and go as deep as the idea goes.",
+    "Turn a GitHub repo into a diagram you can click into: a box for each main folder, its README inside. Any box or arrow can hold its own whiteboard or a page of notes. Open source.",
   openGraph: { siteName: "Subcanvas", type: "website" },
 };
 

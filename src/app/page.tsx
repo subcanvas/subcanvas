@@ -1,16 +1,21 @@
 import { FileText, Link2, Workflow } from "lucide-react"
+import type { Metadata } from "next"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 
 import { HeroCanvas } from "@/components/landing/hero-canvas"
 import { Wordmark } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
 import { billingConfigured } from "@/lib/billing/stripe"
+import { WORKSPACE_HOME } from "@/lib/home"
 import { legalDetails } from "@/lib/legal"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
 
 const SOURCE_URL = "https://github.com/subcanvas/subcanvas"
+
+export const metadata: Metadata = {
+  title: { absolute: "Subcanvas: turn a GitHub repo into a diagram you can click into" },
+}
 
 const INSIDE = [
   {
@@ -21,7 +26,7 @@ const INSIDE = [
   {
     icon: Workflow,
     title: "Another whiteboard",
-    body: "Double-click to go inside. The box becomes a sheet of its own, with boxes of its own. A trail of tabs shows how deep you are and leads back out.",
+    body: "Double-click to go inside. The box becomes a whiteboard of its own, with boxes of its own. A trail of tabs shows how deep you are and leads back out.",
   },
   {
     icon: Link2,
@@ -31,13 +36,16 @@ const INSIDE = [
 ]
 
 const DEVELOPER_STEPS = [
-  ["Paste a repository.", "Public repositories, no GitHub app to install."],
-  ["Get the diagram.", "Folder paths sit under each name, and every README opens beside the drawing."],
+  ["Paste a repository.", "Public repositories only. There's no GitHub app to install."],
+  ["Get the boxes.", "One for each main folder, with its path under the name and its README beside the drawing."],
   [
     "Say what connects.",
-    "An optional .subcanvas file in a folder names what it talks to. Each connection becomes an arrow, and its description becomes the page behind the arrow.",
+    "Add a .subcanvas file to a folder to name what it talks to. Each connection becomes an arrow, drawn where the two folders meet, and its description becomes the page behind the arrow.",
   ],
-  ["Put it in your README.", "A public diagram embeds as a picture that stays current and opens the live version."],
+  [
+    "Put it in your README.",
+    "A public diagram embeds as a picture that follows your edits within minutes and links to the live version. The import is a one-time copy: later commits don't change it.",
+  ],
 ] as const
 
 const USES = [
@@ -53,10 +61,10 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user) {
-    const { data: orgs } = await supabase.from("orgs").select("slug").order("created_at").limit(1)
-    redirect(orgs?.[0] ? `/${orgs[0].slug}` : "/onboarding")
-  }
+  // The same page for everyone. Someone signed in gets a way to their own
+  // work in place of Sign in, and the buttons that would ask them to sign in
+  // take them there instead.
+  const start = user ? WORKSPACE_HOME : "/login"
 
   // Without Stripe there is no plan to buy, so the page shows what this
   // server actually offers instead of a price nobody can pay.
@@ -67,17 +75,17 @@ export default async function Home() {
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <Wordmark />
         <nav className="flex items-center gap-1 text-sm">
-          <a href="#developers" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <a href="#developers" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-sm:hidden")}>
             Developers
           </a>
           <a href="#pricing" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             Pricing
           </a>
-          <a href={SOURCE_URL} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <a href={SOURCE_URL} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-sm:hidden")}>
             Source
           </a>
-          <Link href="/login" className={buttonVariants({ size: "sm" })}>
-            Sign in
+          <Link href={start} className={buttonVariants({ size: "sm" })}>
+            {user ? "Your projects" : "Sign in"}
           </Link>
         </nav>
       </header>
@@ -86,20 +94,24 @@ export default async function Home() {
         <section className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 pt-10 pb-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:pt-16">
           <div className="flex flex-col items-start gap-6">
             <h1 className="text-5xl leading-[1.02] font-semibold tracking-tight text-balance sm:text-6xl">
-              A whiteboard where every box opens.
+              Turn a GitHub repo into a diagram you can click into.
             </h1>
             <p className="max-w-md text-lg leading-relaxed text-graphite">
-              Draw the big picture. Then open any box, or any arrow, and find a whole whiteboard or a page of
-              notes inside it. Go as deep as the idea goes.
+              Paste a public repository. Each main folder becomes a box with its README inside, and a box opens
+              into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a
+              page of notes.
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <Link href="/login" className={cn(buttonVariants({ size: "lg" }), "px-5")}>
-                Start drawing
+              <Link href={start} className={cn(buttonVariants({ size: "lg" }), "px-5")}>
+                Import a repository
               </Link>
-              <p className="text-sm text-graphite">
-                {selling ? "Free for public projects. No card." : "Free while Subcanvas is this new. No card."}
-              </p>
+              <Link href={start} className={buttonVariants({ variant: "ghost", size: "lg" })}>
+                Or start blank
+              </Link>
             </div>
+            <p className="text-sm text-graphite">
+              {selling ? "Free, private projects included. No card." : "Free while Subcanvas is this new. No card."}
+            </p>
           </div>
           <HeroCanvas />
         </section>
@@ -122,6 +134,11 @@ export default async function Home() {
               Arrows and groups hold things too. Everyone you invite edits together, live, with cursors. People
               who only need to look can watch for free.
             </p>
+            <p className="max-w-2xl leading-relaxed text-graphite">
+              Bring your notes from Notion, Obsidian, or a folder of Markdown. And connect an AI agent (Claude
+              Code, Codex, Cursor, or anything else that speaks MCP) to read and edit your whiteboards as you,
+              with your permissions.
+            </p>
           </div>
         </section>
 
@@ -141,11 +158,12 @@ export default async function Home() {
           <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
             <div className="flex flex-col gap-5">
               <p className="font-mono text-xs tracking-wide text-graphite uppercase">For developers</p>
-              <h2 className="text-3xl font-semibold">Your repository already knows its own design</h2>
+              <h2 className="text-3xl font-semibold">From a repository to a diagram</h2>
               <p className="max-w-xl leading-relaxed text-graphite">
-                Import a public GitHub repository and get its system diagram: one box per folder, each
-                folder&apos;s README inside its box, and folders inside folders as whiteboards inside boxes. Then
-                make it yours: move things, delete what is not part of the design, draw what is missing.
+                Import a public GitHub repository and start from its structure: a box for each main folder (up to
+                60), each folder&apos;s README inside its box, and folders inside folders as whiteboards inside
+                boxes. Arrows come from .subcanvas files, where the repository has them. Then make it yours: move
+                things, delete what isn&apos;t part of the design, draw what&apos;s missing.
               </p>
               <ol className="flex max-w-xl flex-col gap-3 text-sm leading-relaxed">
                 {DEVELOPER_STEPS.map(([title, body], index) => (
@@ -161,7 +179,7 @@ export default async function Home() {
                 ))}
               </ol>
               <div className="flex flex-wrap items-center gap-3">
-                <Link href="/login" className={buttonVariants()}>
+                <Link href={start} className={buttonVariants()}>
                   Import a repository
                 </Link>
                 <a
@@ -196,7 +214,7 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "You pay for people who edit private work. Nothing else."
+                  ? "Free until your org needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
                   : "Nothing to pay yet. There is no paid plan while Subcanvas is this new."}
               </p>
             </div>
@@ -204,25 +222,34 @@ export default async function Home() {
               {selling ? (
                 <>
                   <Plan
+                    start={start}
                     name="Free"
                     price="$0"
                     points={[
                       "Unlimited public projects",
-                      "100 documents in private projects",
-                      "3 editors",
+                      "100 private whiteboards and pages (a box's notes don't count)",
+                      "Up to 3 editors, you included",
                       "Unlimited viewers",
+                      "1 GB of pictures and videos",
                     ]}
                   />
                   <Plan
+                    start={start}
                     name="Team"
                     price="$5"
                     unit="per editor, per month"
                     highlight
-                    points={["Unlimited private documents", "Unlimited editors", "Viewers stay free"]}
+                    points={[
+                      "Unlimited private whiteboards and pages",
+                      "As many editors as you need",
+                      "Viewers stay free",
+                      "100 GB of pictures and videos",
+                    ]}
                   />
                 </>
               ) : (
                 <Plan
+                  start={start}
                   name="Hosted"
                   price="Free"
                   unit="while Subcanvas is this new"
@@ -236,9 +263,10 @@ export default async function Home() {
                 />
               )}
               <Plan
+                start={start}
                 name="Run it yourself"
                 price="Open source"
-                points={["The whole product, AGPL-3.0", "No limits of any kind", "Your server, your data"]}
+                points={["The whole product, AGPL-3.0", "No plan limits", "Your server, your data"]}
                 action={{ href: SOURCE_URL, label: "Read the source" }}
               />
             </div>
@@ -275,13 +303,15 @@ export default async function Home() {
 }
 
 function Plan({
+  start,
   name,
   price,
   unit,
   points,
   highlight = false,
-  action = { href: "/login", label: "Start drawing" },
+  action = { href: start, label: "Start drawing" },
 }: {
+  start: string
   name: string
   price: string
   unit?: string

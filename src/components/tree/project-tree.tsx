@@ -7,6 +7,7 @@ import {
   FileUp,
   Folder,
   FolderPlus,
+  FolderX,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -62,6 +63,7 @@ import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
 import type { ImportTarget } from "./import-dialog"
+import { DeleteProjectDialog, RenameProjectDialog } from "./project-dialogs"
 
 // Loaded when first opened: reading zips and planning an import is code
 // that most visits to a project never need.
@@ -83,6 +85,7 @@ export function ProjectTree({
   projectName,
   nodes,
   canEdit,
+  canDelete = false,
   canUpgrade,
   trashHref,
 }: {
@@ -92,6 +95,8 @@ export function ProjectTree({
   trashHref?: string
   nodes: TreeNode[]
   canEdit: boolean
+  // Admins and owners may delete the whole project.
+  canDelete?: boolean
   // Whether this server has a paid plan to offer when the limit is hit.
   canUpgrade: boolean
 }) {
@@ -109,6 +114,8 @@ export function ProjectTree({
     name: string
     references: string[]
   } | null>(null)
+  // The project's own rename or delete dialog, when open.
+  const [projectDialog, setProjectDialog] = useState<"rename" | "delete" | null>(null)
   // An open import or paste dialog. The key makes each opening a fresh one.
   const [bringingIn, setBringingIn] = useState<{
     key: number
@@ -387,6 +394,18 @@ export function ProjectTree({
           onClose={() => setBringingIn(null)}
         />
       )}
+      <RenameProjectDialog
+        project={project}
+        projectName={projectName}
+        open={projectDialog === "rename"}
+        onOpenChange={(open) => setProjectDialog(open ? "rename" : null)}
+      />
+      <DeleteProjectDialog
+        project={project}
+        projectName={projectName}
+        open={projectDialog === "delete"}
+        onOpenChange={(open) => setProjectDialog(open ? "delete" : null)}
+      />
       <Dialog open={confirmTrash !== null} onOpenChange={(open) => !open && setConfirmTrash(null)}>
         <DialogContent>
           <DialogHeader>
@@ -431,6 +450,21 @@ export function ProjectTree({
               <Trash2 />
               Trash
             </DropdownMenuItem>
+            {canEdit && (
+              <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
+                <Pencil />
+                Rename project
+              </DropdownMenuItem>
+            )}
+            {canDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => setProjectDialog("delete")}>
+                  <FolderX />
+                  Delete project
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -459,7 +493,7 @@ export function ProjectTree({
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
           <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
-            {canEdit ? "No documents yet. Use + to add a whiteboard or a page of notes, or drop Markdown files here." : "No documents yet."}
+            {canEdit ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here." : "No whiteboards or pages yet."}
           </p>
         )}
       </SidebarGroupContent>
@@ -483,7 +517,7 @@ function CreateItems({
     <>
       <DropdownMenuItem onClick={() => onCreate("text")}>
         <FileText />
-        New text document{suffix}
+        New page{suffix}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => onCreate("whiteboard")}>
         <Workflow />

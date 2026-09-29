@@ -684,7 +684,7 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
                 aria-label="Whiteboard tools"
                 className="flex items-center gap-0.5 rounded-xl border border-rule bg-sheet p-1 shadow-sm"
               >
-                <Tool label="Node" hint="A box with a title" onClick={() => add("plain")}>
+                <Tool label="Box" hint="A box with a title" onClick={() => add("plain")}>
                   <Square />
                 </Tool>
                 <Tool label="Text" hint="A heading and a paragraph, no box" onClick={() => add("text")}>
@@ -727,10 +727,10 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
           {wb.nodes.length === 0 ? (
             <Panel position="top-center" className="!top-1/2 !-translate-y-1/2">
               <div className="flex max-w-sm flex-col items-center gap-2 text-center">
-                <p className="font-heading text-xl font-semibold">An empty sheet</p>
+                <p className="font-heading text-xl font-semibold">Nothing here yet</p>
                 <p className="text-sm text-graphite">
                   {canEdit
-                    ? "Add a node to begin. Anything you add can hold a description, or a whole whiteboard of its own."
+                    ? "Add a box to begin. Any box can hold a page of notes, or a whole whiteboard of its own."
                     : "Nothing has been added here yet."}
                 </p>
               </div>

@@ -178,7 +178,7 @@ def sign_in(page: Page, base_url: str, email: str, password: str, org: str):
     page.goto(base_url, wait_until="networkidle")
     if "/onboarding" in page.url:
         page.get_by_label("Name").fill(org)
-        page.get_by_label("URL").fill(re.sub(r"[^a-z0-9]+", "-", f"{org}-{email.split('@')[0]}".lower()).strip("-")[:40])
+        page.get_by_label("Web address").fill(re.sub(r"[^a-z0-9]+", "-", f"{org}-{email.split('@')[0]}".lower()).strip("-")[:40])
         page.get_by_role("button", name="Create org").click()
         page.wait_for_url(lambda url: "/onboarding" not in url, timeout=15_000)
 

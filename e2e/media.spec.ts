@@ -43,7 +43,7 @@ test("a picture added with the Media tool is on the canvas, is there after a rel
   // and rename it instead of waiting for the new one.
   await createWhiteboard(page, "Board A")
   await breadcrumb(page).getByRole("link", { name: "Proj" }).click()
-  await expect(page.getByText("Pick a sheet")).toBeVisible()
+  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
   await createWhiteboard(page, "Board B")
   await treeLink(page, "Board A").click()
   await expect(breadcrumb(page).getByText("Board A", { exact: true })).toBeVisible()
@@ -124,5 +124,5 @@ test("a picture over the size limit is refused with the limit in words, and noth
   // Not even a placeholder: the empty-sheet note is shown only while the
   // whiteboard holds nothing at all.
   await expect(page.getByRole("progressbar", { name: "Uploading picture" })).toHaveCount(0)
-  await expect(page.getByText("An empty sheet")).toBeVisible()
+  await expect(page.getByText("Nothing here yet")).toBeVisible()
 })

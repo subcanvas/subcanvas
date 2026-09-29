@@ -65,7 +65,7 @@ export function uploadError(request: Pick<XMLHttpRequest, "status" | "responseTe
   if (status === 413) return "It is larger than this server accepts."
   if (status === 415) return "This server does not take that kind of file."
   // What Storage answers when row-level security says no.
-  if (status === 400 || status === 401 || status === 403) return "You cannot add files to this whiteboard."
+  if (status === 400 || status === 401 || status === 403) return "You cannot add files to this document."
   return "The upload failed. Try again."
 }
 

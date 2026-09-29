@@ -1,9 +1,11 @@
 "use client"
 
 import "@blocknote/shadcn/style.css"
+import "katex/dist/katex.min.css"
 
-import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core"
-import { filterSuggestionItems } from "@blocknote/core/extensions"
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs } from "@blocknote/core"
+import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions"
+import { en } from "@blocknote/core/locales"
 import { withCollaboration } from "@blocknote/core/yjs"
 import {
   getDefaultReactSlashMenuItems,
@@ -12,7 +14,13 @@ import {
   type DefaultReactSuggestionItem,
 } from "@blocknote/react"
 import { BlockNoteView } from "@blocknote/shadcn"
-import { FileText, Link2, Workflow } from "lucide-react"
+import {
+  getMultiColumnSlashMenuItems,
+  locales as multiColumnLocales,
+  multiColumnDropCursor,
+  withMultiColumn,
+} from "@blocknote/xl-multi-column"
+import { Bookmark, FileText, Link2, ListTree, Lightbulb, Radical, Sigma, Workflow } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
@@ -28,6 +36,11 @@ import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
 import { useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { DocumentType } from "@/lib/tree"
 
+import { createBookmark } from "./blocks/bookmark"
+import { createCallout } from "./blocks/callout"
+import { createEquation, inlineEquation } from "./blocks/equation"
+import { createTableOfContents } from "./blocks/table-of-contents"
+import { adopt, resolveFileUrl, uploader, useUploadCleanup } from "./media"
 import {
   createDocumentLink,
   TextDocumentContextProvider,
@@ -36,9 +49,29 @@ import {
 
 export type EditorUser = { id: string; name: string; color: string }
 
-const schema = BlockNoteSchema.create({
-  blockSpecs: { ...defaultBlockSpecs, documentLink: createDocumentLink() },
-})
+// The slash menu draws a heading wherever the group changes, so items of
+// one group must be next to each other: ours join BlockNote's groups at
+// their ends, and the groups keep the order they first appear in.
+function groupTogether(items: DefaultReactSuggestionItem[]) {
+  const order = [...new Set(items.map((item) => item.group))]
+  return order.flatMap((group) => items.filter((item) => item.group === group))
+}
+
+// The same blocks as the server's editor (lib/text/server-editor.ts): what
+// one can write, the other must be able to read.
+const schema = withMultiColumn(
+  BlockNoteSchema.create({
+    blockSpecs: {
+      ...defaultBlockSpecs,
+      documentLink: createDocumentLink(),
+      callout: createCallout(),
+      equation: createEquation(),
+      bookmark: createBookmark(),
+      tableOfContents: createTableOfContents(),
+    },
+    inlineContentSpecs: { ...defaultInlineContentSpecs, inlineEquation },
+  })
+)
 
 export default function TextEditor({
   provider,
@@ -57,9 +90,16 @@ export default function TextEditor({
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
+  // Pictures and videos are filed under this document (./media.ts).
+  const home = { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId }
+
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
+      uploadFile: uploader(home),
+      resolveFileUrl,
+      dictionary: { ...en, multi_column: multiColumnLocales.en },
+      dropCursor: multiColumnDropCursor,
       collaboration: {
         provider,
         fragment: provider.doc.getXmlFragment(TEXT_FRAGMENT),
@@ -87,6 +127,30 @@ export default function TextEditor({
       prosemirrorToYXmlFragment(editor.prosemirrorState.doc, fragment)
     }, "seed")
   }, [editable, loaded, editor, provider])
+
+  useUploadCleanup(context.documentId, editor)
+
+  // A picture that arrives from another document (pasted, dragged, or put
+  // there by an agent) is copied to this one, so that its readers see it.
+  const adopting = useRef(new Set<string>())
+  useEffect(() => {
+    if (!editable) return
+    const here = { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId }
+    const check = () =>
+      editor.forEachBlock((block) => {
+        const url = (block.props as { url?: unknown }).url
+        if (typeof url !== "string" || adopting.current.has(`${block.id} ${url}`)) return true
+        adopting.current.add(`${block.id} ${url}`)
+        void adopt(here, url).then((result) => {
+          if (typeof result === "string") {
+            if (editor.getBlock(block.id)) editor.updateBlock(block.id, { props: { url: result } } as never)
+          } else if (result) toast.error(result.failed)
+        })
+        return true
+      })
+    check()
+    return editor.onChange(check)
+  }, [editable, editor, context.orgId, context.projectId, context.documentId])
 
   useEffect(() => {
     if (!autoFocus || !editable) return
@@ -163,6 +227,51 @@ export default function TextEditor({
     router.refresh()
   }
 
+  // Blocks for what Notion pages hold, so an imported page reads the same
+  // here and can be written the same way.
+  const blockItems = (): DefaultReactSuggestionItem[] => [
+    {
+      title: "Callout",
+      subtext: "A box with an emoji, to make a note stand out",
+      aliases: ["callout", "note", "tip", "warning", "aside", "admonition"],
+      group: "Basic blocks",
+      icon: <Lightbulb size={18} />,
+      onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "callout" }),
+    },
+    {
+      title: "Equation",
+      subtext: "Display maths, written in TeX",
+      aliases: ["equation", "math", "maths", "latex", "tex", "formula", "katex"],
+      group: "Advanced",
+      icon: <Sigma size={18} />,
+      onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "equation" }),
+    },
+    {
+      title: "Inline equation",
+      subtext: "Maths inside a line of text",
+      aliases: ["inline math", "inline equation", "latex", "tex"],
+      group: "Advanced",
+      icon: <Radical size={18} />,
+      onItemClick: () => editor.insertInlineContent([{ type: "inlineEquation", props: { latex: "" } }, " "]),
+    },
+    {
+      title: "Bookmark",
+      subtext: "A link shown as a card",
+      aliases: ["bookmark", "link", "url", "web", "embed"],
+      group: "Media",
+      icon: <Bookmark size={18} />,
+      onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "bookmark" }),
+    },
+    {
+      title: "Table of contents",
+      subtext: "The document's headings, kept current",
+      aliases: ["toc", "table of contents", "outline", "contents"],
+      group: "Others",
+      icon: <ListTree size={18} />,
+      onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "tableOfContents" }),
+    },
+  ]
+
   const documentItems = (): DefaultReactSuggestionItem[] => [
     {
       title: "Text document",
@@ -202,7 +311,12 @@ export default function TextEditor({
           triggerCharacter="/"
           getItems={async (query) =>
             filterSuggestionItems(
-              [...getDefaultReactSlashMenuItems(editor), ...documentItems()],
+              groupTogether([
+                ...getDefaultReactSlashMenuItems(editor),
+                ...blockItems(),
+                ...getMultiColumnSlashMenuItems(editor),
+                ...documentItems(),
+              ]),
               query
             )
           }

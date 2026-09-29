@@ -2,7 +2,7 @@
 
 Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write text documents, nest a diagram inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
 
-- **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless).
+- **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless). Both the 2025 protocol and 2026-07-28 are served. The tool list never changes while an agent is connected, so there is nothing to listen for: the server says `listChanged: false`, and a client opens no `subscriptions/listen` stream.
 - **Sign-in:** OAuth 2.1, with Supabase Auth as the authorization server. There are no API keys.
 - **Code:** `src/app/mcp/route.ts` (the endpoint), `src/lib/mcp/` (tools), `src/app/oauth/consent/` (the approval page).
 
@@ -32,6 +32,7 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `get_project` | Get a project and its document tree | reads |
 | `create_project` | Create a project | writes |
 | `set_project_visibility` | Make a project public or private | writes |
+| `rename_project` | Rename a project | writes |
 | `create_document` | Create a document | writes |
 | `import_markdown_documents` | Import Markdown files as documents | writes |
 | `create_folder` | Create a folder | writes |
@@ -64,13 +65,24 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.
 
+Blocks are read and written as Markdown. The blocks Markdown has no syntax for are written like this, both ways:
+
+| Block | Markdown |
+|---|---|
+| Equation | `$$`, the TeX, `$$`, each on a line of its own (or `$$ x^2 $$` on one line) |
+| Maths in a line | `$e^{i\pi} + 1 = 0$`: the dollar signs hug the TeX, so `$5 and $10` stays text |
+| Callout | `<aside data-icon="💡">`, a blank line, the callout's Markdown, a blank line, `</aside>`. `data-background-color` picks its colour: gray (the default), brown, red, orange, yellow, green, blue, purple, pink. Notion's Markdown export, `<aside>💡 Text</aside>`, reads the same way. |
+| Table of contents | `[TOC]` on a line of its own |
+
+A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
+
 Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
 
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.
 
 ### Not exposed yet
 
-Members and invites, billing, creating, renaming, leaving, or deleting an org, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting an org, deleting a project, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
 
 ## Security model
 
@@ -78,6 +90,7 @@ In plain words: **the agent is you, and the database decides what you may do.**
 
 - **The token is the person's own.** Supabase Auth issues an MCP client the same kind of JWT it issues a browser, for the person who approved it. The server checks its signature against the project's published keys, its issuer, its audience, and that it belongs to a signed-in person.
 - **Every tool call uses a Supabase client that carries that token.** Row-level security then decides what can be read and written, exactly as it does for the web app. A viewer's agent can read and cannot write. An agent cannot see an org its person is not in; to it, those things do not exist.
+- **An agent can be disconnected.** Settings → Profile → Connected agents lists every agent the person approved, with Revoke. Revoking withdraws the consent, deletes the agent's sessions and refresh tokens, and takes effect at its next request: for a token issued to an agent, the server also asks Supabase Auth whether its session still exists, one extra request per call. To come back, the agent has to be approved again.
 - **There is no secret key behind the server.** The MCP code never imports the admin client, and the endpoint works without `SUPABASE_SECRET_KEY` being set. A bug in a tool can do no more than its caller could do from their browser's console.
 - **The same rules and limits.** Tools call the functions the server actions call (`src/lib/documents/operations.ts`), so role checks, free-plan limits, and their messages are the same. Imported READMEs are read-only for agents as they are for people.
 - **Edits are Yjs updates.** A tool call reads the document from Postgres, applies its change, and appends one update to `document_updates`, so it merges with what people are typing. It is then sent to the document's Realtime channel over HTTP, where Realtime applies the channel's policies to the caller's token, so open editors show it at once. A browser that misses that picks it up on its next re-read, within 30 seconds. A person's undo never undoes an agent's work.

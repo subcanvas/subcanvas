@@ -6,6 +6,7 @@ import Link from "next/link"
 import { createContext, useContext } from "react"
 
 import { documentHref } from "@/lib/navigation"
+import { documentLinkConfig } from "@/lib/text/custom-blocks"
 import { useDocumentMeta } from "@/lib/use-document-meta"
 
 // Where the text document being edited sits, which a link inside it needs
@@ -46,7 +47,7 @@ function DocumentLinkCard({ docId }: { docId: string }) {
         ...context.via,
         context.documentId,
       ])}
-      className="flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium no-underline hover:bg-muted"
+      className="sc-document-link flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium no-underline hover:bg-muted"
     >
       <Icon className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate">{meta.title}</span>
@@ -60,11 +61,7 @@ function DocumentLinkCard({ docId }: { docId: string }) {
 
 // A document nested in, or linked from, a text document (R2.5).
 export const createDocumentLink = createReactBlockSpec(
-  {
-    type: "documentLink",
-    propSchema: { docId: { default: "" } },
-    content: "none",
-  },
+  documentLinkConfig,
   {
     render: ({ block }) => <DocumentLinkCard docId={block.props.docId} />,
   }

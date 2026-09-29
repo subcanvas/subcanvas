@@ -112,7 +112,7 @@ export function documentText(editor: Locator) {
 // gives it `title`. Returns with the editor on screen.
 export async function createTextDocument(page: Page, title: string) {
   await page.getByRole("button", { name: "Add to project" }).click()
-  await page.getByRole("menuitem", { name: "New text document", exact: true }).click()
+  await page.getByRole("menuitem", { name: "New page", exact: true }).click()
   await expect(pageEditor(page)).toBeVisible()
   const field = page.getByLabel("Document title")
   await field.fill(title)

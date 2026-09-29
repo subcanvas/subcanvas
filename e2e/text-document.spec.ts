@@ -75,8 +75,21 @@ test("two people typing in the same text document end up with the same text", as
 
     // The other person puts a line of their own under it.
     const beta = `Beta ${id}`
+    // The click puts the caret mid-line, and the editor takes it up a
+    // moment after the click: an End pressed before then is undone, and the
+    // Enter that follows splits the owner's line. So End until the caret is
+    // at the end of it.
     await pageEditor(editor.page).getByText(alpha).click()
-    await editor.page.keyboard.press("End")
+    await expect
+      .poll(async () => {
+        await editor.page.keyboard.press("End")
+        return editor.page.evaluate((text) => {
+          const selection = getSelection()
+          const node = selection?.focusNode
+          return Boolean(selection?.isCollapsed && node?.textContent?.endsWith(text) && selection.focusOffset === node.textContent.length)
+        }, id)
+      })
+      .toBe(true)
     await editor.page.keyboard.press("Enter")
     await editor.page.keyboard.type(beta)
     await expect(pageEditor(page)).toContainText(beta)

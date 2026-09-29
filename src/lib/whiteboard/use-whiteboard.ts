@@ -54,7 +54,7 @@ function parentsFirst(nodes: WbNode[]) {
 // What a node is called, in the panel and to a screen reader.
 export function nodeLabel(wb: WbNode) {
   if (wb.kind === "media") return wb.mediaType === "video" ? "Video" : "Image"
-  return wb.kind === "plain" ? "Node" : wb.kind === "text" ? "Text" : "Group"
+  return wb.kind === "plain" ? "Box" : wb.kind === "text" ? "Text" : "Group"
 }
 
 function toFlowNode(wb: WbNode, depth: number, existing: FlowNode | undefined, known: Set<string>): FlowNode {
@@ -303,7 +303,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean) {
             y: center.y - (size.height ?? 40) / 2,
             width: size.width,
             height: size.height,
-            title: kind === "group" ? "Group" : kind === "text" ? "Heading" : "Node",
+            title: kind === "group" ? "Group" : kind === "text" ? "Heading" : "Box",
             description: "",
             color: "default",
           })

@@ -77,7 +77,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           <p className="font-heading text-xl font-semibold">{canEdit ? "Start with a project" : "No projects yet"}</p>
           <p className="max-w-md text-sm leading-relaxed text-graphite">
             {canEdit
-              ? "A project holds whiteboards and pages that nest inside each other. Import a public GitHub repository to get its system diagram in a minute, or start from an empty whiteboard."
+              ? "A project holds whiteboards and pages that nest inside each other. Import a public GitHub repository and get a box for each main folder, READMEs inside, in about a minute. Or start a blank project and draw your own."
               : "When someone creates a project, it will show up here."}
           </p>
           {canEdit && (
@@ -87,7 +87,9 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
             </div>
           )}
           {canEdit && (
-            <p className="text-xs text-graphite">Notes from Notion, Obsidian, or a folder of Markdown come in from inside a project.</p>
+            <p className="text-xs text-graphite">
+              Bringing notes from Notion, Obsidian, or Markdown? Create a project, then use + and Import files.
+            </p>
           )}
         </div>
       )}
