@@ -21,7 +21,7 @@ import { WORKSPACE_HOME } from "@/lib/home"
 
 import { deleteOrg, leaveOrg, renameOrg } from "./actions"
 
-export function RenameOrgForm({ orgId, initial }: { orgId: string; initial: string }) {
+export function RenameOrgForm({ orgId, initial, personal }: { orgId: string; initial: string; personal: boolean }) {
   const [saved, setSaved] = useState(initial)
   const [name, setName] = useState(initial)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +60,7 @@ export function RenameOrgForm({ orgId, initial }: { orgId: string; initial: stri
       </div>
       {/* The hint and the error share one line, so an error moves nothing. */}
       <p id="org-name-hint" role={error ? "alert" : undefined} className={error ? "text-sm text-destructive" : "text-sm text-graphite"}>
-        {error ?? "Shown in the sidebar and on invites."}
+        {error ?? (personal ? "Shown in the sidebar." : "Shown in the sidebar and on invites.")}
       </p>
     </form>
   )

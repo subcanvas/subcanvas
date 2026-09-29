@@ -69,7 +69,7 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       <SettingsSection id="general-org" title="Workspace">
         <div className="flex flex-col gap-6">
           {isAdmin ? (
-            <RenameOrgForm orgId={org.id} initial={org.name} />
+            <RenameOrgForm orgId={org.id} initial={org.name} personal={org.personal} />
           ) : (
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Name</p>
