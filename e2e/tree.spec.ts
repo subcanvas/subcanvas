@@ -132,6 +132,51 @@ test("a document is made in a folder, renamed, moved, trashed, restored and dele
   await expect(documentRow(page, doc)).toHaveCount(0)
 })
 
+test("a folder goes to the trash with everything in it, comes back with it, and is deleted for good from there", async ({
+  page,
+}) => {
+  const id = freshId()
+  const { slug } = await signUpWithOrg(page)
+  const projectId = await createProject(page, "Proj")
+
+  const folder = `Folder ${id}`
+  await createFolder(page, folder)
+  await rowMenu(page, folder, "New page inside")
+  await page.waitForURL(/\/d\//)
+  const doc = `Inside ${id}`
+  await renameRow(page, "Untitled", doc)
+  await expect(documentRow(page, doc)).toBeVisible()
+
+  // The same words and the same menu item as for a document. Its page was
+  // open, and goes with it.
+  await rowMenu(page, folder, "Move to trash")
+  await expect(page.getByText("Moved to trash.")).toBeVisible()
+  await page.waitForURL(`/${slug}/${projectId}`)
+  await expect(folderRow(page, folder)).toHaveCount(0)
+  await expect(documentRow(page, doc)).toHaveCount(0)
+
+  // The trash lists what was put there, not what went with it.
+  await page.getByRole("button", { name: "Project menu" }).click()
+  await page.getByRole("menuitem", { name: "Trash" }).click()
+  const row = page.getByRole("main").getByRole("listitem").filter({ hasText: folder })
+  await expect(row).toContainText("Folder")
+  await expect(page.getByRole("main").getByRole("listitem")).toHaveCount(1)
+  await row.getByRole("button", { name: "Restore" }).click()
+  await expect(page.getByText("Restored.")).toBeVisible()
+  await expect(folderRow(page, folder)).toBeVisible()
+  await expandFolder(page, folder)
+  await expect(documentRow(page, doc)).toBeVisible()
+
+  await rowMenu(page, folder, "Move to trash")
+  await expect(page.getByText("Moved to trash.")).toBeVisible()
+  await row.getByRole("button", { name: "Delete forever" }).click()
+  const dialog = page.getByRole("dialog")
+  await expect(dialog).toContainText("This also deletes everything in it")
+  await dialog.getByRole("button", { name: "Delete forever" }).click()
+  await expect(page.getByText("Deleted.")).toBeVisible()
+  await expect(page.getByText("The trash is empty.")).toBeVisible()
+})
+
 // Links a document that exists elsewhere in the project to the selected
 // node (R1.6), and waits for the index of references to take it: the
 // whiteboard writes the index a moment after the link, and only while its

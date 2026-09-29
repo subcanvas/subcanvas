@@ -14,6 +14,7 @@ import {
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
+import { nodeNamed } from "./support/canvas"
 import { clickCanvas } from "./support/collab"
 
 // Deleting a box means what deleting means everywhere inside a project:
@@ -140,7 +141,8 @@ test.describe("on a phone", () => {
       await touch.goto(board)
       // A finger starts in view mode, where nothing can be deleted.
       await touch.getByRole("button", { name: "Edit mode" }).tap()
-      await nodeLabelled(touch, inner).tap()
+      // The node, not its label: the box's outline lies over the words.
+      await nodeNamed(touch, inner, "a whiteboard").tap()
       const panel = inspector(touch)
       await expect(panel).toBeVisible()
       await panel.getByRole("button", { name: "Delete box" }).tap()
