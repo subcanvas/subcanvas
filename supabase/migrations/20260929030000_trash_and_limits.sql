@@ -10,6 +10,8 @@
 --    like any other.
 -- 4. Making a project public needs an admin, when it is created as well as
 --    later (R6.6).
+-- 5. The two limit messages people can read in the database say
+--    "workspace", like the app.
 
 ---------------------------------------------------------------------------
 -- Folders go to the trash
@@ -404,3 +406,93 @@ $$;
 create trigger guard_new_project_visibility
 before insert on public.projects
 for each row execute function private.guard_project_visibility();
+
+---------------------------------------------------------------------------
+-- Words people read
+---------------------------------------------------------------------------
+
+-- The app shows its own words for the limit (lib/billing/limit.ts), with
+-- the number read from this message; SQL users and the dashboard read this.
+create or replace function private.check_private_document_limit(p_org_id uuid, p_adding integer)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_limit integer;
+begin
+  select free_private_document_limit into v_limit from private.config;
+  if v_limit is null or private.org_is_paid(p_org_id) then
+    return;
+  end if;
+  if private.private_document_count(p_org_id) + p_adding > v_limit then
+    raise exception 'This would take the workspace past the free limit of % private whiteboards and pages.', v_limit
+      using errcode = 'GN001',
+            hint = 'An owner can upgrade to Pro. What is in public projects or in the trash does not count.';
+  end if;
+end;
+$$;
+
+-- The same cap as in the migration media_storage_limit, with its messages
+-- in the words the app now uses, and a hint that says how space is freed:
+-- a removed picture's file goes once its removal can no longer be undone,
+-- and a whiteboard's files go when it is deleted from the trash for good.
+-- Both messages keep "storage for pictures and videos", which is how the
+-- app tells them from any other refusal (src/lib/whiteboard/media.ts).
+create or replace function private.enforce_media_storage_limit()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_limit bigint;
+  v_org_id uuid;
+  v_new bigint;
+  v_old bigint := 0;
+  v_before bigint;
+begin
+  if new.bucket_id not in ('media-images', 'media-videos') then
+    return new;
+  end if;
+  v_org_id := private.media_org(new.name);
+  if v_org_id is null then
+    return new;
+  end if;
+  v_limit := private.media_storage_limit(v_org_id);
+  if v_limit is null then
+    return new;
+  end if;
+
+  v_new := private.media_object_bytes(new.metadata);
+  -- An update within the org replaces what the row counted before.
+  if tg_op = 'UPDATE'
+     and old.bucket_id in ('media-images', 'media-videos')
+     and private.media_org(old.name) = v_org_id
+  then
+    v_old := private.media_object_bytes(old.metadata);
+    if v_new <= v_old then
+      return new; -- it did not grow
+    end if;
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('media-storage:' || v_org_id::text, 0));
+  -- Everything else the org keeps: the row being updated is still there
+  -- with its old size, and is taken out.
+  v_before := private.media_bytes(v_org_id) - v_old;
+
+  -- An org already at the cap is refused even a file of unknown size.
+  if v_before >= v_limit or v_before + v_new > v_limit then
+    if private.org_is_paid(v_org_id)
+       or exists (select 1 from private.org_media_storage_limits where org_id = v_org_id)
+    then
+      raise exception 'This file does not fit in what is left of this workspace''s % of storage for pictures and videos.',
+        private.media_size_words(v_limit)
+        using errcode = '42501',
+              hint = 'Delete pictures and videos you no longer need: their files are freed once you leave the whiteboard. A whiteboard in the trash keeps its files until it is deleted forever.';
+    end if;
+    raise exception 'The free plan includes % of storage for pictures and videos, and this file does not fit in what is left.',
+      private.media_size_words(v_limit)
+      using errcode = '42501',
+            hint = 'Delete pictures and videos you no longer need: their files are freed once you leave the whiteboard. A whiteboard in the trash keeps its files until it is deleted forever.';
+  end if;
+  return new;
+end;
+$$;

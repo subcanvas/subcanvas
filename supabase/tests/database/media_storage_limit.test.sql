@@ -157,7 +157,7 @@ select is((select count(*) from public.org_media_usage(:orgb)), 0::bigint,
 select lives_ok(pg_temp.stored('c', 1, 1500), 'a paid org stores more than the free limit');
 select lives_ok(pg_temp.stored('c', 2, 3000), 'and more, while it is under the paid limit');
 select throws_ok(pg_temp.stored('c', 3, 1000), '42501',
-  'This file does not fit in what is left of this org''s 5000 bytes of storage for pictures and videos.',
+  'This file does not fit in what is left of this workspace''s 5000 bytes of storage for pictures and videos.',
   'past the paid limit it is refused, with the paid plan''s message');
 select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
 select results_eq(
@@ -187,7 +187,7 @@ insert into private.org_media_storage_limits (org_id, limit_bytes, note)
 values (:orgc, 50000005000, 'pgTAP');
 select lives_ok(pg_temp.stored('c', 6, 400), 'an agreed cap replaces the plan''s, even for a free org');
 select throws_like(pg_temp.stored('c', 7, 200),
-  'This file does not fit in what is left of this org''s % of storage for pictures and videos.',
+  'This file does not fit in what is left of this workspace''s % of storage for pictures and videos.',
   'past the agreed cap it is refused, with the org''s own message');
 select pg_temp.login(:editor, 'editor@pgtap-media-limit.test');
 select is((select limit_bytes from public.org_media_usage(:orgc)), 50000005000::bigint,

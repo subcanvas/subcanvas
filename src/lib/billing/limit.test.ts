@@ -4,7 +4,7 @@ import { limitMessage, upgradeFor } from "./limit"
 
 describe("plan limit refusals", () => {
   it("say what the limit is, with the number the database gave, and never offer the upgrade themselves", () => {
-    const documents = limitMessage("GN001", "This org has reached the free limit of 100 private documents.")
+    const documents = limitMessage("GN001", "This would take the workspace past the free limit of 100 private whiteboards and pages.")
     expect(documents).toBe(
       "This would take the workspace past the free plan's 100 private documents. Documents in public projects and in the trash do not count."
     )
