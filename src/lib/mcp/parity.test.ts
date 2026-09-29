@@ -20,6 +20,7 @@ const NOT_EXPOSED: Record<string, string> = {
   "[org]/(org)/settings/members/actions.removeMember": "changes who has access, and billed seats",
   "[org]/(org)/settings/members/actions.createInvite": "changes who has access; sends email in the org's name",
   "[org]/(org)/settings/members/actions.revokeInvite": "kept with the rest of invites",
+  "[org]/(org)/settings/members/actions.resendInvite": "kept with the rest of invites; sends email in the org's name",
   "invite/[token]/actions.acceptInvite": "joining an org is a person's decision, made from the emailed link",
   // Billing. Paying needs a person and a card. Both actions only return a
   // Stripe link for the owner to open; a tool that reads the plan and
