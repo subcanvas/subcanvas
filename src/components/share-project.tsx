@@ -137,7 +137,9 @@ export function ShareProject({
               {isPublic ? "Make private" : "Make public"}
             </Button>
           ) : (
-            !isPublic && <p className="text-xs text-muted-foreground">An admin can make it public.</p>
+            <p className="text-xs text-muted-foreground">
+              {isPublic ? "An admin can make it private." : "An admin can make it public."}
+            </p>
           )}
         </PopoverContent>
       </Popover>
