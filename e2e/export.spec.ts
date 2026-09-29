@@ -14,7 +14,7 @@ import {
   nodeDocument,
   signUpWithOrg,
 } from "./support/app"
-import { createTextDocument, expectSavedByNow, pageEditor } from "./support/collab"
+import { createTextDocument, expectSavedByNow, inviteAndJoin, pageEditor } from "./support/collab"
 import { bringIn, chooseFiles, FIXTURES, runImport, treeFolder, treeLink } from "./support/import"
 
 // Taking work out: one document from its menu, as Markdown or as a picture,
@@ -113,6 +113,33 @@ test("a whiteboard in a private project downloads as SVG, and nobody outside it 
     expect(await response.text()).not.toContain(alpha)
   } finally {
     await stranger.close()
+  }
+})
+
+test("a viewer, who can change nothing, downloads a page and exports the whole project", async ({ page, browser }) => {
+  const { slug } = await signUpWithOrg(page)
+  const projectId = await createProject(page, "Handbook")
+  await bringIn(page, "Paste Markdown…")
+  await page.getByRole("textbox", { name: "Markdown" }).fill("# Welcome\n\nRead this first.\n")
+  await page.getByRole("button", { name: "Create document" }).click()
+  await expect(page.getByLabel("Document title")).toHaveValue("Welcome")
+
+  const viewer = await inviteAndJoin(page, browser, slug, "Viewer")
+  try {
+    await viewer.page.goto(`/${slug}/${projectId}`)
+    // The document's menu holds the download and nothing that changes it.
+    await viewer.page.getByRole("button", { name: "Actions for Welcome" }).click()
+    await expect(viewer.page.getByRole("menuitem")).toHaveText(["Download as Markdown"])
+    await viewer.page.keyboard.press("Escape")
+
+    await viewer.page.getByRole("button", { name: "Project menu" }).click()
+    await viewer.page.getByRole("menuitem", { name: "Export project…" }).click()
+    const started = viewer.page.waitForEvent("download")
+    await viewer.page.getByRole("dialog").getByRole("button", { name: "Export", exact: true }).click()
+    const files = unzipSync(new Uint8Array(await contentsOf(await started)))
+    expect(new TextDecoder().decode(files["Welcome.md"])).toBe("# Welcome\n\nRead this first.\n")
+  } finally {
+    await viewer.context.close()
   }
 })
 
