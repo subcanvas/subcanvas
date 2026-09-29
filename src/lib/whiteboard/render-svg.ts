@@ -1,5 +1,6 @@
 import { COLORS } from "./colors"
 import { iconNode } from "./icons"
+import { MAX_NODE_SIDE } from "./limits"
 import { DEFAULT_SIZE, singleEmoji, type ColorKey, type WbEdge, type WbNode } from "./schema"
 import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./shapes"
 
@@ -91,7 +92,8 @@ const STEP_GAP = 20
 // nowhere near them.
 const MAX_OBJECTS = 2000
 const MAX_COORDINATE = 100_000
-const MAX_NODE_SIZE = 4000
+// The canvas and the tools stop a node there too.
+const MAX_NODE_SIZE = MAX_NODE_SIDE
 const MAX_TEXT_LINES = 40
 const MAX_IMAGE_SIDE = 4000
 
