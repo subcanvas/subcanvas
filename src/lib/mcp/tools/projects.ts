@@ -33,7 +33,7 @@ export const projectTools = [
     title: "List workspaces",
     group: "Workspaces and projects",
     description:
-      "Lists the workspaces the signed-in person belongs to, with their role in each: their personal workspace first (`personal` is true; it is theirs alone), then the team workspaces they share with others. Start here: every project lives in a workspace, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of a workspace whose paid plan has lapsed.",
+      "Lists the workspaces the signed-in person belongs to, with their role in each: their personal workspace first (`personal` is true; it is theirs alone), then the team workspaces they share with others. Start here: every project lives in a workspace, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of a workspace whose Pro plan has lapsed.",
     input: {},
     kind: "read",
     run: async (context) => {

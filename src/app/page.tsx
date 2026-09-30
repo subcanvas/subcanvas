@@ -218,7 +218,7 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free until your workspace needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
+                  ? "Free for everything you do on your own. When a team workspace gets a second editor, or you need more private work, Pro is $5 a month for each editor. Viewers are always free."
                   : "Nothing to pay. This server has no paid plan."}
               </p>
             </div>
@@ -232,7 +232,7 @@ export default async function Home() {
                     points={[
                       "Unlimited public projects",
                       "100 private whiteboards and pages (descriptions of boxes and arrows don't count)",
-                      "Up to 3 editors, you included",
+                      "One editor: you",
                       "Unlimited viewers",
                       "1 GB of pictures and videos",
                     ]}
@@ -245,7 +245,7 @@ export default async function Home() {
                     highlight
                     points={[
                       "Unlimited private whiteboards and pages",
-                      "As many editors as you need",
+                      "As many editors as your team needs",
                       "Viewers stay free",
                       "100 GB of pictures and videos",
                     ]}

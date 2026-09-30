@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { removeMedia } from "@/lib/documents/media-cleanup"
+import { listMedia, removeMedia } from "@/lib/documents/media-cleanup"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -109,6 +109,14 @@ export async function deleteAccount(confirmation: string): Promise<ActionResult>
     return { error: "That is not your account's email." }
   if (!process.env.SUPABASE_SECRET_KEY) return { error: "This server cannot delete accounts. Ask whoever runs it." }
 
+  // The files of the workspaces this deletes, listed a page at a time while
+  // the person is still an owner of them. What delete_account returns is
+  // cut off at PostgREST's max_rows, and cannot be asked for again once the
+  // account is gone; it is added in case anything came in between.
+  const { data: plan } = await current.supabase.rpc("account_deletion_plan")
+  const doomed = (plan ?? []).filter((workspace) => workspace.outcome === "delete")
+  const listed = (await Promise.all(doomed.map((workspace) => listMedia(current.supabase, workspace.org_id)))).flat()
+
   const admin = createAdminClient()
   const { data: files, error } = await admin.rpc("delete_account", { p_user_id: current.user.id })
   if (error) {
@@ -119,7 +127,7 @@ export async function deleteAccount(confirmation: string): Promise<ActionResult>
   }
 
   try {
-    await removeMedia(admin, files ?? [])
+    await removeMedia(admin, [...listed, ...(files ?? [])])
   } catch (failure) {
     console.error("Removing a deleted account's files failed", failure)
   }

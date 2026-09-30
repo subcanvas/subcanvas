@@ -6,11 +6,11 @@ Subcanvas imports Markdown, and the HTML export Notion makes. Most apps that hol
 
 In a project, open the **+** menu at the top of the tree and choose **Import files**. Pick files, a folder, or a zip. You can also drop any of those on the tree, or on a folder in it, and they go there. Every folder and document has the same two items in its own menu.
 
-Before anything is created you see what will be: the documents and folders, and what is skipped and why. While it runs you see progress and can stop; what has been imported by then stays. At the end you get the same notes again as a summary.
+Before anything is created you see what will be: the documents and folders, and what is skipped and why. While it runs you see progress and can stop; what has been imported by then stays. At the end you get the same remarks again as a summary.
 
 **Paste Markdown**, in the same menu, makes one document from text you paste. Pasting Markdown straight into a document also works: the editor turns it into headings, lists, and tables.
 
-Everything is read in your browser. A zip is never uploaded whole: the text of the notes inside it is sent a few documents at a time, and each picture or video a note shows goes straight to storage, filed under the document that shows it, once that document exists.
+Everything is read in your browser. A zip is never uploaded whole: the text of the files inside it is sent a few documents at a time, and each picture or video a page shows goes straight to storage, filed under the document that shows it, once that document exists.
 
 ## Getting your notes out of other apps
 
@@ -33,8 +33,8 @@ Everything is read in your browser. A zip is never uploaded whole: the text of t
 - **What does not come across from Notion.** Notion's export never holds page history, who a page is shared with, buttons, forms, or a database's views beyond the one it exports. Comments, page icons and covers are in some exports but are not imported, since documents have no place for them yet; neither are attached files such as PDFs (pictures and videos are: see below). A callout whose icon was a picture has no icon. People and dates mentioned in the text become their words. Every export from 2024 to now reads the same way, whichever version of Notion's markup it uses.
 - **Obsidian.** `[[Wiki links]]`, `[[Note|with a label]]`, and `[[folder/Note#Heading]]` become links to the imported documents. `![[Embedded note]]` becomes a link to it. A link to a note that is not in the import stays as written. Callouts become quotes with a bold title; `==highlights==` become plain text; tags stay as text. The `.obsidian` folder is ignored.
 - **Links between files.** `[text](./other.md)`, relative paths, reference-style links, and the URL-encoded names Notion writes all become links to the imported documents. A link to a file that is not imported (a PDF, say) becomes plain text.
-- **Formatting.** Headings, nested lists, task lists, tables, code blocks with their language, quotes, rules, bold, italic, strikethrough, inline code, links, and images on the web. Footnotes stay as readable text. HTML inside Markdown is reduced to its text; scripts are dropped.
-- **Pictures and videos.** Images on the web (`https://…`) stay as links to the web. Pictures and videos that are files in your import (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV) are uploaded with the notes that show them, and count toward your workspace's storage like any you add yourself. A note gets its own copy of each, so whoever can read the note can see them. SVG and HEIC files, and ones over the size limits, are not imported; the words that described them stay in the text, and the import says how many. If the workspace's storage fills up during an import, the notes still come in and the pictures that did not fit show as missing. Files attached to a page (a PDF, say) are not imported yet; their names stay in the text.
+- **Formatting.** Headings, nested lists, task lists, tables, code blocks with their language, quotes, rules, bold, italic, strikethrough, inline code, links, and pictures on the web. Footnotes stay as readable text. HTML inside Markdown is reduced to its text; scripts are dropped.
+- **Pictures and videos.** Pictures on the web (`https://…`) stay as links to the web. Pictures and videos that are files in your import (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV) are uploaded with the pages that show them, and count toward your workspace's storage like any you add yourself. A page gets its own copy of each, so whoever can read the page can see them. SVG and HEIC files, and ones over the size limits, are not imported; the words that described them stay in the text, and the import says how many. If the workspace's storage fills up during an import, the pages still come in and the pictures that did not fit show as missing. Files attached to a page (a PDF, say) are not imported yet; their names stay in the text.
 
 ## Limits
 

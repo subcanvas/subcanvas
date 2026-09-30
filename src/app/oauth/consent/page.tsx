@@ -43,7 +43,7 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
         <CardContent className="flex flex-col gap-4 text-sm">
           <p>
             It will be able to read and change everything you can, in every workspace you belong to:
-            projects, whiteboards, and documents. It cannot manage members or billing, and it never
+            projects, whiteboards, and pages. It cannot manage members or billing, and it never
             sees your password.
           </p>
           <p className="text-muted-foreground">

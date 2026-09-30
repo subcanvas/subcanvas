@@ -56,9 +56,9 @@ export type InviteEmail = {
 export function inviteEmail({ inviter, workspace, role, email, link, expiresAt }: InviteEmail) {
   const expiry = formatExpiry(expiresAt)
   const about =
-    "Subcanvas is a whiteboard where every box opens into another whiteboard or a page of notes. If you were not expecting this invite, you can ignore it."
+    "Subcanvas: turn a GitHub repo into a diagram you can click into. Any box or arrow can hold a whiteboard or a page of its own. If you were not expecting this invite, you can ignore it."
 
-  const text = `${inviter} invited you to join the ${workspace} workspace on Subcanvas as ${ROLE_PHRASES[role]}.
+  const text = `${inviter} invited you to join ${workspace} on Subcanvas as ${ROLE_PHRASES[role]}.
 
 Accept the invite:
 ${link}
@@ -71,7 +71,7 @@ ${about}
   const html = layout(
     [
       paragraph(
-        `<strong>${escapeHtml(inviter)}</strong> invited you to join the <strong>${escapeHtml(workspace)}</strong> workspace on Subcanvas as ${ROLE_PHRASES[role]}.`
+        `<strong>${escapeHtml(inviter)}</strong> invited you to join <strong>${escapeHtml(workspace)}</strong> on Subcanvas as ${ROLE_PHRASES[role]}.`
       ),
       `<p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:${COBALT};color:#ffffff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px">Accept the invite</a></p>`,
       paragraph(
@@ -90,8 +90,8 @@ export type AbuseReportEmail = {
   reportId: string
   projectName: string
   projectLink: string
-  // The page the reporter was on, when it was a document.
-  document: { title: string; link: string } | null
+  // The document the reporter was on, when they were on one.
+  document: { title: string; link: string; type: "whiteboard" | "text" } | null
   reason: string
   reporterEmail: string | null
   // Where this server's operator procedures are written down.
@@ -102,13 +102,14 @@ export type AbuseReportEmail = {
 // To the operator, who reviews the project and decides whether to take it
 // down. A reply goes to the reporter when they left an address.
 export function abuseReportEmail(report: AbuseReportEmail) {
+  const kind = report.document?.type === "whiteboard" ? "Whiteboard" : "Page"
   const takedown = `update public.projects set taken_down_at = now() where id = '${report.projectId}';`
   const lines = [
     "Someone reported a public project.",
     "",
     `Project: ${report.projectName}`,
     report.projectLink,
-    ...(report.document ? ["", `Page: ${report.document.title}`, report.document.link] : []),
+    ...(report.document ? ["", `${kind}: ${report.document.title}`, report.document.link] : []),
     "",
     "Reason:",
     report.reason,
@@ -129,7 +130,7 @@ export function abuseReportEmail(report: AbuseReportEmail) {
       paragraph(
         `<strong>Project:</strong> ${escapeHtml(report.projectName)}<br>${link(report.projectLink)}` +
           (report.document
-            ? `<br><strong>Page:</strong> ${escapeHtml(report.document.title)}<br>${link(report.document.link)}`
+            ? `<br><strong>${kind}:</strong> ${escapeHtml(report.document.title)}<br>${link(report.document.link)}`
             : "")
       ),
       paragraph(`<strong>Reason:</strong><br>${escapeHtml(report.reason)}`, "white-space:pre-wrap"),

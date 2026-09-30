@@ -11,6 +11,9 @@ describe("plan limit refusals", () => {
     expect(limitMessage("GN002", "The free plan includes 3 editors. Viewers are unlimited.")).toBe(
       "This would take the workspace past the free plan's 3 editors. Viewers are unlimited."
     )
+    expect(limitMessage("GN002", "The free plan includes 1 editors. Viewers are unlimited.")).toBe(
+      "This would take the workspace past the free plan's one editor. Viewers are unlimited."
+    )
     expect(documents).not.toMatch(/upgrade/i)
     expect(limitMessage("42501", "Not allowed.")).toBeNull()
   })

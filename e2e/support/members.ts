@@ -119,6 +119,10 @@ export async function removeMember(page: Page, slug: string, email: string) {
   await page.goto(`/${slug}/settings/members`)
   const row = memberRow(page, email)
   await row.getByRole("button", { name: "Remove" }).click()
+  // It asks first, as every destructive action does.
+  const dialog = page.getByRole("dialog")
+  await expect(dialog.getByText("They lose access to its projects right away.")).toBeVisible()
+  await dialog.getByRole("button", { name: "Remove", exact: true }).click()
   await expect(row).toHaveCount(0)
 }
 
