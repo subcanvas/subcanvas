@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { listMedia, removeMedia } from "@/lib/documents/media-cleanup"
+import { listMedia, logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -60,7 +60,8 @@ export async function deleteOrg(orgId: string, confirmation: string): Promise<Ac
   // system, where it has the key to. A self-hosted server without one keeps
   // the files, which nobody can reach any more: docs/DEPLOYMENT.md says how
   // to clear them.
-  if (media.length && process.env.SUPABASE_SECRET_KEY) await removeMedia(createAdminClient(), media)
+  if (media.length && process.env.SUPABASE_SECRET_KEY)
+    await removeMedia(createAdminClient(), media).catch(logMediaFailure)
 
   revalidatePath("/[org]", "layout")
   return { ok: true }
