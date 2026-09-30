@@ -29,7 +29,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
 - **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them: [docs/MCP.md](docs/MCP.md).
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
-- **Your work, out.** A page downloads as Markdown and a whiteboard as SVG from its menu, and a whole project exports as a zip of those, with a JSON file of each whiteboard and its pictures and videos, that Import files reads back: [docs/EXPORTING.md](docs/EXPORTING.md).
+- **Your work, out.** A page downloads as Markdown and a whiteboard as SVG from its menu, and a whole project exports as a zip of those, with a JSON file of each whiteboard and its pictures and videos. Import files brings the zip's pages back: [docs/EXPORTING.md](docs/EXPORTING.md).
 
 Subcanvas is live at subcanvas.app and changing fast. What is being built is in [REQUIREMENTS.md](REQUIREMENTS.md), the data model and build order in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and what comes next in [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -114,7 +114,7 @@ A deployment that sells subscriptions turns on two things:
    ```sql
    update private.config set free_private_document_limit = 100, free_editor_limit = 3;
    ```
-   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), and 3 editors. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limits.
+   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), and 3 editors. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limit on documents or editors. Storage for pictures and videos has a cap of its own for each plan, off unless set (`free_media_storage_limit_bytes` and `paid_media_storage_limit_bytes`; subcanvas.app gives 1 GB free and 100 GB on Pro).
 2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security

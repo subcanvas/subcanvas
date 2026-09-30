@@ -155,4 +155,4 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R8.4 | **Minimal Vercel dependence:** Vercel only hosts the Next.js app. No Vercel-specific services (KV, Blob, Postgres, Cron, Edge Config). The app must run on any Node host or container. State, auth, realtime, storage, and scheduled jobs all live in Supabase. |
 | R8.4a | Open source under the AGPL-3.0 license, with a documented self-hosting path (own Supabase project and Vercel deployment). |
 | R8.5 | Search across document titles and content **(later)**. |
-| R8.6 | Export: a page as Markdown, a whiteboard as SVG, and a whole project as a zip that Import files reads back ([docs/EXPORTING.md](docs/EXPORTING.md)). Anyone who can read a document can export it. A whiteboard as PNG **(later)**. |
+| R8.6 | Export: a page as Markdown, a whiteboard as SVG, and a whole project as a zip whose pages Import files brings back ([docs/EXPORTING.md](docs/EXPORTING.md)). Anyone who can read a document can export it. A whiteboard as PNG **(later)**. |
