@@ -107,7 +107,7 @@ test("a box's description goes to the trash with it, and comes back as a page of
 
   await openTrash(page)
   const row = trashRow(page, box)
-  await expect(row).toContainText("Description of a box or arrow")
+  await expect(row).toContainText("Description of a node or arrow")
   await row.getByRole("button", { name: "Restore" }).click()
   await expect(page.getByText("Restored under the whiteboard it was on")).toBeVisible()
   await expect(page.getByText("The trash is empty.")).toBeVisible()

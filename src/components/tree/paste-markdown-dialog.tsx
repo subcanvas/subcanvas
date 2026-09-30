@@ -81,7 +81,7 @@ export function PasteMarkdownDialog({
               maxLength={MAX_FILE_BYTES}
               spellCheck={false}
               disabled={pending}
-              placeholder={"# Title\n\nPaste your notes here."}
+              placeholder={"# Title\n\nPaste your Markdown here."}
               className="h-56 max-h-[50vh] resize-none overflow-y-auto font-mono text-[13px] [field-sizing:fixed]"
             />
           </div>
@@ -89,7 +89,7 @@ export function PasteMarkdownDialog({
           <DialogFooter>
             <Button type="submit" disabled={pending || !markdown.trim()}>
               {pending && <Loader2 className="animate-spin" />}
-              Create document
+              Create page
             </Button>
           </DialogFooter>
         </form>

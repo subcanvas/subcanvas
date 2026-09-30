@@ -60,7 +60,7 @@ test("a page downloads as Markdown from its menu, for its editors and for a visi
   await page
     .getByRole("textbox", { name: "Markdown" })
     .fill('# Launch notes\n\n## Steps\n\n- Write it\n- Ship it\n\n$$\nE = mc^2\n$$\n\n<aside data-icon="💡">\n\nRemember the $x^2$ term.\n\n</aside>\n\n[TOC]\n')
-  await page.getByRole("button", { name: "Create document" }).click()
+  await page.getByRole("button", { name: "Create page" }).click()
   await expect(page.getByLabel("Document title")).toHaveValue("Launch notes")
 
   const file = await download(page, "Launch notes", "Download as Markdown")
@@ -121,7 +121,7 @@ test("a viewer, who can change nothing, downloads a page and exports the whole p
   const projectId = await createProject(page, "Handbook")
   await bringIn(page, "Paste Markdown…")
   await page.getByRole("textbox", { name: "Markdown" }).fill("# Welcome\n\nRead this first.\n")
-  await page.getByRole("button", { name: "Create document" }).click()
+  await page.getByRole("button", { name: "Create page" }).click()
   await expect(page.getByLabel("Document title")).toHaveValue("Welcome")
 
   const viewer = await inviteAndJoin(page, browser, slug, "Viewer")

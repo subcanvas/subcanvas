@@ -60,6 +60,30 @@ function picturesNotImages<T>(value: T): T {
   return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, picturesNotImages(inner)])) as T
 }
 
+// BlockNote files pictures, videos, audio and files under "Media"; the app
+// keeps that word for the whiteboard's Media button, so the page's menu
+// names the group for what it holds.
+const EMBEDS_GROUP = "Pictures and more"
+
+function dictionary() {
+  const words = picturesNotImages(en)
+  const slashMenu = Object.fromEntries(
+    Object.entries(words.slash_menu).map(([key, item]) => [
+      key,
+      item.group === "Media" ? { ...item, group: EMBEDS_GROUP } : item,
+    ])
+  ) as typeof words.slash_menu
+  return { ...words, slash_menu: slashMenu, multi_column: multiColumnLocales.en }
+}
+
+// Audio and other files are always refused on upload (./media.ts), so the
+// menu does not offer blocks for them. The items carry BlockNote's key at
+// runtime even though the React type leaves it out.
+const REFUSED_BLOCKS = new Set(["audio", "file"])
+function offered(item: DefaultReactSuggestionItem) {
+  return !REFUSED_BLOCKS.has((item as { key?: string }).key ?? "")
+}
+
 // The slash menu draws a heading wherever the group changes, so items of
 // one group must be next to each other: ours join BlockNote's groups at
 // their ends, and the groups keep the order they first appear in.
@@ -110,7 +134,7 @@ export default function TextEditor({
       schema,
       uploadFile: uploader(home, showRefusal),
       resolveFileUrl,
-      dictionary: { ...picturesNotImages(en), multi_column: multiColumnLocales.en },
+      dictionary: dictionary(),
       dropCursor: multiColumnDropCursor,
       collaboration: {
         provider,
@@ -271,7 +295,7 @@ export default function TextEditor({
       title: "Bookmark",
       subtext: "A link shown as a card",
       aliases: ["bookmark", "link", "url", "web", "embed"],
-      group: "Media",
+      group: EMBEDS_GROUP,
       icon: <Bookmark size={18} />,
       onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "bookmark" }),
     },
@@ -325,7 +349,7 @@ export default function TextEditor({
           getItems={async (query) =>
             filterSuggestionItems(
               groupTogether([
-                ...getDefaultReactSlashMenuItems(editor),
+                ...getDefaultReactSlashMenuItems(editor).filter(offered),
                 ...blockItems(),
                 ...getMultiColumnSlashMenuItems(editor),
                 ...documentItems(),
