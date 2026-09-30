@@ -11,6 +11,15 @@ const visibility = z
   .enum(["private", "public"])
   .describe("A public project can be read by anyone with its address; only members can edit it. Making one public takes the admin or owner role.")
 
+// A project the operator took down is public to nobody, whatever its
+// visibility says, as its workspace sees in the app.
+const TAKEN_DOWN =
+  "taken down by the operator after a report: nobody outside the workspace can read it, whatever its visibility says"
+
+function shownAs(project: { visibility: string; taken_down_at: string | null }) {
+  return project.taken_down_at ? `${project.visibility}, ${TAKEN_DOWN}` : project.visibility
+}
+
 function outline(nodes: TreeNode[], depth = 0): string[] {
   return nodes.flatMap((node) => [
     `${"  ".repeat(depth)}- ${node.kind === "folder" ? "folder" : node.type} "${node.name}" (${node.id})`,
@@ -78,7 +87,7 @@ export const projectTools = [
       if (!slug) return NO_ORG
       const { data, error } = await context.supabase
         .from("projects")
-        .select("id, name, visibility, source, documents(count)")
+        .select("id, name, visibility, taken_down_at, source, documents(count)")
         .eq("org_id", workspace_id)
         .eq("documents.kind", "standard")
         .is("documents.deleted_at", null)
@@ -89,13 +98,15 @@ export const projectTools = [
         id: project.id,
         name: project.name,
         visibility: project.visibility,
+        taken_down: project.taken_down_at !== null,
+        shown_as: shownAs(project),
         documents: project.documents[0]?.count ?? 0,
         imported_from: project.source,
         url: `${context.origin}/${slug}/${project.id}`,
       }))
       return {
         text: projects.length
-          ? projects.map((p) => `- "${p.name}" (${p.id}): ${p.visibility}, ${p.documents} documents`).join("\n")
+          ? projects.map((p) => `- "${p.name}" (${p.id}): ${p.shown_as}; ${p.documents} documents`).join("\n")
           : "This workspace has no projects yet.",
         data: { projects },
       }
@@ -152,7 +163,7 @@ export const projectTools = [
 
       return {
         text: [
-          `Project "${project.name}" (${project.id}), ${project.visibility}`,
+          `Project "${project.name}" (${project.id}), ${shownAs(project)}`,
           ...(tree.length ? outline(tree) : ["(empty)"]),
           ...(include_trash
             ? [`In the trash: ${trash.length ? trash.map((item) => `${item.kind === "folder" ? "folder" : item.type} "${item.title}" (${item.id})`).join(", ") : "nothing"}`]
@@ -164,6 +175,7 @@ export const projectTools = [
             workspace_id: project.org_id,
             name: project.name,
             visibility: project.visibility,
+            taken_down: project.taken_down_at !== null,
             imported_from: project.source,
             url: slug ? `${context.origin}/${slug}/${project.id}` : null,
           },
@@ -215,7 +227,12 @@ export const projectTools = [
     run: async (context, { project_id, visibility: wanted }) => {
       const result = await operations.setProjectVisibility(context.supabase, project_id, wanted)
       if ("error" in result) return result
-      return { text: `The project is now ${wanted}.`, data: { project_id, visibility: wanted } }
+      const project = await findProject(context, project_id)
+      const takenDown = Boolean(project?.taken_down_at)
+      return {
+        text: `The project is now ${wanted}.${takenDown ? ` It is also ${TAKEN_DOWN}.` : ""}`,
+        data: { project_id, visibility: wanted, taken_down: takenDown },
+      }
     },
   }),
 
