@@ -20,9 +20,11 @@ import { WORKSPACE_HOME } from "@/lib/home"
 import {
   changeRole,
   removeMember,
+  resendInvite,
   revokeInvite,
   type ActionResult,
 } from "./actions"
+import { announceInvite } from "./invite-form"
 
 function useAction() {
   const [pending, startTransition] = useTransition()
@@ -112,16 +114,21 @@ export function MemberActions({
   )
 }
 
+// An open invite offers its link. An expired one offers nothing that leads
+// to a dead link: it can be sent again, for 7 more days, or revoked.
 export function InviteActions({
   slug,
   inviteId,
   token,
+  expired,
 }: {
   slug: string
   inviteId: string
   token: string
+  expired: boolean
 }) {
   const { pending, run } = useAction()
+  const [sending, startSending] = useTransition()
 
   async function copyLink() {
     await navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
@@ -130,14 +137,25 @@ export function InviteActions({
 
   return (
     <TableCell className="text-right">
-      <Button variant="outline" size="sm" onClick={copyLink}>
-        Copy link
-      </Button>
+      {expired ? (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sending}
+          onClick={() => startSending(async () => announceInvite(await resendInvite(slug, inviteId)))}
+        >
+          {sending ? "Sending…" : "Send again"}
+        </Button>
+      ) : (
+        <Button variant="outline" size="sm" onClick={copyLink}>
+          Copy link
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="sm"
         className="ml-1"
-        disabled={pending}
+        disabled={pending || sending}
         onClick={() => run(() => revokeInvite(slug, inviteId))}
       >
         Revoke

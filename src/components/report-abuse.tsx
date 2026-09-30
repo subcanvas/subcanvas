@@ -18,9 +18,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
+import { reportAbuse } from "@/app/p/[projectId]/actions"
 
-// Every public page offers this (R6.7). Reports go to the operator.
+// Every public page offers this (R6.7). Reports go to the operator, who is
+// emailed each one when the server sends email.
 export function ReportAbuse({ projectId }: { projectId: string }) {
   const { docId } = useParams<{ docId?: string }>()
   const [open, setOpen] = useState(false)
@@ -31,14 +32,8 @@ export function ReportAbuse({ projectId }: { projectId: string }) {
   function submit(event: React.FormEvent) {
     event.preventDefault()
     startTransition(async () => {
-      const { error } = await createClient().rpc("report_abuse", {
-        p_project_id: projectId,
-        // The generated types mark this required; the column is nullable.
-        p_document_id: (docId ?? null) as string,
-        p_reason: reason,
-        p_reporter_email: email || undefined,
-      })
-      if (error) return void toast.error("The report could not be sent. Try again.")
+      const result = await reportAbuse(projectId, docId ?? null, reason, email)
+      if ("error" in result) return void toast.error(result.error)
       toast.success("Thanks. The report was sent.")
       setOpen(false)
       setReason("")

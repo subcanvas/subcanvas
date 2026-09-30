@@ -20,6 +20,7 @@ const NOT_EXPOSED: Record<string, string> = {
   "[org]/(org)/settings/members/actions.removeMember": "changes who has access, and billed seats",
   "[org]/(org)/settings/members/actions.createInvite": "changes who has access; sends email in the workspace's name",
   "[org]/(org)/settings/members/actions.revokeInvite": "kept with the rest of invites",
+  "[org]/(org)/settings/members/actions.resendInvite": "kept with the rest of invites; sends email in the workspace's name",
   "invite/[token]/actions.acceptInvite": "joining a workspace is a person's decision, made from the emailed link",
   // Billing. Paying needs a person and a card. Both actions only return a
   // Stripe link for the owner to open; a tool that reads the plan and
@@ -51,6 +52,10 @@ const NOT_EXPOSED: Record<string, string> = {
   // once they can be invited to it, so creating one waits for the members
   // tools. Every account already has a personal workspace to work in.
   "onboarding/actions.createOrg": "a team workspace is for inviting people, which has no tools yet",
+  // A report is a reader's word to the operator about a public page, and it
+  // emails the operator. An agent acts inside its own person's workspaces,
+  // and one that could file reports could flood that inbox.
+  "p/[projectId]/actions.reportAbuse": "a person's report to the operator; it emails them",
   // The consent screen is where a person lets an agent in. An agent must
   // never be able to answer it.
   "oauth/consent/actions.decideAuthorization": "approving an agent is the one thing an agent must not do",

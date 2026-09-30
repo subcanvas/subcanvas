@@ -3,7 +3,8 @@
 import { Eye } from "lucide-react"
 import { useEffect } from "react"
 
-import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
+import { PersonAvatar } from "@/components/person-avatar"
+import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { useSyncStatus } from "@/lib/sync/use-document-sync"
@@ -23,8 +24,8 @@ export function PresenceAvatars({
   const { peers, viewers } = useSyncStatus(provider)
 
   useEffect(() => {
-    provider.setUser({ id: user.id, name: user.name, color: user.color })
-  }, [provider, user.id, user.name, user.color])
+    provider.setUser({ id: user.id, name: user.name, color: user.color, avatarUrl: user.avatarUrl ?? null })
+  }, [provider, user.id, user.name, user.color, user.avatarUrl])
 
   const watching = viewers > 0 && (
     <span
@@ -45,14 +46,13 @@ export function PresenceAvatars({
           <Tooltip key={peer.id}>
             <TooltipTrigger
               render={
-                <Avatar className="size-6 ring-2 ring-background">
-                  <AvatarFallback
-                    className="text-xs font-medium text-white"
-                    style={{ backgroundColor: peer.color }}
-                  >
-                    {peer.name.charAt(0).toUpperCase() || "?"}
-                  </AvatarFallback>
-                </Avatar>
+                <PersonAvatar
+                  size="sm"
+                  className="ring-2 ring-background"
+                  name={peer.name}
+                  picture={peer.avatarUrl}
+                  color={peer.color}
+                />
               }
             />
             <TooltipContent>{peer.name}</TooltipContent>

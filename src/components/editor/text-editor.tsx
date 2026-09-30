@@ -47,7 +47,9 @@ import {
   type TextDocumentContext,
 } from "./document-link-block"
 
-export type EditorUser = { id: string; name: string; color: string }
+// `avatarUrl` is the profile picture others see beside this person's name
+// in the document (PresenceAvatars); carets and cursors show the name.
+export type EditorUser = { id: string; name: string; color: string; avatarUrl?: string | null }
 
 // The app says picture, not image (REQUIREMENTS.md, glossary), so BlockNote's
 // own words for its image block say so too. Search aliases are left alone.
