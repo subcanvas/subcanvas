@@ -28,7 +28,7 @@ This is the layout a Notion export has, which is what lets Import files read it 
 - **Names.** A file is named after its document. What no file system takes (`/ \ : * ? " < > |`) is left out or becomes a dash, a leading dot is dropped, and when two things in one folder would share a name, the later one gets a number: `Notes 2.md`.
 - **Links.** A link or a card to a document in the zip is a relative path to its file, so the files work together once unzipped: in an editor such as Obsidian or VS Code, or on GitHub. A link to a whiteboard opens its picture. Pictures and videos sit in the folder of the page that shows them, and the page points at them the same way: `![Service map](Setup/Service%20map.png)`.
 - **What stays an address.** A document that is not in the zip (in another project, or in the trash) keeps its address in the app, and so does a picture that Storage could not give.
-- **What is left out.** The trash, and everything inside a document that is in the trash. Folders keep their place even when empty.
+- **What is left out.** The trash, and everything inside a document or folder that is in the trash. Folders keep their place even when empty.
 
 ### How it is made
 
