@@ -109,7 +109,8 @@ export function ProjectTree({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
-  // A document that is linked from elsewhere, waiting for confirmation.
+  // A document, or a folder holding one, that is linked from elsewhere,
+  // waiting for confirmation.
   const [confirmTrash, setConfirmTrash] = useState<{
     kind: "folder" | "document"
     id: string
@@ -419,9 +420,9 @@ export function ProjectTree({
           <DialogHeader>
             <DialogTitle>Move “{confirmTrash?.name}” to the trash?</DialogTitle>
             <DialogDescription>
-              {confirmTrash?.kind === "folder" ? "What is in it is" : "It is"} linked from{" "}
+              {confirmTrash?.kind === "folder" ? "Something in it is" : "It is"} linked from{" "}
               {confirmTrash?.references.length === 1 ? "another document" : "other documents"}. Those links will show
-              it as trashed until you restore it.
+              it as trashed until you restore {confirmTrash?.kind === "folder" ? "the folder" : "it"}.
             </DialogDescription>
           </DialogHeader>
           <ul className="list-disc pl-5 text-sm">
