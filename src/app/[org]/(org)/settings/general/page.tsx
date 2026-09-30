@@ -152,7 +152,7 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
                 detail={
                   subscribed
                     ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
-                    : "Deletes every project, whiteboard, and document in it, for every member. It cannot be undone."
+                    : "Deletes every project, whiteboard, and page in it, for every member. It cannot be undone."
                 }
               >
                 {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}

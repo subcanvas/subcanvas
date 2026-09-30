@@ -90,7 +90,7 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
   const summary = [
     `This deletes your account and your personal workspace${
       teams === 0 ? "" : teams === 1 ? ", and 1 team workspace nobody else is in" : `, and ${teams} team workspaces nobody else is in`
-    }, with every project, whiteboard, document, picture and video in them.`,
+    }, with every project, whiteboard, page, picture and video in them.`,
     left.length === 1
       ? "You leave 1 team workspace; what you made there stays with it."
       : left.length > 1
