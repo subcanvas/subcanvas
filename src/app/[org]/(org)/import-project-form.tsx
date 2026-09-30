@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useActionState, useRef, useState } from "react"
 
+import { LimitRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,8 +23,17 @@ import { importFromGitHub, type ImportState } from "./actions"
 
 // Draws a public GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md.
-// `privateLimit` is the limit on private documents, when there is one.
-export function ImportProject({ slug, privateLimit }: { slug: string; privateLimit: number | null }) {
+// `canPublish`: an admin or owner, who may make the project public.
+// `privateLimit`: the limit on private documents, when there is one.
+export function ImportProject({
+  slug,
+  canPublish,
+  privateLimit,
+}: {
+  slug: string
+  canPublish: boolean
+  privateLimit: number | null
+}) {
   const router = useRouter()
   // An import that stops to show its notes leaves the page behind the dialog
   // as it was (see importFromGitHub), so it is refreshed once the dialog
@@ -47,7 +57,12 @@ export function ImportProject({ slug, privateLimit }: { slug: string; privateLim
         }
       />
       <DialogContent>
-        <ImportSteps slug={slug} privateLimit={privateLimit} onNotes={() => (stale.current = true)} />
+        <ImportSteps
+          slug={slug}
+          canPublish={canPublish}
+          privateLimit={privateLimit}
+          onNotes={() => (stale.current = true)}
+        />
       </DialogContent>
     </Dialog>
   )
@@ -57,10 +72,12 @@ export function ImportProject({ slug, privateLimit }: { slug: string; privateLim
 // it opens, so it always opens on the form.
 function ImportSteps({
   slug,
+  canPublish,
   privateLimit,
   onNotes,
 }: {
   slug: string
+  canPublish: boolean
   privateLimit: number | null
   onNotes: () => void
 }) {
@@ -125,29 +142,32 @@ function ImportSteps({
         />
       </div>
 
+      {/* Public by default for whoever may publish, since the repository
+          already is; an agent's import gets the same (lib/github/import-reference). */}
       <label className="flex items-start gap-2.5 text-sm">
         <input
           type="checkbox"
           name="public"
-          defaultChecked
-          disabled={pending}
-          className="mt-0.5 size-4 shrink-0 accent-cobalt"
+          defaultChecked={canPublish}
+          disabled={pending || !canPublish}
+          aria-describedby="import-public-detail"
+          className="mt-0.5 size-4 shrink-0 accent-cobalt disabled:opacity-50"
         />
         <span className="flex flex-col gap-0.5">
-          <span className="font-medium">Make this project public (the repository already is)</span>
-          <span className="text-xs leading-relaxed text-graphite">
-            Anyone with the link can read it. Only members can edit.
+          <span className={canPublish ? "font-medium" : "font-medium text-graphite"}>
+            Make this project public (the repository already is)
+          </span>
+          <span id="import-public-detail" className="text-xs leading-relaxed text-graphite">
+            {canPublish
+              ? "Anyone with the link can read it. Only members can edit."
+              : "Only an admin can make a project public, so this one will be private."}
             {privateLimit != null &&
-              ` Unticked, each README and each whiteboard inside a box counts toward the limit of ${privateLimit} private documents.`}
+              ` ${canPublish ? "Unticked, each" : "Each"} README and each whiteboard inside a box counts toward the limit of ${privateLimit} private documents.`}
           </span>
         </span>
       </label>
 
-      {state && "error" in state && (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      )}
+      {state && "error" in state && <LimitRefusal refused={state} />}
 
       <DialogFooter className="items-center">
         {pending && (

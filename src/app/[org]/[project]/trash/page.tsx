@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header"
 import { getOrgContext } from "@/lib/orgs"
 
-import { TrashRow } from "./trash-row"
+import { TrashRow, type TrashedItem } from "./trash-row"
 
 export const metadata = { title: "Trash" }
 
@@ -9,30 +9,55 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
   const { org: slug, project: projectId } = await params
   const { supabase, org, canEdit } = await getOrgContext(slug)
 
-  const { data: documents } = await supabase
-    .from("documents")
-    .select("id, title, type, deleted_at")
-    .eq("project_id", projectId)
-    .eq("org_id", org.id)
-    .eq("kind", "standard")
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false })
+  // What was put in the trash, not what went with it: a folder's documents
+  // and a document's nested ones come back with it and are not listed.
+  const [{ data: folders }, { data: documents }] = await Promise.all([
+    supabase
+      .from("folders")
+      .select("id, name, deleted_at")
+      .eq("project_id", projectId)
+      .eq("org_id", org.id)
+      .not("deleted_at", "is", null),
+    supabase
+      .from("documents")
+      .select("id, title, type, kind, deleted_at")
+      .eq("project_id", projectId)
+      .eq("org_id", org.id)
+      .not("deleted_at", "is", null),
+  ])
+  const items: (TrashedItem & { deletedAt: string })[] = [
+    ...(folders ?? []).map((folder) => ({
+      kind: "folder" as const,
+      id: folder.id,
+      title: folder.name,
+      what: "folder" as const,
+      deletedAt: folder.deleted_at!,
+    })),
+    // A description is the notes of a box or an arrow, in the trash because
+    // that was deleted.
+    ...(documents ?? []).map((document) => ({
+      kind: "document" as const,
+      id: document.id,
+      title: document.title,
+      what: document.kind === "description" ? ("notes" as const) : document.type,
+      deletedAt: document.deleted_at!,
+    })),
+  ].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt))
 
   return (
     <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
       <PageHeader
         title="Trash"
-        description="Restore a document to put it back where it was. Anything nested inside it comes back with it."
+        description="Restore something to put it back where it was, with everything that was inside it. Deleting it forever cannot be undone."
       />
 
-      {documents?.length ? (
+      {items.length ? (
         <ul className="flex flex-col divide-y overflow-hidden rounded-xl border border-rule bg-sheet">
-          {documents.map((document) => (
+          {items.map((item) => (
             <TrashRow
-              key={document.id}
+              key={item.id}
               project={{ slug: org.slug, orgId: org.id, projectId }}
-              id={document.id}
-              title={document.title}
+              item={item}
               canEdit={canEdit}
             />
           ))}

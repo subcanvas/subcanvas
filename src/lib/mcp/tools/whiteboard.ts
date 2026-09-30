@@ -1,9 +1,12 @@
 import { z } from "zod"
 
+import { trashHeldDocuments } from "@/lib/documents/held"
+import { removeMedia } from "@/lib/documents/media-cleanup"
 import { loadDocument } from "@/lib/sync/server-document"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
 import { MAX_ALT, MAX_BODY_TEXT, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { mediaHref } from "@/lib/whiteboard/media"
+import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
 import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
 
@@ -54,6 +57,25 @@ const edgeStyle = {
   color: color.optional(),
   icon: icon.nullable().optional().describe("An icon before the arrow's label. Null removes it."),
   emoji: emoji.nullable().optional().describe("One emoji before the arrow's label. Null removes it."),
+}
+
+// What deleted nodes and arrows held goes to the trash, as it does when a
+// person deletes them on the canvas, and the index of references follows
+// the content.
+async function afterObjectsDeleted(
+  context: ToolContext,
+  whiteboard: { id: string; org_id: string; project_id: string },
+  objectIds: string[]
+): Promise<{ text: string; ids: string[] }> {
+  const trashed = await trashHeldDocuments(context.supabase, whiteboard.id, objectIds)
+  await reindexLinks(context, whiteboard)
+  if ("error" in trashed) return { text: `What they held could not be moved to the trash: ${trashed.error}`, ids: [] }
+  const { documents } = trashed
+  if (!documents.length) return { text: "", ids: [] }
+  return {
+    text: `What they held is in the trash, and \`restore_document\` brings it back: ${documents.map((document) => `"${document.title}" (${document.id})`).join(", ")}.`,
+    ids: documents.map((document) => document.id),
+  }
 }
 
 // Runs one edit on a whiteboard the caller names, and words the result.
@@ -239,19 +261,31 @@ export const whiteboardTools = [
     title: "Delete nodes",
     group: "Whiteboards",
     description:
-      "Deletes nodes, along with every arrow attached to them and, for a group, everything inside it. Documents the nodes held are not deleted; they stay in the project. There is no trash for nodes, and a person's undo does not reach an agent's edits, so this is only undone by adding them again.",
+      "Deletes nodes, along with every arrow attached to them and, for a group, everything inside it. What they held (a description, or a whiteboard inside a node, with everything nested in it) goes to the project's trash, where `restore_document` brings it back; documents they only linked to stay where they are. The files of deleted pictures and videos are deleted. The nodes themselves are not kept anywhere, and a person's undo does not reach an agent's edits, so this is only undone by adding them again.",
     input: { whiteboard_id: whiteboardId, node_ids: z.array(nodeId("A node to delete.")).min(1).max(200) },
     kind: "destructive",
-    run: (context, { whiteboard_id, node_ids }) =>
-      change(
-        context,
-        whiteboard_id,
-        (doc) => edits.deleteNodes(doc, node_ids),
-        ({ nodes, edges }) => ({
-          text: `Deleted ${nodes.length} node${nodes.length === 1 ? "" : "s"} and ${edges.length} attached arrow${edges.length === 1 ? "" : "s"}.`,
-          data: { deleted_node_ids: nodes, deleted_edge_ids: edges },
-        })
-      ),
+    run: async (context, { whiteboard_id, node_ids }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const deleted = await editDocument(context, whiteboard.id, (doc) => {
+        const result = edits.deleteNodes(doc, node_ids)
+        // An agent has no undo, so a file no node shows any more goes now.
+        return "error" in result ? result : { ...result, media: unshownMedia(doc, whiteboard.id, result.media) }
+      })
+      if ("error" in deleted) return deleted
+      const { nodes, edges, media } = deleted
+      await removeMedia(context.supabase, mediaObjectsOf(media))
+      const held = await afterObjectsDeleted(context, whiteboard, [...nodes, ...edges])
+      return {
+        text: [
+          `Deleted ${nodes.length} node${nodes.length === 1 ? "" : "s"} and ${edges.length} attached arrow${edges.length === 1 ? "" : "s"}.`,
+          held.text,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        data: { whiteboard_id: whiteboard.id, deleted_node_ids: nodes, deleted_edge_ids: edges, trashed_document_ids: held.ids },
+      }
+    },
   }),
 
   defineTool({
@@ -300,16 +334,21 @@ export const whiteboardTools = [
     name: "delete_edges",
     title: "Delete arrows",
     group: "Whiteboards",
-    description: "Deletes arrows. The nodes they joined stay, and so does any document an arrow held.",
+    description:
+      "Deletes arrows. The nodes they joined stay. A document an arrow held goes to the project's trash, where `restore_document` brings it back; a document it only linked to stays where it is.",
     input: { whiteboard_id: whiteboardId, edge_ids: z.array(nodeId("An arrow to delete.")).min(1).max(400) },
     kind: "destructive",
-    run: (context, { whiteboard_id, edge_ids }) =>
-      change(
-        context,
-        whiteboard_id,
-        (doc) => edits.deleteEdges(doc, edge_ids),
-        ({ ids }) => ({ text: `Deleted ${ids.length} arrow${ids.length === 1 ? "" : "s"}.`, data: { deleted_edge_ids: ids } })
-      ),
+    run: async (context, { whiteboard_id, edge_ids }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const deleted = await editDocument(context, whiteboard.id, (doc) => edits.deleteEdges(doc, edge_ids))
+      if ("error" in deleted) return deleted
+      const held = await afterObjectsDeleted(context, whiteboard, deleted.ids)
+      return {
+        text: [`Deleted ${deleted.ids.length} arrow${deleted.ids.length === 1 ? "" : "s"}.`, held.text].filter(Boolean).join(" "),
+        data: { whiteboard_id: whiteboard.id, deleted_edge_ids: deleted.ids, trashed_document_ids: held.ids },
+      }
+    },
   }),
 
   defineTool({

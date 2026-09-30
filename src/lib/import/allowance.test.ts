@@ -53,7 +53,7 @@ describe("the allowance check before an import", () => {
     expect(await checkImportAllowance(client({ role: "editor", used: 90 }), "user", project, 10)).toEqual({ ok: true })
     expect(await checkImportAllowance(client({ role: "editor", used: 90 }), "user", project, 11)).toEqual({
       error:
-        "This import is 11 documents, and the free plan has room for 10 more private ones. Upgrade, make the project public, or import fewer files.",
+        "This import is 11 documents, and the free plan has room for 10 more private ones in this workspace. Import fewer files, or into a public project. Documents in the trash do not count.",
       limit: true,
     })
   })

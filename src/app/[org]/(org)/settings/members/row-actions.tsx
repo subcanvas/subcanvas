@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { toast } from "sonner"
 
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,11 +29,12 @@ import { announceInvite } from "./invite-form"
 
 function useAction() {
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
 
   function run(action: () => Promise<ActionResult>, onOk?: () => void) {
     startTransition(async () => {
       const result = await action()
-      if ("error" in result) toast.error(result.error)
+      if ("error" in result) showRefusal(result)
       else onOk?.()
     })
   }
@@ -129,6 +131,16 @@ export function InviteActions({
 }) {
   const { pending, run } = useAction()
   const [sending, startSending] = useTransition()
+  const showRefusal = useShowRefusal()
+
+  // Sending again can meet the editor limit, which is said as everywhere else.
+  function sendAgain() {
+    startSending(async () => {
+      const result = await resendInvite(slug, inviteId)
+      if ("error" in result) showRefusal(result)
+      else announceInvite(result)
+    })
+  }
 
   async function copyLink() {
     await navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`)
@@ -142,7 +154,7 @@ export function InviteActions({
           variant="outline"
           size="sm"
           disabled={sending}
-          onClick={() => startSending(async () => announceInvite(await resendInvite(slug, inviteId)))}
+          onClick={sendAgain}
         >
           {sending ? "Sending…" : "Send again"}
         </Button>

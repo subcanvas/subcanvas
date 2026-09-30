@@ -1,3 +1,6 @@
+import { PlanProvider } from "@/components/limit-refusal"
+import { upgradeFor } from "@/lib/billing/limit"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
 export default async function OrgLayout({
@@ -19,7 +22,10 @@ export default async function OrgLayout({
             : "An owner can fix this."}
         </p>
       )}
-      <div className="flex flex-1 flex-col">{children}</div>
+      {/* What every page here offers when an action meets a plan limit. */}
+      <PlanProvider upgrade={upgradeFor(role, billingConfigured())} billingHref={`/${slug}/settings/billing`}>
+        <div className="flex flex-1 flex-col">{children}</div>
+      </PlanProvider>
     </>
   )
 }

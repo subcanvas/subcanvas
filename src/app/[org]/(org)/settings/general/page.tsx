@@ -116,7 +116,7 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
               ? "This server limits how much the workspace keeps in pictures and videos."
               : plan?.paid
                 ? `Your plan includes ${formatBytes(storage.limit)} for pictures and videos.`
-                : `The free plan includes ${formatBytes(storage.limit)} for pictures and videos. Upgrading raises it.`
+                : `The free plan includes ${formatBytes(storage.limit)} for pictures and videos. ${isOwner ? "Upgrading raises it." : "An owner can upgrade to raise it."}`
           }
         >
           <StorageMeter used={storage.used} limit={storage.limit} />

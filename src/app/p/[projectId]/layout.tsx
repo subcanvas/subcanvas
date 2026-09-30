@@ -38,7 +38,8 @@ export default async function PublicProjectLayout({
     supabase
       .from("folders")
       .select("id, name, parent_folder_id, position")
-      .eq("project_id", project.id),
+      .eq("project_id", project.id)
+      .is("deleted_at", null),
     supabase
       .from("documents")
       .select("id, title, type, folder_id, parent_document_id, position")
@@ -54,7 +55,6 @@ export default async function PublicProjectLayout({
       projectName={project.name}
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={false}
-      canUpgrade={false}
     />
   )
 

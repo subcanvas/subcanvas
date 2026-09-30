@@ -6,6 +6,7 @@ import { useState, useTransition } from "react"
 
 import { importBatch } from "@/app/[org]/[project]/import-actions"
 import type { ProjectRef } from "@/app/[org]/[project]/tree-actions"
+import { LimitRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,12 +29,10 @@ import type { ImportTarget } from "./import-dialog"
 export function PasteMarkdownDialog({
   project,
   target,
-  canUpgrade,
   onClose,
 }: {
   project: ProjectRef
   target: ImportTarget
-  canUpgrade: boolean
   onClose: () => void
 }) {
   const router = useRouter()
@@ -86,17 +85,8 @@ export function PasteMarkdownDialog({
               className="h-56 max-h-[50vh] resize-none overflow-y-auto font-mono text-[13px] [field-sizing:fixed]"
             />
           </div>
-          {failure && (
-            <p role="alert" className="text-sm text-destructive">
-              {failure.error}
-            </p>
-          )}
+          {failure && <LimitRefusal refused={failure} />}
           <DialogFooter>
-            {failure?.limit && canUpgrade && (
-              <Button variant="outline" type="button" onClick={() => router.push(`/${project.slug}/settings/billing`)}>
-                Upgrade
-              </Button>
-            )}
             <Button type="submit" disabled={pending || !markdown.trim()}>
               {pending && <Loader2 className="animate-spin" />}
               Create document

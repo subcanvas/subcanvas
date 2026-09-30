@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 
-import { EDITOR_LIMIT_MESSAGE, limitMessage } from "@/lib/billing/limit"
+import { editorLimitMessage, limitMessage } from "@/lib/billing/limit"
 import { syncSeats } from "@/lib/billing/stripe"
 import { emailConfigured, sendEmail, type SendResult } from "@/lib/email"
 import { inviteEmail } from "@/lib/email-messages"
@@ -14,7 +14,8 @@ import { createClient } from "@/lib/supabase/server"
 // Every action relies on RLS for authorization. When a policy filters the
 // row out, the write affects nothing, which is reported as "not allowed".
 
-export type ActionResult = { error: string } | { ok: true }
+// `limit` marks the free plan's editor limit, so the page can say what to do.
+export type ActionResult = { error: string; limit?: true } | { ok: true }
 
 const NOT_ALLOWED = { error: "You do not have permission to do that." }
 
@@ -38,10 +39,11 @@ export async function changeRole(
     .eq("user_id", userId)
     .select("user_id")
 
-  if (error)
-    return error.code === "42501"
-      ? NOT_ALLOWED
-      : { error: limitMessage(error.code) ?? error.message }
+  if (error) {
+    if (error.code === "42501") return NOT_ALLOWED
+    const limit = limitMessage(error.code, error.message)
+    return limit ? { error: limit, limit: true } : { error: error.message }
+  }
   if (!data.length) return NOT_ALLOWED
 
   await syncSeats(orgId)
@@ -77,7 +79,7 @@ export async function removeMember(
 export type InviteDelivery = SendResult | "limit"
 
 export type InviteResult =
-  | { error: string }
+  | { error: string; limit?: true }
   | { ok: true; email: string; renewed: boolean; delivery: InviteDelivery }
 
 export async function createInvite(
@@ -128,7 +130,7 @@ async function invite(
     const { data: usage } = await supabase.rpc("org_usage", { p_org_id: orgId })
     const plan = usage?.[0]
     if (plan && !plan.paid && plan.editor_limit != null && plan.editors >= plan.editor_limit)
-      return { error: EDITOR_LIMIT_MESSAGE }
+      return { error: editorLimitMessage(plan.editor_limit), limit: true }
   }
 
   const { data, error } = await supabase.rpc("create_invite", {

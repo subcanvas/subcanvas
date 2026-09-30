@@ -25,14 +25,14 @@ import { toast } from "sonner"
 import {
   createDocument,
   createFolder,
-  deleteFolder,
   listReferences,
   moveItem,
   renameItem,
-  trashDocument,
+  trashItem,
   type ActionResult,
   type ProjectRef,
 } from "@/app/[org]/[project]/tree-actions"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -89,7 +89,6 @@ export function ProjectTree({
   nodes,
   canEdit,
   canDelete = false,
-  canUpgrade,
   trashHref,
 }: {
   project: ProjectRef
@@ -100,13 +99,12 @@ export function ProjectTree({
   canEdit: boolean
   // Admins and owners may delete the whole project.
   canDelete?: boolean
-  // Whether this server has a paid plan to offer when the limit is hit.
-  canUpgrade: boolean
 }) {
   const router = useRouter()
   const params = useParams<{ docId?: string }>()
   const activeId = params.docId ?? null
   const [, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -152,18 +150,7 @@ export function ProjectTree({
   function run(action: () => Promise<ActionResult | void>, onOk?: (result: ActionResult) => void) {
     startTransition(async () => {
       const result = await action()
-      if (result && "error" in result)
-        toast.error(
-          result.error,
-          result.limit && canUpgrade
-            ? {
-                action: {
-                  label: "Upgrade",
-                  onClick: () => router.push(`/${project.slug}/settings/billing`),
-                },
-              }
-            : undefined
-        )
+      if (result && "error" in result) showRefusal(result)
       else if (result) onOk?.(result)
     })
   }
@@ -183,9 +170,10 @@ export function ProjectTree({
     else run(() => createDocument(project, type, container))
   }
 
-  function trash(id: string) {
+  // Folders and documents alike: to the trash, with everything inside.
+  function trash(kind: "folder" | "document", id: string) {
     run(
-      () => trashDocument(project, id),
+      () => trashItem(project, kind, id),
       () => {
         toast.success("Moved to trash.")
         // Leave the page if it, or something it contains, was open.
@@ -200,7 +188,7 @@ export function ProjectTree({
     startTransition(async () => {
       const references = await listReferences(id)
       if (references.length) setConfirmTrash({ id, name, references })
-      else trash(id)
+      else trash("document", id)
     })
   }
 
@@ -336,14 +324,10 @@ export function ProjectTree({
               {node.kind === "document" && <DownloadItem id={node.id} type={node.type} />}
               <DropdownMenuItem
                 variant="destructive"
-                onClick={() =>
-                  node.kind === "folder"
-                    ? run(() => deleteFolder(project, node.id))
-                    : requestTrash(node.id, node.name)
-                }
+                onClick={() => (node.kind === "folder" ? trash("folder", node.id) : requestTrash(node.id, node.name))}
               >
                 <Trash2 />
-                {node.kind === "folder" ? "Delete folder" : "Move to trash"}
+                Move to trash
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -402,7 +386,6 @@ export function ProjectTree({
           project={project}
           target={bringingIn.target}
           dropped={bringingIn.dropped}
-          canUpgrade={canUpgrade}
           onClose={() => setBringingIn(null)}
         />
       )}
@@ -414,7 +397,6 @@ export function ProjectTree({
           key={bringingIn.key}
           project={project}
           target={bringingIn.target}
-          canUpgrade={canUpgrade}
           onClose={() => setBringingIn(null)}
         />
       )}
@@ -447,7 +429,7 @@ export function ProjectTree({
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirmTrash) trash(confirmTrash.id)
+                if (confirmTrash) trash("document", confirmTrash.id)
                 setConfirmTrash(null)
               }}
             >

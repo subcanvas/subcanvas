@@ -4,6 +4,7 @@ import Link from "next/link"
 import { PageHeader } from "@/components/page-header"
 import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
+import { hasRole } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 
 import { ImportProject } from "./import-project-form"
@@ -14,7 +15,9 @@ export const maxDuration = 60
 
 export default async function OrgPage({ params }: PageProps<"/[org]">) {
   const { org: slug } = await params
-  const { supabase, org, canEdit, plan } = await getOrgContext(slug)
+  const { supabase, org, canEdit, role, plan } = await getOrgContext(slug)
+  // Making a project public takes an admin, at creation too.
+  const canPublish = hasRole(role, "admin")
   const privateLimit = privateDocumentLimit(plan)
 
   const { data: projects } = await supabase
@@ -36,8 +39,8 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           canEdit &&
           Boolean(projects?.length) && (
             <div className="flex flex-wrap justify-end gap-2">
-              <ImportProject slug={org.slug} privateLimit={privateLimit} />
-              <NewProject slug={org.slug} orgId={org.id} privateLimit={privateLimit} />
+              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
+              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )
         }
@@ -87,8 +90,8 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           </p>
           {canEdit && (
             <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <ImportProject slug={org.slug} privateLimit={privateLimit} />
-              <NewProject slug={org.slug} orgId={org.id} privateLimit={privateLimit} />
+              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
+              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )}
           {canEdit && (

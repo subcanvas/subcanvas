@@ -70,7 +70,7 @@ export async function createChildWhiteboard(
   context: WhiteboardContext,
   objectId: string,
   title: string
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string } | { error: string; limit?: true }> {
   const { data, error } = await supabase
     .from("documents")
     .insert({
@@ -85,13 +85,12 @@ export async function createChildWhiteboard(
     .select("id")
     .single()
 
-  if (error)
+  if (error) {
+    const limit = limitMessage(error.code, error.message)
+    if (limit) return { error: limit, limit: true }
     return {
-      error:
-        limitMessage(error.code) ??
-          (error.code === "42501"
-            ? "You do not have permission to create documents."
-            : error.message),
+      error: error.code === "42501" ? "You do not have permission to create documents." : error.message,
     }
+  }
   return { id: data.id }
 }

@@ -42,6 +42,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 | R1.7 | A document shows a **"Linked from"** list of every place that links to it. |
 | R1.8 | Deleting a document that has links to it warns the user and lists them. Deleting a link never deletes the document. |
 | R1.9 | Cycles are allowed through links (A links to B links to A) but not through parentage. |
+| R1.10 | Deleting means one thing inside a project: a folder or a document goes to the project's **trash** with everything inside it, and so does what a deleted node or arrow held (R4.1, R4.2). From the trash it is restored where it was, or deleted forever. A project or a workspace is deleted permanently, after its name is typed. |
 
 ## 2. Navigation
 
@@ -87,6 +88,7 @@ An **object** is a node or an arrow. Groups contain nodes.
 | ID | Requirement |
 |---|---|
 | R3.14 | Create, delete, move, resize, connect, multi-select, copy/paste, undo/redo, pan, and zoom. |
+| R3.14a | Deleting an object sends what it held to the trash (R1.10); undo brings the object back with it. A picture's or video's file is deleted once nothing shows it and the deletion can no longer be undone. On a touch screen an object is deleted from its side panel. |
 | R3.15 | A toolbar for adding boxes, text nodes, groups, and pictures and videos. |
 
 ## 4. What objects hold, and the side panel
@@ -125,7 +127,7 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R6.3 | Roles per workspace: **Owner** (billing, delete the workspace, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
 | R6.4 | Members are invited to a team workspace by email with a role. |
 | R6.5 | All data access is enforced by Postgres row-level security scoped to workspace membership and role. |
-| R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the workspace can edit). Admins change it, behind a confirmation that says plainly what public means. Public pages are not indexed by search engines unless the workspace opts in **(opt-in later)**. |
+| R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the workspace can edit). Only admins and owners make a project public, whether when creating it (including by a GitHub import or an agent) or later, and change it back, behind a confirmation that says plainly what public means. Editors create private projects. Public pages are not indexed by search engines unless the workspace opts in **(opt-in later)**. |
 | R6.7 | Public pages carry a way to report abuse, and the operator can take a project down. |
 | R6.8 | A person deletes their own account from Profile, typing its email to confirm. That deletes their personal workspace and every team workspace nobody else is in, with everything in them, pictures and videos included, then the account. Team workspaces other people are still in keep what they made there. It is refused, naming the workspace and what to do, while they are the only owner of a team workspace with other members, or while a workspace it would delete has a running subscription. |
 
@@ -134,12 +136,12 @@ An **object** is a node or an arrow. Groups contain nodes.
 | ID | Requirement |
 |---|---|
 | R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and up to **3 editors**. Viewers are unlimited. |
-| R7.1a | Descriptions (R4.2) and documents in the trash do not count toward the private document limit. |
+| R7.1a | Descriptions (R4.2) and what is in the trash, including everything inside a trashed document or folder, do not count toward the private document limit. Restoring counts everything that comes back. |
 | R7.2 | **Paid plan, Pro:** $5 per editor per month through Stripe, billed per workspace, personal or team (a personal workspace has one editor). Unlimited private documents and editors. |
 | R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
 | R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |
-| R7.5 | At a limit, the blocked action (a new private document, a fourth editor) shows why and offers the upgrade. Everything that exists stays editable. Making a project public is always allowed; making it private is checked against the limit. |
+| R7.5 | At a limit, the blocked action (a new private document, a restore, an import, a fourth editor, making a project private) says the same thing wherever it happens: what the limit is, then, where the server sells a plan, the upgrade for an owner, or a line telling anyone else to ask an owner. Everything that exists stays editable. An admin can always make a project public; making it private is checked against the limit. |
 | R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. A workspace left with more editors than the free plan includes has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
 | R7.7 | Limits are a deployment setting and are **off by default**, so a self-hosted server has no limits and needs no billing setup. With Stripe unconfigured, billing navigation and upgrade prompts are hidden. |
 

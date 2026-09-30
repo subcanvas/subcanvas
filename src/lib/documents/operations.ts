@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { limitMessage } from "@/lib/billing/limit"
 import type { Database } from "@/lib/supabase/database.types"
+import { loadDocument } from "@/lib/sync/server-document"
 import type { Container, DocumentType } from "@/lib/tree"
+import { edgesMap, nodesMap } from "@/lib/whiteboard/schema"
 
 import { listMedia, removeMedia } from "./media-cleanup"
+import { fail, NOT_ALLOWED, type OperationResult } from "./result"
 
 // What can be done to a project's folders and documents, as plain functions
 // over the caller's Supabase client. The server actions and the MCP tools
@@ -17,16 +19,12 @@ import { listMedia, removeMedia } from "./media-cleanup"
 type Client = SupabaseClient<Database>
 
 export type ProjectScope = { orgId: string; projectId: string }
-// `limit` marks the free-tier limit, so the caller can offer the upgrade.
-export type OperationResult<T = object> = { error: string; limit?: true } | ({ ok: true } & T)
+export { fail, NOT_ALLOWED, type OperationResult }
 
-export const NOT_ALLOWED = { error: "You do not have permission to do that." }
-
-export function fail(error: { code?: string; message: string }): { error: string; limit?: true } {
-  const limit = limitMessage(error.code)
-  if (limit) return { error: limit, limit: true }
-  return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
-}
+// Things inside a project are folders and documents. Either goes to the
+// trash and comes back from it with everything inside it; only from the
+// trash is it deleted for good.
+export type ItemKind = "folder" | "document"
 
 // New items go after their siblings.
 function nextPosition() {
@@ -191,53 +189,87 @@ export async function listReferences(supabase: Client, id: string): Promise<stri
   return (data ?? []).map((row) => row.source_title)
 }
 
-export async function trashDocument(supabase: Client, id: string): Promise<OperationResult> {
-  const { data, error } = await supabase
-    .from("documents")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id)
-    .select("id")
+export async function trashItem(supabase: Client, kind: ItemKind, id: string): Promise<OperationResult> {
+  const deletedAt = { deleted_at: new Date().toISOString() }
+  const { data, error } =
+    kind === "folder"
+      ? await supabase.from("folders").update(deletedAt).eq("id", id).select("id")
+      : await supabase.from("documents").update(deletedAt).eq("id", id).select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
   return { ok: true }
 }
 
-export async function restoreDocument(supabase: Client, id: string): Promise<OperationResult> {
+// Where a restored item went: back where it was; to the top of the project,
+// because what it was in is still in the trash; or, for a document that a
+// whiteboard object held, under that whiteboard, because the object is gone.
+export type Restored = { restoredTo: "place" | "top" | "whiteboard" }
+
+export async function restoreItem(
+  supabase: Client,
+  kind: ItemKind,
+  id: string
+): Promise<OperationResult<Restored>> {
+  if (kind === "folder") {
+    const { data: folder } = await supabase.from("folders").select("parent_folder_id").eq("id", id).maybeSingle()
+    if (!folder) return NOT_ALLOWED
+    const { data, error } = await supabase.rpc("restore_folder", { p_folder_id: id })
+    if (error) return fail(error)
+    if (!data.length) return NOT_ALLOWED
+    return { ok: true, restoredTo: folder.parent_folder_id && !data[0].parent_folder_id ? "top" : "place" }
+  }
+
   const { data: document } = await supabase
     .from("documents")
-    .select("parent_document_id")
+    .select("parent_document_id, parent_object_id, folder_id")
     .eq("id", id)
     .maybeSingle()
   if (!document) return NOT_ALLOWED
+  const objectGone =
+    document.parent_document_id && document.parent_object_id
+      ? !(await objectHolds(supabase, document.parent_document_id, document.parent_object_id, id))
+      : false
 
-  // If the parent is in the trash too, restore to the project root rather
-  // than somewhere invisible.
-  let detach = false
-  if (document.parent_document_id) {
-    const { data: parent } = await supabase
-      .from("documents")
-      .select("deleted_at")
-      .eq("id", document.parent_document_id)
-      .maybeSingle()
-    detach = !parent || parent.deleted_at !== null
-  }
-
-  const { data, error } = await supabase
-    .from("documents")
-    .update({
-      deleted_at: null,
-      ...(detach ? { parent_document_id: null, parent_object_id: null } : {}),
-    })
-    .eq("id", id)
-    .select("id")
+  const { data, error } = await supabase.rpc("restore_document", { p_document_id: id, p_object_gone: objectGone })
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
-  return { ok: true }
+  const [back] = data
+  const top =
+    (document.parent_document_id && !back.parent_document_id) || (document.folder_id && !back.folder_id)
+  return { ok: true, restoredTo: top ? "top" : objectGone ? "whiteboard" : "place" }
 }
 
-export async function deleteDocumentForever(supabase: Client, id: string): Promise<OperationResult> {
-  // The pictures and videos on it, and on the whiteboards inside it, which
-  // the delete cascades to (media-cleanup.ts).
+// Whether a whiteboard object still holds a document, read from the
+// whiteboard as last saved. A whiteboard that cannot be read, or a parent
+// that is a text document, is taken to still hold it.
+async function objectHolds(supabase: Client, parentId: string, objectId: string, documentId: string) {
+  const { data: parent } = await supabase.from("documents").select("type").eq("id", parentId).maybeSingle()
+  if (parent?.type !== "whiteboard") return true
+  const doc = await loadDocument(supabase, parentId)
+  if (!doc) return true
+  const object = nodesMap(doc).get(objectId) ?? edgesMap(doc).get(objectId)
+  return object?.get("docId") === documentId
+}
+
+export async function deleteItemForever(supabase: Client, kind: ItemKind, id: string): Promise<OperationResult> {
+  if (kind === "folder") {
+    // The pictures and videos of every document in it, which the delete
+    // cascades to (media-cleanup.ts).
+    const { data: media } = await supabase.rpc("folder_media_objects", { p_folder_id: id })
+    const { data, error } = await supabase
+      .from("folders")
+      .delete()
+      .eq("id", id)
+      .not("deleted_at", "is", null)
+      .select("id")
+    if (error) return fail(error)
+    if (!data.length) return NOT_ALLOWED
+    await removeMedia(supabase, media ?? [])
+    return { ok: true }
+  }
+
+  // The pictures and videos on it, and on the documents inside it, which the
+  // delete cascades to (media-cleanup.ts).
   const { data: doomed } = await supabase.from("documents").select("org_id").eq("id", id).maybeSingle()
   const media = doomed ? await listMedia(supabase, doomed.org_id, id) : []
 
@@ -253,12 +285,6 @@ export async function deleteDocumentForever(supabase: Client, id: string): Promi
   return { ok: true }
 }
 
-export async function deleteFolder(supabase: Client, id: string): Promise<OperationResult> {
-  const { error } = await supabase.rpc("delete_folder", { p_folder_id: id })
-  if (error) return fail(error)
-  return { ok: true }
-}
-
 export async function setProjectVisibility(
   supabase: Client,
   projectId: string,
@@ -269,10 +295,15 @@ export async function setProjectVisibility(
     .update({ visibility })
     .eq("id", projectId)
     .select("id")
-  if (error) return fail(error)
+  if (error) return error.code === "42501" ? { error: ONLY_ADMINS_CHANGE_VISIBILITY } : fail(error)
   if (!data.length) return NOT_ALLOWED
   return { ok: true }
 }
+
+// Making a project public, at creation or later, takes an admin (owners
+// are admins too). The database says so on every path; these are its words.
+export const ONLY_ADMINS_PUBLISH = "Only an admin can make a project public."
+export const ONLY_ADMINS_CHANGE_VISIBILITY = "Only an admin can change who can see a project."
 
 // The same limit as the table's check.
 const MAX_PROJECT_NAME = 120
@@ -327,10 +358,14 @@ export async function createProject(
     .insert({ org_id: orgId, name: trimmed, visibility, created_by: userId })
     .select("id")
     .single()
-  if (error)
-    return {
-      error:
-        error.code === "42501" ? "You do not have permission to create projects." : error.message,
-    }
+  if (error) return { error: projectRefusal(error, visibility) }
   return { ok: true, id: data.id }
+}
+
+// Why a new project was refused. The database checks who may make one
+// public before it checks who may make one at all, so a refusal of a public
+// project says the first.
+export function projectRefusal(error: { code?: string; message: string }, visibility: "private" | "public") {
+  if (error.code !== "42501") return error.message
+  return visibility === "public" ? ONLY_ADMINS_PUBLISH : "You do not have permission to create projects."
 }

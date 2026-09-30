@@ -34,8 +34,20 @@ const CHOICES = [
   },
 ] as const
 
-// `privateLimit` is the limit on private documents, when there is one.
-export function NewProject({ slug, orgId, privateLimit }: { slug: string; orgId: string; privateLimit: number | null }) {
+// `canPublish`: an admin or owner, who may make the project public. For
+// anyone else the choice is shown, off, with the reason.
+// `privateLimit`: the limit on private documents, when there is one.
+export function NewProject({
+  slug,
+  orgId,
+  canPublish,
+  privateLimit,
+}: {
+  slug: string
+  orgId: string
+  canPublish: boolean
+  privateLimit: number | null
+}) {
   const [state, action, pending] = useActionState(createProject.bind(null, slug, orgId), null)
   const [visibility, setVisibility] = useState<"private" | "public">("private")
 
@@ -53,7 +65,9 @@ export function NewProject({ slug, orgId, privateLimit }: { slug: string; orgId:
         <form action={action} className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle>New project</DialogTitle>
-            <DialogDescription>You can change who sees it later.</DialogDescription>
+            <DialogDescription>
+              {canPublish ? "You can change who sees it later." : "An admin can change who sees it later."}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-2">
@@ -71,10 +85,12 @@ export function NewProject({ slug, orgId, privateLimit }: { slug: string; orgId:
                   type="button"
                   role="radio"
                   aria-checked={visibility === choice.value}
+                  disabled={choice.value === "public" && !canPublish}
+                  aria-describedby={choice.value === "public" && !canPublish ? "public-needs-admin" : undefined}
                   onClick={() => setVisibility(choice.value)}
                   className={cn(
-                    "flex flex-col gap-1 rounded-lg border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                    visibility === choice.value ? "border-cobalt bg-accent" : "border-rule hover:border-input"
+                    "flex flex-col gap-1 rounded-lg border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60",
+                    visibility === choice.value ? "border-cobalt bg-accent" : "border-rule enabled:hover:border-input"
                   )}
                 >
                   <span className="flex items-center gap-1.5 text-sm font-medium">
@@ -90,6 +106,11 @@ export function NewProject({ slug, orgId, privateLimit }: { slug: string; orgId:
                 </button>
               ))}
             </div>
+            {!canPublish && (
+              <p id="public-needs-admin" className="text-xs text-graphite">
+                Only an admin can make a project public.
+              </p>
+            )}
           </fieldset>
 
           {state?.error && (

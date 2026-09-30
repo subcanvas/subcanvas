@@ -22,6 +22,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { toast } from "sonner"
 
 import type { EditorUser } from "@/components/editor/text-editor"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -33,7 +34,7 @@ import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
-import { MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
+import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
 import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
 import {
@@ -47,9 +48,11 @@ import { Cursors } from "./cursors"
 import { edgeTypes } from "./edge"
 import { HintBar, isModKey, KEYS, type HintState } from "./hint-bar"
 import { Inspector } from "./inspector"
+import { mediaOnClipboard } from "./media-release"
 import { ModeToggle, storedMode, storeMode, type Mode } from "./mode-toggle"
 import { nodeTypes } from "./nodes"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
+import { useHeldContent } from "./use-held-content"
 import { useMediaUploads } from "./use-media-uploads"
 
 const PASTE_OFFSET = 24
@@ -93,7 +96,9 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
   const [mode, setMode] = useState<Mode>(storedMode)
   const canEdit = editable && mode === "edit"
 
-  const wb = useWhiteboard(provider.doc, canEdit)
+  const showRefusal = useShowRefusal()
+  const followHeld = useHeldContent(context)
+  const wb = useWhiteboard(provider.doc, canEdit, followHeld)
   const flow = useReactFlow<FlowNode, FlowEdge>()
   const store = useStoreApi()
   const router = useRouter()
@@ -377,6 +382,7 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
     const clip = clipOfSelection()
     if (!clip) return
     clipboard = clip
+    mediaOnClipboard(clip.nodes.flatMap((node) => node.mediaPath ?? []))
     pasteCount.current = 0
     // Best effort: the whiteboard pastes from its own clipboard, this is for
     // pasting into anything else. A browser that refuses is not an error.
@@ -397,7 +403,11 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
       })
     )
     const kept = nodes.filter((node) => node !== null)
-    if (full) toast.error(`Pictures and videos were left out. ${full}`)
+    if (full)
+      showRefusal({
+        error: `Pictures and videos were left out. ${full}`,
+        ...(isFreePlanStorageLimit(full) ? { limit: true as const } : {}),
+      })
     else if (kept.length < nodes.length) toast.error("A picture or video could not be copied to this whiteboard.")
     return { ...clip, nodes: kept }
   }
@@ -777,6 +787,8 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
             user={user}
             onNodeChange={wb.updateNode}
             onEdgeChange={wb.updateEdge}
+            // The same as the Delete key, for a touch screen that has none.
+            onDelete={canEdit ? removeSelection : undefined}
             onClose={() => setDismissed(selectedId)}
           />
         </>

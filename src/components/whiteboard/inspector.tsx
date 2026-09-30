@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink, X } from "lucide-react"
+import { ExternalLink, Trash2, X } from "lucide-react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import { mediaHref } from "@/lib/whiteboard/media"
 import {
@@ -22,6 +23,7 @@ import type { NodeShape } from "@/lib/whiteboard/shapes"
 import { nodeLabel } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
+import { KEYS } from "./hint-bar"
 import { ObjectDocument } from "./object-document"
 import { EmojiField, IconField, ShapeField } from "./pickers"
 
@@ -37,6 +39,7 @@ export function Inspector({
   user,
   onNodeChange,
   onEdgeChange,
+  onDelete,
   onClose,
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
@@ -47,10 +50,13 @@ export function Inspector({
   user: EditorUser
   onNodeChange: (id: string, patch: Partial<Omit<WbNode, "id">>) => void
   onEdgeChange: (id: string, patch: Partial<Omit<WbEdge, "id">>) => void
+  // Deletes the object, as the Delete key does. Absent when it cannot be.
+  onDelete?: () => void
   onClose: () => void
 }) {
   const isNode = "node" in selection
   const name = isNode ? selection.node.title : selection.edge.label
+  const what = isNode ? nodeLabel(selection.node) : "Arrow"
 
   return (
     <aside
@@ -65,11 +71,29 @@ export function Inspector({
     >
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
         <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
-          {isNode ? nodeLabel(selection.node) : "Arrow"}
+          {what}
         </span>
         <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
           {name || (isNode ? "Untitled" : "No label")}
         </h2>
+        {onDelete && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${what.toLowerCase()}`}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 />
+                </Button>
+              }
+            />
+            <TooltipContent>{`Delete ${KEYS.remove}`}</TooltipContent>
+          </Tooltip>
+        )}
         <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>
           <X />
         </Button>

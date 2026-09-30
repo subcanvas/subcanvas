@@ -67,7 +67,7 @@ export async function checkImportAllowance(
   const room = Math.max(0, plan.private_document_limit - plan.private_documents)
   if (documents <= room) return { ok: true }
   return {
-    error: `This import is ${documents} ${documents === 1 ? "document" : "documents"}, and the free plan has room for ${room} more private ${room === 1 ? "one" : "ones"}. Upgrade, make the project public, or import fewer files.`,
+    error: `This import is ${documents} ${documents === 1 ? "document" : "documents"}, and the free plan has room for ${room} more private ${room === 1 ? "one" : "ones"} in this workspace. Import fewer files, or into a public project. Documents in the trash do not count.`,
     limit: true,
   }
 }
@@ -202,9 +202,13 @@ export async function writeImportBatch(
     batch.documents.map((document) => ({ id: document.id, title: document.title, container: place(document.parent) }))
   )
   if ("error" in created) {
-    // The folders were made for these documents. Innermost first: only an
-    // empty folder can be deleted.
-    for (const folder of [...batch.folders].reverse()) await operations.deleteFolder(supabase, folder.id)
+    // The folders were made for these documents a moment ago, and none of
+    // them was: they hold nothing, and go.
+    if (batch.folders.length)
+      await supabase
+        .from("folders")
+        .delete()
+        .in("id", batch.folders.map((folder) => folder.id))
     return created
   }
 

@@ -98,8 +98,9 @@ const { document_id: page } = await ok(owner, "create_document", {
 await ok(owner, "rename_document", { id: page, name: "Design notes (agent)" })
 await ok(owner, "rename_document", { kind: "folder", id: folder_id, name: "Agent notes" })
 await ok(owner, "move_document", { id: page, to: { kind: "root" } })
-await refused(owner, "delete_folder", { folder_id: "00000000-0000-4000-8000-000000000000" }, /permission|allowed/i)
-await ok(owner, "delete_folder", { folder_id })
+await refused(owner, "trash_document", { kind: "folder", id: "00000000-0000-4000-8000-000000000000" }, /permission|allowed/i)
+await ok(owner, "trash_document", { kind: "folder", id: folder_id })
+await ok(owner, "delete_document_forever", { kind: "folder", id: folder_id })
 
 // Text, by block id.
 let read = await ok(owner, "read_text_document", { document_id: page })
@@ -174,15 +175,22 @@ assert.equal(drawn.nodes.find((node) => node.id === browser).doc_id, insideBrows
 assert.ok(drawn.nodes.find((node) => node.id === heading))
 assert.equal((await ok(owner, "read_text_document", { document_id: description })).blocks[0].markdown, "The API is a set of **route handlers**.")
 
+// A deleted node takes what it held to the trash, and it comes back under
+// the whiteboard, since the node is gone.
+const { node_ids: [temporary] } = await ok(owner, "add_nodes", { whiteboard_id: board, nodes: [{ title: "Temporary" }] })
+const { document_id: held } = await ok(owner, "attach_document", { whiteboard_id: board, object_id: temporary, type: "whiteboard" })
+assert.deepEqual((await ok(owner, "delete_nodes", { whiteboard_id: board, node_ids: [temporary] })).trashed_document_ids, [held])
+assert.equal((await ok(owner, "restore_document", { id: held })).restored_to, "whiteboard")
+
 // Trash and back.
 const { document_id: doomed } = await ok(owner, "create_document", { project_id, type: "text", title: "Doomed" })
-await refused(owner, "delete_document_forever", { document_id: doomed }, /permission/)
-await ok(owner, "trash_document", { document_id: doomed })
+await refused(owner, "delete_document_forever", { id: doomed }, /permission/)
+await ok(owner, "trash_document", { id: doomed })
 const trashed = await ok(owner, "get_project", { project_id, include_trash: true })
-assert.deepEqual(trashed.trash.map((document) => document.id), [doomed])
-await ok(owner, "restore_document", { document_id: doomed })
-await ok(owner, "trash_document", { document_id: doomed })
-await ok(owner, "delete_document_forever", { document_id: doomed })
+assert.deepEqual(trashed.trash.map((item) => item.id), [doomed])
+await ok(owner, "restore_document", { id: doomed })
+await ok(owner, "trash_document", { id: doomed })
+await ok(owner, "delete_document_forever", { id: doomed })
 
 // Embeds need a public project.
 await refused(owner, "get_embed_snippet", { whiteboard_id: board }, /private/)
@@ -195,6 +203,8 @@ await ok(owner, "set_project_visibility", { project_id, visibility: "private" })
 const imported = await call(owner, "import_github_repository", { workspace_id: workspace.id, repository: "fixture/shop" })
 if (imported.isError) console.log("  (no fixture repository on this server; the import's other paths are not checked)")
 else {
+  // Public, as in the web app, for someone who may make projects public.
+  assert.equal(imported.structuredContent.visibility, "public")
   // A README that came from the repository is read-only, for an agent too.
   const flat = (nodes) => nodes.flatMap((node) => [node, ...flat(node.children)])
   const { tree } = await ok(owner, "get_project", { project_id: imported.structuredContent.project_id })
