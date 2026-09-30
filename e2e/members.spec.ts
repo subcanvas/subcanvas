@@ -98,7 +98,7 @@ test("a member invited as a viewer can look, can change things once an editor, a
   }
 })
 
-test("an invite is for one address, and someone else signed in cannot take it", async ({
+test("an invite is for one address, and someone else signed in can sign out to take it", async ({
   page,
   browser,
   baseURL,
@@ -118,6 +118,23 @@ test("an invite is for one address, and someone else signed in cannot take it", 
     // Not in: the org is not theirs to see.
     await other.page.goto(`/${slug}`)
     await expect(other.page.getByText("There is nothing here")).toBeVisible()
+
+    // The page that says to sign out has the button for it, and signing in
+    // again, here as a new account for the invited address, comes back to
+    // the invite.
+    await other.page.goto(link)
+    await other.page.getByRole("button", { name: "Sign out" }).click()
+    await other.page.waitForURL(
+      (url) => url.pathname === "/login" && url.searchParams.get("next") === new URL(link).pathname
+    )
+    await other.page.getByRole("button", { name: "Create an account" }).click()
+    await other.page.getByLabel("Email").fill(invited.email)
+    await other.page.getByLabel("Password").fill(invited.password)
+    await other.page.getByRole("button", { name: "Create account", exact: true }).click()
+    await other.page.waitForURL(link)
+    await other.page.getByRole("button", { name: "Accept invite" }).click()
+    await other.page.waitForURL(`/${slug}`)
+    await expect(other.page.getByRole("heading", { name: "Projects" })).toBeVisible()
   } finally {
     await other.context.close()
   }

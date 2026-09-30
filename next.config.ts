@@ -32,6 +32,11 @@ const nextConfig: NextConfig = {
         source: "/p/:projectId/d/:docId/embed.svg",
         headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'" }],
       },
+      // The same picture, downloaded from a whiteboard's menu.
+      {
+        source: "/api/documents/:docId/svg",
+        headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'" }],
+      },
     ]
   },
   // Only the Docker image wants a self-contained server folder. Vercel and

@@ -175,7 +175,7 @@ export function ObjectDocument({
         <>
           {editable && (
             <div className="flex flex-col gap-2 px-4">
-              <Label className="text-xs text-graphite">Double-clicking the object opens this</Label>
+              <Label className="text-xs text-graphite">Double-click opens this page</Label>
               <ToggleGroup
                 aria-label="Double-click opens it"
                 variant="outline"

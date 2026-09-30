@@ -46,7 +46,7 @@ export default async function BillingPage({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {paid ? "Team plan" : "Free plan"}
+            {paid ? "Pro plan" : "Free plan"}
             {subscription?.status === "past_due" && <Badge variant="destructive">Payment failed</Badge>}
             {paid && subscription?.cancel_at_period_end && <Badge variant="outline">Cancels soon</Badge>}
           </CardTitle>

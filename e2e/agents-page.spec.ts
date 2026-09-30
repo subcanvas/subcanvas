@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test"
 
 import { signUpWithOrg } from "./support/app"
-import { documentedTools, MCP_PATH, readClipboard } from "./support/mcp"
+import { documentedTools, MCP_PATH, OAUTH_SERVER_OFF, oauthServerEnabled, readClipboard } from "./support/mcp"
 
 // The page that gets an agent connected: the address, and the shortest way
 // into each client, all built from the address the page was served on.
 
 test("shows the server address and a way in for every client", async ({ page, baseURL }) => {
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
   const { slug } = await signUpWithOrg(page)
   await page.getByRole("link", { name: "Connect an agent" }).click()
   await page.waitForURL(`/${slug}/agents`)
@@ -48,7 +49,8 @@ test("shows the server address and a way in for every client", async ({ page, ba
     await expect(page.getByRole("heading", { name: client })).toBeVisible()
 })
 
-test("lists every documented tool", async ({ page }) => {
+test("lists every documented tool", async ({ page, baseURL }) => {
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
   const { slug } = await signUpWithOrg(page)
   await page.goto(`/${slug}/agents`)
   await expect(page.getByRole("heading", { name: "What an agent can do here" })).toBeVisible()
@@ -57,4 +59,17 @@ test("lists every documented tool", async ({ page }) => {
   // are the ones an agent will be shown.
   const shown = await page.locator("main li code").allTextContents()
   expect(shown.sort()).toEqual(documentedTools().sort())
+})
+
+// A server whose Supabase project has no OAuth server cannot sign an agent
+// in, so it does not offer to connect one, and a saved link says why.
+test("on a server where agents cannot sign in, nothing offers to connect one", async ({ page, baseURL }) => {
+  test.skip(await oauthServerEnabled(baseURL!), "The OAuth server is on here; this is about a server without it.")
+  const { slug } = await signUpWithOrg(page)
+  await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Connect an agent" })).toHaveCount(0)
+
+  await page.goto(`/${slug}/agents`)
+  await expect(page.getByText(/Agents cannot sign in to this server/)).toBeVisible()
+  await expect(page.getByRole("button", { name: "Copy the server address" })).toHaveCount(0)
 })

@@ -15,12 +15,35 @@ import {
 } from "@/components/ui/select"
 import { ROLE_LABELS, type Role } from "@/lib/roles"
 
-import { createInvite } from "./actions"
+import { createInvite, type InviteResult } from "./actions"
+
+// create_invite in the database lets each person email this many a day.
+const INVITE_EMAILS_A_DAY = 50
 
 const INVITE_ROLES = (["viewer", "editor", "admin"] as const).map((r) => ({
   value: r,
   label: ROLE_LABELS[r],
 }))
+
+// Says what became of an invite, and of its email. When the email did not
+// go, the invite is there all the same, and its row has the link to copy.
+export function announceInvite(result: InviteResult) {
+  if ("error" in result) return void toast.error(result.error)
+  const { email, renewed, delivery } = result
+  const made = renewed ? "renewed for 7 days" : "created"
+  if (delivery === "sent")
+    toast.success(renewed ? `Invite sent again to ${email}, for 7 more days.` : `Invite emailed to ${email}.`)
+  else if (delivery === "off") toast.success(`Invite ${made}. Copy its link and send it to ${email}.`)
+  else if (delivery === "failed")
+    toast.warning(`Invite ${made}, but the email to ${email} did not go. Copy its link and send it yourself.`, {
+      duration: 10_000,
+    })
+  else
+    toast.warning(
+      `Invite ${made}. You have emailed ${INVITE_EMAILS_A_DAY} invites in the last 24 hours, the most allowed, so copy its link and send it yourself.`,
+      { duration: 10_000 }
+    )
+}
 
 export function InviteForm({ slug, orgId }: { slug: string; orgId: string }) {
   const [email, setEmail] = useState("")
@@ -35,7 +58,7 @@ export function InviteForm({ slug, orgId }: { slug: string; orgId: string }) {
       if ("error" in result) showRefusal(result)
       else {
         setEmail("")
-        toast.success("Invite created. Copy the link to share it.")
+        announceInvite(result)
       }
     })
   }

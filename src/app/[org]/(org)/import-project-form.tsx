@@ -24,7 +24,7 @@ import { importFromGitHub, type ImportState } from "./actions"
 // Draws a public GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md.
 // `canPublish`: an admin or owner, who may make the project public.
-// `privateLimit`: the free plan's private documents, when they are counted.
+// `privateLimit`: the limit on private documents, when there is one.
 export function ImportProject({
   slug,
   canPublish,
@@ -161,8 +161,8 @@ function ImportSteps({
             {canPublish
               ? "Anyone with the link can read it. Only members can edit."
               : "Only an admin can make a project public, so this one will be private."}
-            {privateLimit !== null &&
-              ` ${canPublish ? "Unticked, each" : "Each"} README and each whiteboard inside a box counts toward the free plan's ${privateLimit} private documents.`}
+            {privateLimit != null &&
+              ` ${canPublish ? "Unticked, each" : "Each"} README and each whiteboard inside a box counts toward the limit of ${privateLimit} private documents.`}
           </span>
         </span>
       </label>

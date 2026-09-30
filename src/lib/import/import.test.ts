@@ -59,6 +59,11 @@ describe("titles and front matter", () => {
     expect(readMarkdownFile("x.md", "\uFEFF# Heading\r\n\r\nBody").title).toBe("Heading")
   })
 
+  it("reads a character written with a backslash as the character, as an export writes titles", () => {
+    expect(readMarkdownFile("x.md", "# snake\\_case, \\*stars\\*, C# and issue \\#\n\nBody").title).toBe("snake_case, *stars*, C# and issue #")
+    expect(readMarkdownFile("x.md", "# \\<b\\> and **bold**\n").title).toBe("<b> and bold")
+  })
+
   it("does not mistake a rule that opens a note for front matter", () => {
     expect(readMarkdownFile("x.md", "---\n\nAfter a rule").body).toBe("---\n\nAfter a rule")
   })
@@ -404,6 +409,37 @@ describe("zip safety", () => {
     expect((await collect([{ path: "binary.txt", file: new Blob([new Uint8Array([72, 0, 105])]) }])).skipped).toEqual([
       { path: "binary.txt", reason: "unreadable" },
     ])
+  })
+})
+
+describe("a project exported from Subcanvas", () => {
+  // What lib/export writes: a manifest and a README at the top, a whiteboard
+  // as a picture and a JSON file of the same name.
+  const exported = {
+    "subcanvas-export.json": strToU8('{"format":"subcanvas-export"}'),
+    "README.txt": strToU8("Project\n\nExported from app.test"),
+    "Page.md": strToU8("# Page\n\nText"),
+    "Board.svg": strToU8("<svg/>"),
+    "Board.json": strToU8("{}"),
+    "Board/API.md": strToU8("# API\n"),
+    "Notes/README.txt": strToU8("A note of the person's own"),
+  }
+
+  it("imports its pages, and neither its README nor its manifest, from a zip or a folder", async () => {
+    const fromZip = await collect([{ path: "Project.zip", file: zipOf(exported) }])
+    expect(fromZip.files.map((file) => file.path)).toEqual(["Page.md", "Board/API.md", "Notes/README.txt"])
+    expect(fromZip.skipped).toEqual([
+      { path: "Board.svg", reason: "whiteboard" },
+      { path: "Board.json", reason: "whiteboard" },
+    ])
+    const fromFolder = await collect(picked(Object.fromEntries(Object.entries(exported).map(([path, bytes]) => [`Project/${path}`, bytes]))))
+    expect(fromFolder.files.map((file) => file.path)).toEqual(["Project/Page.md", "Project/Board/API.md", "Project/Notes/README.txt"])
+  })
+
+  it("treats a README.txt as a note when there is no manifest beside it", async () => {
+    const collected = await collect([{ path: "notes.zip", file: zipOf({ "README.txt": strToU8("Read me"), "a.svg": strToU8("<svg/>"), "a.json": strToU8("{}") }) }])
+    expect(collected.files.map((file) => file.path)).toEqual(["README.txt"])
+    expect(collected.skipped.map((file) => file.reason)).toEqual(["image", "unsupported"])
   })
 })
 

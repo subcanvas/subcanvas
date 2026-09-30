@@ -16,7 +16,8 @@ import {
   type NodeKind,
   type WbNode,
 } from "@/lib/whiteboard/schema"
-import type { NodeShape } from "@/lib/whiteboard/shapes"
+import { clampSide, reshape } from "@/lib/whiteboard/limits"
+import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
 
 import { findFreeSpot, type Box } from "./placement"
 
@@ -47,6 +48,24 @@ const readNodes = (doc: Y.Doc) => [...nodesMap(doc).entries()].map(([id, map]) =
 const missing = (what: string, ids: string[]) => ({
   error: `No ${what} with id ${ids.join(", ")} on this whiteboard. Read the whiteboard again for current ids.`,
 })
+
+const KIND_NAMES: Record<NodeKind, string> = { plain: "a box", text: "a text node", group: "a group", media: "a picture or video" }
+
+// A field the canvas does not show on a node of this kind is refused, not
+// stored where nobody would see it: what an agent writes is what people see.
+function unshown(
+  kind: NodeKind,
+  fields: { description?: string; shape?: NodeShape; alt?: string; color?: ColorKey },
+  name: string
+) {
+  const node = `${name} is ${KIND_NAMES[kind]}`
+  if (fields.description !== undefined && kind !== "text")
+    return `${node}, and only a text node shows body text (\`description\`). To give it a description, put a page inside it with \`attach_document\`.`
+  if (fields.shape !== undefined && kind !== "plain") return `${node}, and only a box has a shape.`
+  if (fields.alt !== undefined && kind !== "media") return `${node}, and only a picture or video has alt text.`
+  if (fields.color !== undefined && kind === "media") return `${node}, which has no color.`
+  return null
+}
 
 // Where a node is on the canvas, given that a node in a group is stored
 // relative to the group.
@@ -98,6 +117,10 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
   if (unknown.length) return missing("node", unknown)
   const notGroup = nodes.find((node) => node.groupId && byId.get(node.groupId)?.kind !== "group")
   if (notGroup) return { error: `Node ${notGroup.groupId} is not a group.` }
+  for (const node of nodes) {
+    const refused = unshown(node.kind, node, `"${node.title}"`)
+    if (refused) return { error: refused }
+  }
 
   // Free space is looked for among the nodes that share a parent, since
   // they share a coordinate space. It fills up as the batch is placed.
@@ -111,10 +134,13 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
   const ids: string[] = []
   for (const node of nodes) {
     const id = crypto.randomUUID()
+    // A box starts at its shape's size, as it would once its shape was
+    // picked on the canvas.
+    const fallback = node.kind === "plain" ? SHAPE_SIZE[node.shape ?? "rectangle"] : DEFAULT_SIZE[node.kind]
     const size = {
-      width: node.width ?? DEFAULT_SIZE[node.kind].width,
+      width: clampSide(node.kind, "width", node.width ?? fallback.width ?? 0),
       // The canvas sizes a text node to its text, so it stores no height.
-      height: node.kind === "text" ? null : (node.height ?? DEFAULT_SIZE[node.kind].height),
+      height: node.kind === "text" ? null : clampSide(node.kind, "height", node.height ?? fallback.height ?? 0),
     }
     const near = node.nearNodeId ? byId.get(node.nearNodeId)! : undefined
     const parentId = node.groupId ?? near?.parentId ?? null
@@ -135,8 +161,7 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
         title: node.title,
         description: node.description ?? "",
         color: node.color ?? "default",
-        // A shape belongs to plain nodes; a group or a text node has none.
-        shape: node.kind === "plain" ? node.shape : undefined,
+        shape: node.shape,
         icon: node.icon,
         emoji: node.emoji,
       })
@@ -167,13 +192,38 @@ export function updateNodes(doc: Y.Doc, patches: NodePatch[]): EditResult<{ ids:
   const yNodes = nodesMap(doc)
   const unknown = patches.filter((patch) => !yNodes.has(patch.id)).map((patch) => patch.id)
   if (unknown.length) return missing("node", unknown)
+  for (const patch of patches) {
+    const refused = unshown(readNode(patch.id, yNodes.get(patch.id)!).kind, patch, `Node ${patch.id}`)
+    if (refused) return { error: refused }
+  }
 
-  for (const { id, height, ...patch } of patches) {
+  for (const { id, shape, width, height, ...patch } of patches) {
     const map = yNodes.get(id)!
-    patchYMap(map, patch)
-    if (height !== undefined && readNode(id, map).kind !== "text") patchYMap(map, { height })
+    const node = readNode(id, map)
+    patchYMap(map, {
+      // A new shape brings its size, as on the canvas, unless a size is given.
+      ...(shape !== undefined && (width === undefined && height === undefined ? reshape(node, shape) : { shape })),
+      ...patch,
+      ...resized(node, width, height),
+    })
   }
   return { ids: patches.map((patch) => patch.id) }
+}
+
+// A size given for a node, kept to what the canvas allows: a text node is as
+// tall as its text, and a picture or video keeps its file's proportions, so
+// giving either side sets both.
+function resized(node: WbNode, width: number | undefined, height: number | undefined) {
+  if (width === undefined && height === undefined) return {}
+  if (node.kind === "media" && node.mediaWidth && node.mediaHeight) {
+    const ratio = node.mediaWidth / node.mediaHeight
+    const w = width ?? height! * ratio
+    return { width: clampSide("media", "width", w), height: clampSide("media", "height", w / ratio) }
+  }
+  return {
+    ...(width !== undefined ? { width: clampSide(node.kind, "width", width) } : {}),
+    ...(height !== undefined && node.kind !== "text" ? { height: clampSide(node.kind, "height", height) } : {}),
+  }
 }
 
 // Removing a node also removes what is inside it and its edges.
@@ -263,7 +313,7 @@ export function updateEdges(
 ): EditResult<{ ids: string[] }> {
   const yEdges = edgesMap(doc)
   const unknown = patches.filter((patch) => !yEdges.has(patch.id)).map((patch) => patch.id)
-  if (unknown.length) return missing("edge", unknown)
+  if (unknown.length) return missing("arrow", unknown)
 
   for (const { id, label, ...patch } of patches) {
     const map = yEdges.get(id)!
@@ -277,7 +327,7 @@ export function updateEdges(
 export function deleteEdges(doc: Y.Doc, ids: string[]): EditResult<{ ids: string[] }> {
   const yEdges = edgesMap(doc)
   const unknown = ids.filter((id) => !yEdges.has(id))
-  if (unknown.length) return missing("edge", unknown)
+  if (unknown.length) return missing("arrow", unknown)
   for (const id of ids) yEdges.delete(id)
   return { ids }
 }

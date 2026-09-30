@@ -24,19 +24,30 @@ const CHOICES = [
     value: "private",
     label: "Private",
     icon: Lock,
-    detail: "Only members of your org can see it.",
+    detail: "Only members of your workspace can see it.",
   },
   {
     value: "public",
     label: "Public",
     icon: Globe,
-    detail: "Anyone with the link can read it. Only members can edit. Public documents are unlimited on the free plan.",
+    detail: "Anyone with the link can read it. Only members can edit.",
   },
 ] as const
 
 // `canPublish`: an admin or owner, who may make the project public. For
 // anyone else the choice is shown, off, with the reason.
-export function NewProject({ slug, orgId, canPublish }: { slug: string; orgId: string; canPublish: boolean }) {
+// `privateLimit`: the limit on private documents, when there is one.
+export function NewProject({
+  slug,
+  orgId,
+  canPublish,
+  privateLimit,
+}: {
+  slug: string
+  orgId: string
+  canPublish: boolean
+  privateLimit: number | null
+}) {
   const [state, action, pending] = useActionState(createProject.bind(null, slug, orgId), null)
   const [visibility, setVisibility] = useState<"private" | "public">("private")
 
@@ -86,7 +97,12 @@ export function NewProject({ slug, orgId, canPublish }: { slug: string; orgId: s
                     <choice.icon className="size-3.5" aria-hidden />
                     {choice.label}
                   </span>
-                  <span className="text-xs leading-relaxed text-graphite">{choice.detail}</span>
+                  <span className="text-xs leading-relaxed text-graphite">
+                    {choice.detail}
+                    {choice.value === "public" &&
+                      privateLimit != null &&
+                      ` Its documents do not count toward the limit of ${privateLimit} private documents.`}
+                  </span>
                 </button>
               ))}
             </div>

@@ -18,7 +18,8 @@ import {
   type WbEdge,
   type WbNode,
 } from "@/lib/whiteboard/schema"
-import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
+import { MAX_ALT, MAX_BODY_TEXT, MAX_LABEL, MAX_TITLE, reshape } from "@/lib/whiteboard/limits"
+import type { NodeShape } from "@/lib/whiteboard/shapes"
 import { nodeLabel } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
@@ -148,19 +149,8 @@ function NodeFields({
   node: WbNode
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
-  // A node still at the size its shape came in takes the new shape's size,
-  // around the same center: a diamond needs more room than a rectangle for
-  // the same words. A node somebody has sized keeps its size.
-  function changeShape(shape: NodeShape) {
-    const from = SHAPE_SIZE[node.shape]
-    const to = SHAPE_SIZE[shape]
-    const untouched = node.width === from.width && node.height === from.height
-    onChange(
-      untouched
-        ? { shape, ...to, x: node.x + (from.width - to.width) / 2, y: node.y + (from.height - to.height) / 2 }
-        : { shape }
-    )
-  }
+  // A box still at the size its shape came in takes the new shape's size.
+  const changeShape = (shape: NodeShape) => onChange(reshape(node, shape))
 
   if (node.kind === "media") return <MediaFields node={node} onChange={onChange} />
 
@@ -170,7 +160,7 @@ function NodeFields({
         <Input
           id="wb-title"
           value={node.title}
-          maxLength={200}
+          maxLength={MAX_TITLE}
           onChange={(event) => onChange({ title: event.target.value })}
         />
       </Field>
@@ -180,7 +170,7 @@ function NodeFields({
             id="wb-description"
             value={node.description}
             rows={4}
-            maxLength={2000}
+            maxLength={MAX_BODY_TEXT}
             onChange={(event) => onChange({ description: event.target.value })}
           />
         </Field>
@@ -219,7 +209,7 @@ function MediaFields({
         <Input
           id="wb-title"
           value={node.title}
-          maxLength={200}
+          maxLength={MAX_TITLE}
           onChange={(event) => onChange({ title: event.target.value })}
         />
       </Field>
@@ -232,7 +222,7 @@ function MediaFields({
           id="wb-alt"
           value={node.alt}
           rows={3}
-          maxLength={500}
+          maxLength={MAX_ALT}
           onChange={(event) => onChange({ alt: event.target.value })}
         />
       </Field>
@@ -272,7 +262,7 @@ function EdgeFields({
         <Input
           id="wb-label"
           value={edge.label}
-          maxLength={120}
+          maxLength={MAX_LABEL}
           placeholder="What this arrow means"
           onChange={(event) => onChange({ label: event.target.value })}
         />

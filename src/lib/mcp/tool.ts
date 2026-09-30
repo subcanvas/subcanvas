@@ -19,7 +19,7 @@ export type ToolContext = {
 // marks the free plan's limit, which the server words for the agent.
 export type ToolResult = { error: string; limit?: true } | { text: string; data: Record<string, unknown> }
 
-export type ToolGroup = "Orgs and projects" | "Documents" | "Text documents" | "Whiteboards" | "GitHub and embeds"
+export type ToolGroup = "Workspaces and projects" | "Documents" | "Pages" | "Whiteboards" | "GitHub and embeds"
 
 export type Tool = {
   name: string

@@ -13,9 +13,9 @@ export const integrationTools = [
     title: "Draw a GitHub repository as a project",
     group: "GitHub and embeds",
     description:
-      "Creates a new project from a public GitHub repository: a whiteboard of its top-level folders, a nested whiteboard inside each folder that has folders of its own, every README as a read-only text document, and the arrows its `.subcanvas` files declare. It is a one-time copy. Returns the project and its top whiteboard, plus warnings about anything left out. Large repositories take several seconds.",
+      "Creates a new project from a public GitHub repository: a whiteboard of its top-level folders, a nested whiteboard inside each folder that has folders of its own, every README as a read-only page, and the arrows its `.subcanvas` files declare. It is a one-time copy. Returns the project and its top whiteboard, plus warnings about anything left out. Large repositories take several seconds.",
     input: {
-      org_id: id("The org to create the project in, from `list_orgs`."),
+      workspace_id: id("The workspace to create the project in, from `list_workspaces`."),
       repository: z.string().min(3).describe("`owner/name`, or the repository's address on github.com."),
       make_public: z
         .boolean()
@@ -27,16 +27,16 @@ export const integrationTools = [
     kind: "write",
     openWorld: true,
     covers: ["[org]/(org)/actions.importFromGitHub"],
-    run: async (context, { org_id, repository, make_public }) => {
+    run: async (context, { workspace_id, repository, make_public }) => {
       const outcome = await importFromReference(context.supabase, {
-        orgId: org_id,
+        orgId: workspace_id,
         userId: context.userId,
         repository,
         makePublic: make_public,
       })
       if ("error" in outcome) return outcome
 
-      const slug = await orgSlug(context, org_id)
+      const slug = await orgSlug(context, workspace_id)
       const url = slug ? `${context.origin}/${slug}/${outcome.projectId}/d/${outcome.documentId}` : null
       const project = await findProject(context, outcome.projectId)
       return {

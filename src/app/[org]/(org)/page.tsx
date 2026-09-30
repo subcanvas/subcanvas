@@ -1,7 +1,8 @@
-import { Globe, Lock } from "lucide-react"
+import { EyeOff, Globe, Lock } from "lucide-react"
 import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
+import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 import { cn } from "@/lib/utils"
@@ -17,11 +18,11 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
   const { supabase, org, canEdit, role, plan } = await getOrgContext(slug)
   // Making a project public takes an admin, at creation too.
   const canPublish = hasRole(role, "admin")
-  const privateLimit = plan && !plan.paid ? plan.private_document_limit : null
+  const privateLimit = privateDocumentLimit(plan)
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, visibility, documents(count)")
+    .select("id, name, visibility, taken_down_at, documents(count)")
     .eq("org_id", org.id)
     .eq("documents.kind", "standard")
     .is("documents.deleted_at", null)
@@ -39,7 +40,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           Boolean(projects?.length) && (
             <div className="flex flex-wrap justify-end gap-2">
               <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
-              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} />
+              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )
         }
@@ -50,7 +51,10 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           {projects.map((project) => {
             const count = project.documents[0]?.count ?? 0
             const isPublic = project.visibility === "public"
-            const Icon = isPublic ? Globe : Lock
+            // Taken down by the operator: public to nobody, whatever its
+            // setting. Share, inside the project, says what that means.
+            const takenDown = project.taken_down_at !== null
+            const Icon = takenDown ? EyeOff : isPublic ? Globe : Lock
             return (
               <li key={project.id}>
                 {/* A project that holds sheets is drawn as a stack of them. An empty one is a single sheet. */}
@@ -68,7 +72,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
                     </span>
                     <span className="flex items-center gap-1">
                       <Icon className="size-3" aria-hidden />
-                      {isPublic ? "Public" : "Private"}
+                      {takenDown ? "Taken down" : isPublic ? "Public" : "Private"}
                     </span>
                   </p>
                 </Link>
@@ -87,7 +91,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           {canEdit && (
             <div className="mt-2 flex flex-wrap justify-center gap-2">
               <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
-              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} />
+              <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )}
           {canEdit && (

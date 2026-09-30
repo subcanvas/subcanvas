@@ -192,7 +192,7 @@ export function HeroCanvas() {
               disabled={!opens}
               onClick={() => open(box)}
               aria-label={
-                box.inside ? `${box.label}: open the whiteboard inside` : box.note ? `${box.label}: read the note inside` : box.label
+                box.inside ? `${box.label}: open the whiteboard inside` : box.note ? `${box.label}: read the page inside` : box.label
               }
               className={cn(
                 "absolute flex items-center justify-center rounded-lg border px-2 text-center text-[11px] leading-tight font-medium outline-none transition-[translate,box-shadow] sm:text-[13px]",
@@ -232,7 +232,7 @@ export function HeroCanvas() {
       </div>
 
       <p className="border-t border-rule px-3 py-2 text-xs text-graphite">
-        Try it: click a stacked box to go inside. A page icon means the box has notes.
+        Try it: click a stacked box to go inside. A page icon means the box holds a page.
       </p>
     </div>
   )

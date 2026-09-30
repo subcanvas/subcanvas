@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { DesktopSidebar } from "@/components/desktop-sidebar"
 import { MobileTree } from "@/components/tree/mobile-tree"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { agentSignInAvailable } from "@/lib/mcp/sign-in"
 import { getOrgContext } from "@/lib/orgs"
 import { SIDEBAR_COOKIE_NAME } from "@/lib/sidebar-state"
 
@@ -25,10 +26,15 @@ export async function AppShell({
   children: React.ReactNode
 }) {
   const { supabase, user, org } = await getOrgContext(slug)
-  const [{ data: orgs }, { data: profile }] = await Promise.all([
-    supabase.from("orgs").select("name, slug").order("created_at"),
+  const [{ data: orgs }, { data: profile }, agents] = await Promise.all([
+    supabase.from("orgs").select("name, slug, personal_owner").order("created_at"),
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
+    agentSignInAvailable(),
   ])
+  // The switcher lists the personal workspace first, then the team ones.
+  const workspaces = (orgs ?? [])
+    .map(({ name, slug, personal_owner }) => ({ name, slug, personal: personal_owner !== null }))
+    .sort((a, b) => Number(b.personal) - Number(a.personal))
 
   const sidebarUser = {
     email: user.email ?? "",
@@ -36,7 +42,7 @@ export async function AppShell({
     avatarUrl: profile?.avatar_url ?? null,
   }
   const contents = (
-    <AppSidebar org={org} orgs={orgs ?? []} user={sidebarUser} footer={footer}>
+    <AppSidebar org={org} workspaces={workspaces} user={sidebarUser} agents={agents} footer={footer}>
       {tree}
     </AppSidebar>
   )
@@ -47,10 +53,10 @@ export async function AppShell({
 
   return (
     <SidebarProvider defaultOpen={open} className="min-h-0 flex-1 flex-col md:flex-row">
-      <MobileTree label="Menu" title={title ?? org.name} description="Pages, documents, and your account.">
+      <MobileTree label="Menu" title={title ?? org.name} description="Where to go, and your account.">
         {contents}
       </MobileTree>
-      <DesktopSidebar slug={org.slug} user={sidebarUser}>
+      <DesktopSidebar slug={org.slug} user={sidebarUser} agents={agents}>
         {contents}
       </DesktopSidebar>
       <div className="flex min-w-0 flex-1 flex-col">{children}</div>

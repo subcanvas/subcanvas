@@ -23,6 +23,7 @@ Everything is read in your browser. A zip is never uploaded whole: the text of t
 | **Apple Notes** | Notes has no Markdown export. Use an exporter app (for example Exporter, from the Mac App Store) to get Markdown files. | The exported folder. |
 | **GitHub wiki** | `git clone https://github.com/<owner>/<repo>.wiki.git` | The cloned folder. |
 | **A docs folder** | | The folder, or a zip of it. |
+| **Subcanvas** | A project's menu → Export project… ([EXPORTING.md](EXPORTING.md)). | The zip, as it is. Its pages come back; its whiteboards do not. |
 
 ## What comes across
 
@@ -33,7 +34,7 @@ Everything is read in your browser. A zip is never uploaded whole: the text of t
 - **Obsidian.** `[[Wiki links]]`, `[[Note|with a label]]`, and `[[folder/Note#Heading]]` become links to the imported documents. `![[Embedded note]]` becomes a link to it. A link to a note that is not in the import stays as written. Callouts become quotes with a bold title; `==highlights==` become plain text; tags stay as text. The `.obsidian` folder is ignored.
 - **Links between files.** `[text](./other.md)`, relative paths, reference-style links, and the URL-encoded names Notion writes all become links to the imported documents. A link to a file that is not imported (a PDF, say) becomes plain text.
 - **Formatting.** Headings, nested lists, task lists, tables, code blocks with their language, quotes, rules, bold, italic, strikethrough, inline code, links, and images on the web. Footnotes stay as readable text. HTML inside Markdown is reduced to its text; scripts are dropped.
-- **Pictures and videos.** Images on the web (`https://…`) stay as links to the web. Pictures and videos that are files in your import (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV) are uploaded with the notes that show them, and count toward your org's storage like any you add yourself. A note gets its own copy of each, so whoever can read the note can see them. SVG and HEIC files, and ones over the size limits, are not imported; the words that described them stay in the text, and the import says how many. If the org's storage fills up during an import, the notes still come in and the pictures that did not fit show as missing. Files attached to a page (a PDF, say) are not imported yet; their names stay in the text.
+- **Pictures and videos.** Images on the web (`https://…`) stay as links to the web. Pictures and videos that are files in your import (PNG, JPEG, WebP, GIF, AVIF, MP4, WebM, MOV) are uploaded with the notes that show them, and count toward your workspace's storage like any you add yourself. A note gets its own copy of each, so whoever can read the note can see them. SVG and HEIC files, and ones over the size limits, are not imported; the words that described them stay in the text, and the import says how many. If the workspace's storage fills up during an import, the notes still come in and the pictures that did not fit show as missing. Files attached to a page (a PDF, say) are not imported yet; their names stay in the text.
 
 ## Limits
 
@@ -46,7 +47,7 @@ Everything is read in your browser. A zip is never uploaded whole: the text of t
 | One picture or video | 10 MB for a picture, 100 MB for a video, as for ones you add yourself. |
 | Kinds of file | `.md`, `.markdown`, `.txt`, `.csv`, `.html`, and `.zip` holding those. An HTML page that is not from Notion is imported as its body: headings, lists, tables, links and the like, with scripts, styles and forms dropped. `.docx` is not imported: download Markdown instead (Google Docs offers it directly). |
 
-Dotfiles, `__MACOSX`, and `node_modules` are ignored. In a zip, an entry whose path leads outside the zip is skipped and listed.
+Dotfiles, `__MACOSX`, and `node_modules` are ignored, and so are the `README.txt` and `subcanvas-export.json` at the top of a Subcanvas export. Exactly what comes back from one is in [EXPORTING.md](EXPORTING.md#bringing-it-back). In a zip, an entry whose path leads outside the zip is skipped and listed.
 
 On the free plan, an import into a private project that would pass the private-document limit is refused before it starts, with the numbers. Viewers cannot import.
 

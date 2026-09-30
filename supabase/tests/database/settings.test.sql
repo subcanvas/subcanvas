@@ -98,13 +98,14 @@ select is((select name from public.orgs where id = :org), 'Settings', 'a viewer 
 delete from public.orgs where id = :org;
 select is((select count(*) from public.orgs where id = :org), 1::bigint, 'a viewer cannot delete the org');
 select lives_ok(
-  $$ delete from public.org_members where user_id = '5e000000-0000-0000-0000-000000000002' $$,
+  $$ delete from public.org_members
+     where org_id = '5e000000-0000-0000-0000-0000000000a1' and user_id = '5e000000-0000-0000-0000-000000000002' $$,
   'a viewer can leave');
 
 select pg_temp.login(:owner, 'owner@settings.pgtap.test');
 select throws_ok(
   $$ delete from public.orgs where id = '5e000000-0000-0000-0000-0000000000a2' $$,
-  'P0001', 'Cancel the subscription before deleting this org.',
+  'P0001', 'Cancel the subscription before deleting this workspace.',
   'an org with a running subscription cannot be deleted');
 select lives_ok(
   $$ delete from public.orgs where id = '5e000000-0000-0000-0000-0000000000a3' $$,

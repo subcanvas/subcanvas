@@ -1,9 +1,13 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { headers } from "next/headers"
 
 import { editorLimitMessage, limitMessage } from "@/lib/billing/limit"
 import { syncSeats } from "@/lib/billing/stripe"
+import { emailConfigured, sendEmail, type SendResult } from "@/lib/email"
+import { inviteEmail } from "@/lib/email-messages"
+import { originFromHeaders } from "@/lib/origin"
 import { ROLES, type Role } from "@/lib/roles"
 import { createClient } from "@/lib/supabase/server"
 
@@ -68,18 +72,53 @@ export async function removeMember(
   return { ok: true }
 }
 
+// What became of an invite's email: sent, not sent because this server
+// sends none, tried without success, or held back because the admin has
+// emailed as many invites today as a day allows (create_invite in the
+// database counts them).
+export type InviteDelivery = SendResult | "limit"
+
+export type InviteResult =
+  | { error: string }
+  | { ok: true; email: string; renewed: boolean; delivery: InviteDelivery }
+
 export async function createInvite(
   slug: string,
   orgId: string,
   email: string,
   role: string
-): Promise<ActionResult> {
+): Promise<InviteResult> {
   if (!isRole(role) || role === "owner") return { error: "Unknown role." }
 
   const normalized = email.trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized))
     return { error: "Enter a valid email address." }
 
+  return invite(slug, orgId, normalized, role)
+}
+
+// An invite, open or expired, renewed for another 7 days and sent again.
+export async function resendInvite(slug: string, inviteId: string): Promise<InviteResult> {
+  const supabase = await createClient()
+  const { data: existing } = await supabase
+    .from("org_invites")
+    .select("org_id, email, role")
+    .eq("id", inviteId)
+    .maybeSingle()
+  if (!existing || existing.role === "owner") return NOT_ALLOWED
+
+  return invite(slug, existing.org_id, existing.email, existing.role)
+}
+
+// Makes or renews the invite, then emails it when this server sends email.
+// A failed email loses nothing: the invite is made first, and its link is
+// on the Members page to copy.
+async function invite(
+  slug: string,
+  orgId: string,
+  email: string,
+  role: Exclude<Role, "owner">
+): Promise<InviteResult> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -94,18 +133,36 @@ export async function createInvite(
       return { error: editorLimitMessage(plan.editor_limit), limit: true }
   }
 
-  const { error } = await supabase
-    .from("org_invites")
-    .insert({ org_id: orgId, email: normalized, role, invited_by: user.id })
-
-  if (error) {
-    if (error.code === "23505") return { error: "That email already has an invite." }
-    if (error.code === "42501") return NOT_ALLOWED
-    return { error: error.message }
-  }
-
+  const { data, error } = await supabase.rpc("create_invite", {
+    p_org_id: orgId,
+    p_email: email,
+    p_role: role,
+  })
+  if (error) return error.code === "42501" ? NOT_ALLOWED : { error: error.message }
+  const created = data[0]
   revalidatePath(`/${slug}/settings/members`)
-  return { ok: true }
+
+  const result = { ok: true as const, email, renewed: created.renewed }
+  if (!emailConfigured()) return { ...result, delivery: "off" }
+  if (!created.may_email) return { ...result, delivery: "limit" }
+
+  const [{ data: org }, { data: profile }] = await Promise.all([
+    supabase.from("orgs").select("name").eq("id", orgId).single(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+  ])
+  const origin = originFromHeaders(await headers())
+  const delivery = await sendEmail({
+    to: email,
+    ...inviteEmail({
+      inviter: profile?.display_name ?? user.email ?? "Someone",
+      workspace: org?.name ?? slug,
+      role,
+      email,
+      link: `${origin}/invite/${created.token}`,
+      expiresAt: new Date(created.expires_at),
+    }),
+  })
+  return { ...result, delivery }
 }
 
 export async function revokeInvite(

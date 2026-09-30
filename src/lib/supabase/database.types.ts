@@ -454,6 +454,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         Insert: {
@@ -461,6 +462,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          personal_owner?: string | null
           slug: string
         }
         Update: {
@@ -468,6 +470,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          personal_owner?: string | null
           slug?: string
         }
         Relationships: [
@@ -475,6 +478,13 @@ export type Database = {
             foreignKeyName: "orgs_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orgs_personal_owner_fkey"
+            columns: ["personal_owner"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -608,6 +618,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         SetofOptions: {
@@ -617,9 +628,33 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      account_deletion_plan: {
+        Args: never
+        Returns: {
+          org_id: string
+          org_name: string
+          org_slug: string
+          outcome: string
+          personal: boolean
+        }[]
+      }
       compact_document: {
         Args: { p_document_id: string; p_state: string; p_up_to_id: number }
         Returns: undefined
+      }
+      create_invite: {
+        Args: {
+          p_email: string
+          p_org_id: string
+          p_role: Database["public"]["Enums"]["org_role"]
+        }
+        Returns: {
+          expires_at: string
+          id: string
+          may_email: boolean
+          renewed: boolean
+          token: string
+        }[]
       }
       create_org: {
         Args: { p_name: string; p_slug: string }
@@ -628,6 +663,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         SetofOptions: {
@@ -636,6 +672,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      delete_account: {
+        Args: { p_user_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
       }
       discard_import: { Args: { p_project_id: string }; Returns: undefined }
       document_ancestors: {
@@ -669,6 +712,8 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           email: string
+          expires_at: string
+          inviter: string
           org_name: string
           org_slug: string
           role: Database["public"]["Enums"]["org_role"]
@@ -708,7 +753,7 @@ export type Database = {
           p_reason: string
           p_reporter_email?: string
         }
-        Returns: undefined
+        Returns: string
       }
       restore_document: {
         Args: { p_document_id: string; p_object_gone?: boolean }

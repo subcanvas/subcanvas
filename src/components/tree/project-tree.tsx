@@ -3,9 +3,11 @@
 import {
   ChevronRight,
   ClipboardPaste,
+  Download,
   FileText,
   FileUp,
   Folder,
+  FolderDown,
   FolderPlus,
   FolderX,
   MoreHorizontal,
@@ -72,6 +74,7 @@ const PasteMarkdownDialog = dynamic(
   () => import("./paste-markdown-dialog").then((module) => module.PasteMarkdownDialog),
   { ssr: false }
 )
+const ExportDialog = dynamic(() => import("./export-dialog").then((module) => module.ExportDialog), { ssr: false })
 
 const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
@@ -114,6 +117,7 @@ export function ProjectTree({
   } | null>(null)
   // The project's own rename or delete dialog, when open.
   const [projectDialog, setProjectDialog] = useState<"rename" | "delete" | null>(null)
+  const [exporting, setExporting] = useState(false)
   // An open import or paste dialog. The key makes each opening a fresh one.
   const [bringingIn, setBringingIn] = useState<{
     key: number
@@ -296,7 +300,7 @@ export function ProjectTree({
           )}
         </div>
 
-        {canEdit && (
+        {canEdit ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -317,6 +321,7 @@ export function ProjectTree({
                 <Pencil />
                 Rename
               </DropdownMenuItem>
+              {node.kind === "document" && <DownloadItem id={node.id} type={node.type} />}
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => (node.kind === "folder" ? trash("folder", node.id) : requestTrash(node.id, node.name))}
@@ -326,6 +331,22 @@ export function ProjectTree({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : (
+          // Anyone who can read a document can take it out.
+          node.kind === "document" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuAction showOnHover aria-label={`Actions for ${node.name}`}>
+                    <MoreHorizontal />
+                  </SidebarMenuAction>
+                }
+              />
+              <DropdownMenuContent align="start" className="min-w-52">
+                <DownloadItem id={node.id} type={node.type} />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         )}
 
         {isOpen && node.children.length > 0 && (
@@ -367,6 +388,9 @@ export function ProjectTree({
           dropped={bringingIn.dropped}
           onClose={() => setBringingIn(null)}
         />
+      )}
+      {exporting && (
+        <ExportDialog projectId={project.projectId} projectName={projectName} onClose={() => setExporting(false)} />
       )}
       {bringingIn?.how === "paste" && (
         <PasteMarkdownDialog
@@ -438,6 +462,11 @@ export function ProjectTree({
                 Rename project
               </DropdownMenuItem>
             )}
+            {/* Every member, viewers included: what they can read is theirs to take out. */}
+            <DropdownMenuItem onClick={() => setExporting(true)}>
+              <FolderDown />
+              Export project…
+            </DropdownMenuItem>
             {canDelete && (
               <>
                 <DropdownMenuSeparator />
@@ -521,6 +550,16 @@ function CreateItems({
         Paste Markdown{suffix}…
       </DropdownMenuItem>
     </>
+  )
+}
+
+// The document as a file: a page as Markdown, a whiteboard as a picture.
+function DownloadItem({ id, type }: { id: string; type: DocumentType }) {
+  return (
+    <DropdownMenuItem render={<a href={`/api/documents/${id}/${type === "text" ? "markdown" : "svg"}`} download />}>
+      <Download />
+      {type === "text" ? "Download as Markdown" : "Download as SVG"}
+    </DropdownMenuItem>
   )
 }
 
