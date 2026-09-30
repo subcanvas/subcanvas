@@ -159,7 +159,7 @@ export const documentTools = [
         text: [
           `Imported ${imported} document${imported === 1 ? "" : "s"} in ${plan.folders.length} folder${plan.folders.length === 1 ? "" : "s"}.`,
           left ? `${left} file${left === 1 ? " was" : "s were"} left out (not Markdown, text, or CSV; an unsafe path; or too large).` : "",
-          plan.localImages ? `${plan.localImages} local image${plan.localImages === 1 ? " was" : "s were"} not imported; the alt text was kept.` : "",
+          plan.localImages ? `${plan.localImages} local picture${plan.localImages === 1 ? " was" : "s were"} not imported; the alt text was kept.` : "",
           plan.unlinked ? `${plan.unlinked} link${plan.unlinked === 1 ? "" : "s"} to files outside the import became plain text.` : "",
           ...documents.map((document) => `- "${document.title}" (${document.document_id})${document.path ? ` from ${document.path}` : ""}`),
         ]

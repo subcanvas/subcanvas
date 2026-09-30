@@ -30,7 +30,7 @@ test("an invite arrives by email, and its link lets the invited person join", as
   // Who sent it, to what, with what role, the link, and until when.
   const email = await mailTo(guest.email)
   expect(email.Subject).toBe(`${account.email} invited you to E2E ${account.id} on Subcanvas`)
-  expect(email.Text).toContain(`join the E2E ${account.id} workspace on Subcanvas as an editor`)
+  expect(email.Text).toContain(`join E2E ${account.id} on Subcanvas as an editor`)
   expect(email.Text).toMatch(/It works once, until \w+ \d+, \d{4} at .+ UTC\./)
   expect(email.HTML).toContain("Accept the invite")
   const link = inviteLinkIn(email)

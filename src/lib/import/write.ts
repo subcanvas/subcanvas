@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
+import { privateDocumentLimitMessage } from "@/lib/billing/limit"
 import * as operations from "@/lib/documents/operations"
 import { readOrgAccess } from "@/lib/org-access"
 import type { Database } from "@/lib/supabase/database.types"
@@ -49,7 +50,7 @@ export const batchSchema = z.object({
 
 // Whether this many documents can be added, asked before the first one is,
 // so that an org near the free plan's limit is told at the start and is not
-// left with half of its notes.
+// left with half of its pages.
 export async function checkImportAllowance(
   supabase: Client,
   userId: string,
@@ -66,8 +67,10 @@ export async function checkImportAllowance(
   if (row.visibility !== "private" || !plan || plan.paid || plan.private_document_limit === null) return { ok: true }
   const room = Math.max(0, plan.private_document_limit - plan.private_documents)
   if (documents <= room) return { ok: true }
+  // The limit said as every other refusal says it (lib/billing/limit.ts),
+  // then what is particular to an import.
   return {
-    error: `This import is ${documents} ${documents === 1 ? "document" : "documents"}, and the free plan has room for ${room} more private ${room === 1 ? "one" : "ones"} in this workspace. Import fewer files, or into a public project. Documents in the trash do not count.`,
+    error: `${privateDocumentLimitMessage(plan.private_document_limit)} This import is ${documents} ${documents === 1 ? "document" : "documents"}, and there is ${room === 0 ? "no room for more" : `room for ${room} more`}. Import fewer files, or into a public project.`,
     limit: true,
   }
 }

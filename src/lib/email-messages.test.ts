@@ -39,6 +39,13 @@ describe("inviteEmail", () => {
     expect(text).toContain(`Tom & Jerry's <b>`)
   })
 
+  it("says the workspace's name once, even when it ends in \"workspace\"", () => {
+    const { text, html } = inviteEmail({ ...invite, workspace: "Acme workspace" })
+    expect(text).toContain("invited you to join Acme workspace on Subcanvas as an editor.")
+    expect(html).toContain("<strong>Acme workspace</strong> on Subcanvas")
+    expect(`${text}${html}`).not.toMatch(/workspace\W+workspace/)
+  })
+
   it("keeps the subject to one line whatever a name holds", () => {
     const { subject } = inviteEmail({ ...invite, workspace: "Two\r\nBcc: someone@example.test" })
     expect(subject).not.toMatch(/[\r\n]/)
@@ -61,7 +68,7 @@ describe("abuseReportEmail", () => {
   it("gives the operator the project, the reason, the reporter, and the takedown", () => {
     const { subject, text, html } = abuseReportEmail({
       ...report,
-      document: { title: "Sign in", link: `${report.projectLink}/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2` },
+      document: { title: "Sign in", link: `${report.projectLink}/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2`, type: "text" as const },
       reporterEmail: "reader@example.test",
     })
     expect(subject).toBe("Report: Free <prizes>")
@@ -72,6 +79,16 @@ describe("abuseReportEmail", () => {
     expect(text).toContain(`update public.projects set taken_down_at = now() where id = '${report.projectId}';`)
     expect(html).toContain("Free &lt;prizes&gt;")
     expect(html).toContain(report.procedures)
+  })
+
+  it("names a reported whiteboard as a whiteboard", () => {
+    const { text, html } = abuseReportEmail({
+      ...report,
+      document: { title: "Login flow", link: `${report.projectLink}/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2`, type: "whiteboard" },
+    })
+    expect(text).toContain("Whiteboard: Login flow")
+    expect(text).not.toContain("Page:")
+    expect(html).toContain("<strong>Whiteboard:</strong> Login flow")
   })
 
   it("says when the reporter left no address", () => {

@@ -172,7 +172,7 @@ export const ICON_CATEGORIES: IconCategory[] = [
       icon("book-open", "Book", "docs documentation guide"),
       icon("notebook-pen", "Notebook", "notes journal"),
       icon("clipboard-list", "Clipboard", "checklist form"),
-      icon("image", "Image", "picture photo"),
+      icon("image", "Picture", "image photo"),
       icon("video", "Video", "film stream"),
       icon("music", "Music", "audio sound"),
       icon("mic", "Microphone", "voice audio"),

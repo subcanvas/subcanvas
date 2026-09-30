@@ -66,6 +66,11 @@ export default async function MembersPage({
       : Promise.resolve({ data: [] }),
   ])
 
+  // A workspace must keep an owner, so its only owner is not offered Leave
+  // (the database refuses it too), and is told what to do instead.
+  const owners = (members ?? []).filter((member) => member.role === "owner").length
+  const onlyOwner = myRole === "owner" && owners === 1
+
   return (
     <main id="main" className="flex w-full max-w-3xl flex-col gap-8">
       <PageHeader
@@ -73,7 +78,7 @@ export default async function MembersPage({
         title="Members"
         description={
           billingConfigured()
-            ? "Owners, admins, and editors can change things, and are the seats a paid plan is billed for. Viewers can only look, and are always free."
+            ? "Owners, admins, and editors can change things, and are the seats Pro is billed for. Viewers can only look, and are always free."
             : "Owners, admins, and editors can change things. Viewers can only look."
         }
       />
@@ -120,11 +125,14 @@ export default async function MembersPage({
                 <MemberActions
                   slug={org.slug}
                   orgId={org.id}
+                  orgName={org.name}
                   userId={member.user_id}
+                  name={member.profiles?.display_name ?? member.profiles?.email ?? "this member"}
                   role={role}
                   canManage={canManage}
                   canGrantOwner={myRole === "owner"}
-                  canLeave={isSelf}
+                  isSelf={isSelf}
+                  canLeave={!onlyOwner}
                 />
               </TableRow>
             )
@@ -132,6 +140,15 @@ export default async function MembersPage({
         </TableBody>
       </Table>
       </div>
+      {onlyOwner && (
+        <p className="-mt-4 max-w-xl text-sm leading-relaxed text-graphite">
+          You are the only owner, so you cannot leave. Make someone else an owner first, or{" "}
+          <Link href={`/${org.slug}/settings/general`} className="font-medium underline underline-offset-4">
+            delete the workspace
+          </Link>
+          .
+        </p>
+      )}
 
       {isAdmin && (
         <section className="flex flex-col gap-4">

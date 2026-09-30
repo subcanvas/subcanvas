@@ -141,8 +141,8 @@ export function DeleteOrg({
               {projects === 0
                 ? "This deletes the workspace for every member."
                 : projects === 1
-                  ? "This deletes the workspace, its 1 project, and every whiteboard and document in it, for every member."
-                  : `This deletes the workspace, its ${projects} projects, and every whiteboard and document in them, for every member.`}{" "}
+                  ? "This deletes the workspace, its 1 project, and every whiteboard and page in it, for every member."
+                  : `This deletes the workspace, its ${projects} projects, and every whiteboard and page in them, for every member.`}{" "}
               It cannot be undone.
             </DialogDescription>
           </DialogHeader>

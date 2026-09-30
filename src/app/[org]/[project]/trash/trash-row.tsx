@@ -36,14 +36,14 @@ const SHOWN_AS = {
   folder: { icon: Folder, label: "Folder" },
   whiteboard: { icon: Workflow, label: "Whiteboard" },
   text: { icon: FileText, label: "Page" },
-  notes: { icon: StickyNote, label: "Description of a box or arrow" },
+  notes: { icon: StickyNote, label: "Description of a node or arrow" },
 }
 
 // Where a restored item went, when it could not go back where it was.
 const RESTORED = {
   place: "Restored.",
   top: "Restored to the top of the project, since what it was in is still in the trash.",
-  whiteboard: "Restored under the whiteboard it was on, since the box or arrow that held it is gone.",
+  whiteboard: "Restored under the whiteboard it was on, since the node or arrow that held it is gone.",
 }
 
 export function TrashRow({

@@ -8,6 +8,16 @@ import { useShowRefusal } from "@/components/limit-refusal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -42,21 +52,30 @@ function useAction() {
   return { pending, run }
 }
 
+// `isSelf` is the person's own row, which offers Leave instead of Remove,
+// except to the only owner (`canLeave` false): a workspace must keep an
+// owner, and the page says what to do instead.
 export function MemberActions({
   slug,
   orgId,
+  orgName,
   userId,
+  name,
   role,
   canManage,
   canGrantOwner,
+  isSelf,
   canLeave,
 }: {
   slug: string
   orgId: string
+  orgName: string
   userId: string
+  name: string
   role: Role
   canManage: boolean
   canGrantOwner: boolean
+  isSelf: boolean
   canLeave: boolean
 }) {
   const router = useRouter()
@@ -96,20 +115,41 @@ export function MemberActions({
         )}
       </TableCell>
       <TableCell className="text-right">
-        {(canManage || canLeave) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={pending}
-            onClick={() =>
-              run(
-                () => removeMember(slug, orgId, userId),
-                canLeave ? () => router.push(WORKSPACE_HOME) : undefined
-              )
-            }
-          >
-            {canLeave ? "Leave" : "Remove"}
-          </Button>
+        {(isSelf ? canLeave : canManage) && (
+          <Dialog>
+            <DialogTrigger
+              render={
+                <Button variant="ghost" size="sm" disabled={pending}>
+                  {isSelf ? "Leave" : "Remove"}
+                </Button>
+              }
+            />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{isSelf ? `Leave ${orgName}?` : `Remove ${name} from ${orgName}?`}</DialogTitle>
+                <DialogDescription>
+                  {isSelf
+                    ? "You lose access to its projects right away. To come back, an admin has to invite you again."
+                    : "They lose access to its projects right away. What they made stays in the workspace. To come back, they need a new invite."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <Button
+                  variant="destructive"
+                  disabled={pending}
+                  onClick={() =>
+                    run(
+                      () => removeMember(slug, orgId, userId),
+                      isSelf ? () => router.push(WORKSPACE_HOME) : undefined
+                    )
+                  }
+                >
+                  {isSelf ? (pending ? "Leaving…" : "Leave the workspace") : pending ? "Removing…" : "Remove"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </TableCell>
     </>

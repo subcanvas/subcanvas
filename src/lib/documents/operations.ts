@@ -5,7 +5,7 @@ import { loadDocument } from "@/lib/sync/server-document"
 import type { Container, DocumentType } from "@/lib/tree"
 import { edgesMap, nodesMap } from "@/lib/whiteboard/schema"
 
-import { listMedia, removeMedia } from "./media-cleanup"
+import { listFolderMedia, listMedia, logMediaFailure, removeMedia } from "./media-cleanup"
 import { fail, NOT_ALLOWED, type OperationResult } from "./result"
 
 // What can be done to a project's folders and documents, as plain functions
@@ -272,7 +272,7 @@ export async function deleteItemForever(supabase: Client, kind: ItemKind, id: st
   if (kind === "folder") {
     // The pictures and videos of every document in it, which the delete
     // cascades to (media-cleanup.ts).
-    const { data: media } = await supabase.rpc("folder_media_objects", { p_folder_id: id })
+    const media = await listFolderMedia(supabase, id)
     const { data, error } = await supabase
       .from("folders")
       .delete()
@@ -281,7 +281,7 @@ export async function deleteItemForever(supabase: Client, kind: ItemKind, id: st
       .select("id")
     if (error) return fail(error)
     if (!data.length) return NOT_ALLOWED
-    await removeMedia(supabase, media ?? [])
+    await removeMedia(supabase, media).catch(logMediaFailure)
     return { ok: true }
   }
 
@@ -298,7 +298,7 @@ export async function deleteItemForever(supabase: Client, kind: ItemKind, id: st
     .select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
-  await removeMedia(supabase, media)
+  await removeMedia(supabase, media).catch(logMediaFailure)
   return { ok: true }
 }
 
@@ -354,7 +354,7 @@ export async function deleteProject(
   const { data, error } = await supabase.from("projects").delete().eq("id", projectId).select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
-  await removeMedia(supabase, media)
+  await removeMedia(supabase, media).catch(logMediaFailure)
   return { ok: true }
 }
 

@@ -67,7 +67,7 @@ async function notifyOperator(report: {
     report.documentId
       ? anonymous
           .from("documents")
-          .select("title")
+          .select("title, type")
           .eq("id", report.documentId)
           .eq("project_id", report.projectId)
           .maybeSingle()
@@ -83,7 +83,9 @@ async function notifyOperator(report: {
       projectId: report.projectId,
       projectName: project?.name ?? "A project that is no longer public",
       projectLink,
-      document: document ? { title: document.title, link: `${projectLink}/d/${report.documentId}` } : null,
+      document: document
+        ? { title: document.title, link: `${projectLink}/d/${report.documentId}`, type: document.type }
+        : null,
       reason: report.reason.trim(),
       reporterEmail: report.reporterEmail,
       procedures: PROCEDURES,

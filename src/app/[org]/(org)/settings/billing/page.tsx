@@ -82,7 +82,7 @@ export default async function BillingPage({
           </dl>
 
           {!configured ? (
-            <p className="text-muted-foreground">Paid plans are not set up on this server.</p>
+            <p className="text-muted-foreground">Pro is not set up on this server.</p>
           ) : !isOwner ? (
             <p className="text-muted-foreground">Only an owner can change the plan.</p>
           ) : paid || subscription?.status === "past_due" ? (

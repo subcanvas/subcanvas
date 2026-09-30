@@ -135,13 +135,13 @@ An **object** is a node or an arrow. Groups contain nodes.
 
 | ID | Requirement |
 |---|---|
-| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and up to **3 editors**. Viewers are unlimited. |
+| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and **1 editor**, so everything a person does in their personal workspace is free. Viewers are unlimited. |
 | R7.1a | Descriptions (R4.2) and what is in the trash, including everything inside a trashed document or folder, do not count toward the private document limit. Restoring counts everything that comes back. |
 | R7.2 | **Paid plan, Pro:** $5 per editor per month through Stripe, billed per workspace, personal or team (a personal workspace has one editor). Unlimited private documents and editors. |
 | R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
 | R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |
-| R7.5 | At a limit, the blocked action (a new private document, a restore, an import, a fourth editor, making a project private) says the same thing wherever it happens: what the limit is, then, where the server sells a plan, the upgrade for an owner, or a line telling anyone else to ask an owner. Everything that exists stays editable. An admin can always make a project public; making it private is checked against the limit. |
+| R7.5 | At a limit, the blocked action (a new private document, a restore, an import, a second editor, making a project private) says the same thing wherever it happens: what the limit is, then, where the server sells a plan, the upgrade for an owner, or a line telling anyone else to ask an owner. Everything that exists stays editable. An admin can always make a project public; making it private is checked against the limit. |
 | R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. A workspace left with more editors than the free plan includes has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
 | R7.7 | Limits are a deployment setting and are **off by default**, so a self-hosted server has no limits and needs no billing setup. With Stripe unconfigured, billing navigation and upgrade prompts are hidden. |
 
@@ -155,4 +155,4 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R8.4 | **Minimal Vercel dependence:** Vercel only hosts the Next.js app. No Vercel-specific services (KV, Blob, Postgres, Cron, Edge Config). The app must run on any Node host or container. State, auth, realtime, storage, and scheduled jobs all live in Supabase. |
 | R8.4a | Open source under the AGPL-3.0 license, with a documented self-hosting path (own Supabase project and Vercel deployment). |
 | R8.5 | Search across document titles and content **(later)**. |
-| R8.6 | Export: a page as Markdown, a whiteboard as SVG, and a whole project as a zip that Import files reads back ([docs/EXPORTING.md](docs/EXPORTING.md)). Anyone who can read a document can export it. A whiteboard as PNG **(later)**. |
+| R8.6 | Export: a page as Markdown, a whiteboard as SVG, and a whole project as a zip whose pages Import files brings back ([docs/EXPORTING.md](docs/EXPORTING.md)). Anyone who can read a document can export it. A whiteboard as PNG **(later)**. |

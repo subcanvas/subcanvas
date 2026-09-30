@@ -123,7 +123,7 @@ test("a Notion HTML export comes in with its callouts, columns, equations, bookm
   await chooseFiles(page, "files", { name: "Export.zip", mimeType: "application/zip", buffer: notionExport() })
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByText("4 documents will be added to Wiki")).toBeVisible()
-  await expect(dialog.getByText("1 picture or video in these notes will be uploaded with them.")).toBeVisible()
+  await expect(dialog.getByText("1 picture or video in these pages will be uploaded with them.")).toBeVisible()
   await runImport(page, 4)
   await dialog.getByRole("button", { name: "Open “Team Wiki”" }).click()
   await expect(page.getByLabel("Document title")).toHaveValue("Team Wiki")

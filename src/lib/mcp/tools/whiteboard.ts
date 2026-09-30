@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
-import { removeMedia } from "@/lib/documents/media-cleanup"
+import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
 import { loadDocument } from "@/lib/sync/server-document"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
 import { MAX_ALT, MAX_BODY_TEXT, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
@@ -275,7 +275,7 @@ export const whiteboardTools = [
       })
       if ("error" in deleted) return deleted
       const { nodes, edges, media } = deleted
-      await removeMedia(context.supabase, mediaObjectsOf(media))
+      await removeMedia(context.supabase, mediaObjectsOf(media)).catch(logMediaFailure)
       const held = await afterObjectsDeleted(context, whiteboard, [...nodes, ...edges])
       return {
         text: [

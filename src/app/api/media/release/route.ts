@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { removeMedia } from "@/lib/documents/media-cleanup"
+import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
 import { createClient } from "@/lib/supabase/server"
 import { loadDocument } from "@/lib/sync/server-document"
 import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
@@ -45,6 +45,6 @@ export async function POST(request: Request) {
     await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS))
     free = await unshown()
   }
-  await removeMedia(supabase, mediaObjectsOf(free))
+  await removeMedia(supabase, mediaObjectsOf(free)).catch(logMediaFailure)
   return new Response(null, { status: 204 })
 }

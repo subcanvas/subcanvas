@@ -128,7 +128,7 @@ test("pasted Markdown becomes one document, titled by its heading", async ({ pag
 
   await bringIn(page, "Paste Markdown…")
   await page.getByRole("textbox", { name: "Markdown" }).fill("# Pasted notes\n\n## Why\n\n- Because it was quick\n- And it worked\n")
-  await page.getByRole("button", { name: "Create document" }).click()
+  await page.getByRole("button", { name: "Create page" }).click()
 
   await expect(page.getByLabel("Document title")).toHaveValue("Pasted notes")
   await expect(pageEditor(page).getByRole("heading", { name: "Why" })).toBeVisible()
