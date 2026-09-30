@@ -6,7 +6,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { loadDocument } from "@/lib/sync/server-document"
 import { mediaHref } from "@/lib/whiteboard/media"
 
-import { layoutExport, type ExportDocumentRow, type ExportFolderRow, type ExportLayout } from "./layout"
+import { layoutInView, type ExportDocumentRow, type ExportFolderRow, type ExportLayout } from "./layout"
 import { exportMarkdown, linkedDocumentIds, readTextBlocks, type ExportedMedia, type LinkedDocument } from "./markdown"
 import { readWhiteboard, whiteboardSvg, type WhiteboardContents } from "./whiteboard"
 
@@ -45,10 +45,10 @@ export async function readProjectLayout(supabase: Client, projectId: string): Pr
   if (!project) return null
 
   const [folders, documents] = await Promise.all([
-    everyRow<ExportFolderRow>((from, to) =>
+    everyRow<ExportFolderRow & { deleted_at: string | null }>((from, to) =>
       supabase
         .from("folders")
-        .select("id, name, parent_folder_id, position")
+        .select("id, name, parent_folder_id, position, deleted_at")
         .eq("project_id", project.id)
         .order("id")
         .range(from, to)
@@ -64,9 +64,7 @@ export async function readProjectLayout(supabase: Client, projectId: string): Pr
   ])
   if (!folders || !documents) return null
 
-  // What is in the trash stays out, and so does what is inside it.
-  const layout = layoutExport(folders, documents.filter((document) => !document.deleted_at))
-  return { project, layout }
+  return { project, layout: layoutInView(folders, documents) }
 }
 
 // The title and the address in the app of each document, as the reader can
@@ -147,8 +145,8 @@ export async function exportDocument(
   }
 }
 
-// One document the reader asked for by id, if they can read it and it is
-// not in the trash, inside something in the trash included.
+// One document the reader asked for by id, if they can read it and it is in
+// view: not in the trash, nor inside a document or folder that is.
 export async function findReadableDocument(supabase: Client, documentId: string) {
   if (!isUuid(documentId)) return null
   const { data: document } = await supabase
@@ -158,6 +156,6 @@ export async function findReadableDocument(supabase: Client, documentId: string)
     .is("deleted_at", null)
     .maybeSingle()
   if (!document) return null
-  const { data: ancestors } = await supabase.rpc("document_ancestors", { p_document_id: document.id })
-  return ancestors?.some((ancestor) => ancestor.deleted_at !== null) ? null : document
+  const { data: live } = await supabase.rpc("document_is_live", { p_document_id: document.id })
+  return live ? document : null
 }

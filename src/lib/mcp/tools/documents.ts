@@ -304,15 +304,20 @@ export const documentTools = [
     title: "List what links to a document",
     group: "Documents",
     description:
-      "Lists the titles of the documents that link to this one from somewhere else (a node or arrow on a whiteboard that opens it, or a document link in a page). The app shows the same list as \"Linked from\". Check this before trashing or deleting a document.",
-    input: { document_id: id("The document.") },
+      "Lists the titles of the documents that link to this one from somewhere else (a node or arrow on a whiteboard that opens it, or a document link in a page). The app shows the same list as \"Linked from\". Only documents people can see are listed: not one in the trash, nor one inside a folder or document in the trash. For a folder, lists what links from outside it to anything inside it. Check this before trashing or deleting a document or folder.",
+    input: {
+      document_id: id("The document, or the folder when `kind` is `folder`."),
+      kind: z.enum(["document", "folder"]).default("document").describe("What `document_id` refers to."),
+    },
     kind: "read",
     covers: ["[org]/[project]/tree-actions.listReferences"],
-    run: async (context, { document_id }) => {
-      if (!(await findDocument(context, document_id))) return NO_DOCUMENT
-      const titles = await operations.listReferences(context.supabase, document_id)
+    run: async (context, { document_id, kind }) => {
+      if (kind === "document" && !(await findDocument(context, document_id))) return NO_DOCUMENT
+      const titles = await operations.listReferences(context.supabase, document_id, kind)
       return {
-        text: titles.length ? `Linked from: ${titles.map((title) => `"${title}"`).join(", ")}` : "Nothing links to this document.",
+        text: titles.length
+          ? `Linked from: ${titles.map((title) => `"${title}"`).join(", ")}`
+          : `Nothing links to this ${kind === "folder" ? "folder or anything in it" : "document"}.`,
         data: { referenced_by: titles },
       }
     },

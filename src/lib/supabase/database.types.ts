@@ -691,6 +691,10 @@ export type Database = {
           type: Database["public"]["Enums"]["document_type"]
         }[]
       }
+      document_count: {
+        Args: { p_project: Database["public"]["Tables"]["projects"]["Row"] }
+        Returns: number
+      }
       document_is_live: { Args: { p_document_id: string }; Returns: boolean }
       document_references: {
         Args: { p_document_id: string }
@@ -701,11 +705,46 @@ export type Database = {
           source_type: Database["public"]["Enums"]["document_type"]
         }[]
       }
+      documents_in_view: {
+        Args: { p_project_id: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          folder_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["document_kind"]
+          org_id: string
+          parent_document_id: string | null
+          parent_object_id: string | null
+          position: number
+          project_id: string
+          source: Json | null
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       folder_media_objects: {
         Args: { p_folder_id: string }
         Returns: {
           bucket_id: string
           name: string
+        }[]
+      }
+      folder_references: {
+        Args: { p_folder_id: string }
+        Returns: {
+          project_id: string
+          source_document_id: string
+          source_title: string
+          source_type: Database["public"]["Enums"]["document_type"]
         }[]
       }
       get_invite: {

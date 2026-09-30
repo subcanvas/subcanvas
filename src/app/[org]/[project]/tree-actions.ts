@@ -71,8 +71,8 @@ export async function moveItem(
   return finish(project, await operations.moveItem(supabase, kind, id, target))
 }
 
-export async function listReferences(id: string): Promise<string[]> {
-  return operations.listReferences(await createClient(), id)
+export async function listReferences(id: string, kind: ItemKind = "document"): Promise<string[]> {
+  return operations.listReferences(await createClient(), id, kind)
 }
 
 export async function trashItem(project: ProjectRef, kind: ItemKind, id: string): Promise<ActionResult> {

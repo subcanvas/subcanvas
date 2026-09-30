@@ -182,10 +182,14 @@ export async function moveItem(
   return { ok: true }
 }
 
-// The titles of documents that link to this one, for the warning shown
-// before it is trashed or deleted (R1.8).
-export async function listReferences(supabase: Client, id: string): Promise<string[]> {
-  const { data } = await supabase.rpc("document_references", { p_document_id: id })
+// The titles of documents in view that link to this one, for the warning
+// shown before it is trashed or deleted (R1.8). For a folder, those that
+// link from outside it to anything inside it.
+export async function listReferences(supabase: Client, id: string, kind: ItemKind = "document"): Promise<string[]> {
+  const { data } =
+    kind === "folder"
+      ? await supabase.rpc("folder_references", { p_folder_id: id })
+      : await supabase.rpc("document_references", { p_document_id: id })
   return (data ?? []).map((row) => row.source_title)
 }
 
@@ -200,6 +204,13 @@ export async function trashItem(supabase: Client, kind: ItemKind, id: string): P
   return { ok: true }
 }
 
+// Asked to restore something that is not in the trash itself. It may be out
+// of view inside something that is, which is what comes back.
+const NOT_IN_TRASH = {
+  error:
+    "That is not in the trash itself. If it is inside a folder or document that is, restore that one: what is inside comes back with it.",
+}
+
 // Where a restored item went: back where it was; to the top of the project,
 // because what it was in is still in the trash; or, for a document that a
 // whiteboard object held, under that whiteboard, because the object is gone.
@@ -211,8 +222,13 @@ export async function restoreItem(
   id: string
 ): Promise<OperationResult<Restored>> {
   if (kind === "folder") {
-    const { data: folder } = await supabase.from("folders").select("parent_folder_id").eq("id", id).maybeSingle()
+    const { data: folder } = await supabase
+      .from("folders")
+      .select("parent_folder_id, deleted_at")
+      .eq("id", id)
+      .maybeSingle()
     if (!folder) return NOT_ALLOWED
+    if (!folder.deleted_at) return NOT_IN_TRASH
     const { data, error } = await supabase.rpc("restore_folder", { p_folder_id: id })
     if (error) return fail(error)
     if (!data.length) return NOT_ALLOWED
@@ -221,10 +237,11 @@ export async function restoreItem(
 
   const { data: document } = await supabase
     .from("documents")
-    .select("parent_document_id, parent_object_id, folder_id")
+    .select("parent_document_id, parent_object_id, folder_id, deleted_at")
     .eq("id", id)
     .maybeSingle()
   if (!document) return NOT_ALLOWED
+  if (!document.deleted_at) return NOT_IN_TRASH
   const objectGone =
     document.parent_document_id && document.parent_object_id
       ? !(await objectHolds(supabase, document.parent_document_id, document.parent_object_id, id))

@@ -43,7 +43,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `trash_document` | Move a document or folder to the trash | destructive |
 | `restore_document` | Restore a document or folder from the trash | writes |
 | `delete_document_forever` | Delete a trashed document or folder forever | destructive |
-| `list_references` | List what links to a document | reads |
+| `list_references` | List what links to a document, or to anything in a folder | reads |
 | `read_text_document` | Read a page | reads |
 | `append_markdown` | Append Markdown to a page | writes |
 | `insert_after_block` | Insert Markdown after a block | writes |
@@ -63,6 +63,8 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `detach_document` | Detach the document from a node or arrow | writes |
 | `import_github_repository` | Draw a GitHub repository as a project | writes |
 | `get_embed_snippet` | Get the embed snippet of a public whiteboard | reads |
+
+Something in the trash, or inside a folder or document that is, is in the trash to the tools as it is in the app. `read_text_document` and `read_whiteboard` still read it and say so; every tool that writes to it refuses, and so does creating or moving anything into it, until it is restored. `detach_document` lets go of what a node or arrow held: it becomes a document of its own under the whiteboard, in the project tree, and deleting the node later leaves it alone.
 
 A project the operator took down after a report (docs/OPERATIONS.md) is public to nobody, whatever its visibility says: `list_projects`, `get_project` and `set_project_visibility` say `taken_down: true` and why, as the app does, and `get_embed_snippet` refuses its whiteboards.
 

@@ -4,7 +4,7 @@ import { loadDocument } from "@/lib/sync/server-document"
 import { applyBlockEdit, parseMarkdown, readBlocks, type BlockEdit } from "@/lib/text/blocks"
 
 import { editDocument } from "../edit-document"
-import { findTypedDocument } from "../lookup"
+import { findTypedDocument, READ_FROM_TRASH } from "../lookup"
 import { defineTool, id, type ToolContext } from "../tool"
 
 const documentId = id("The page (a document of type `text`).")
@@ -55,7 +55,7 @@ export const textTools = [
     input: { document_id: documentId },
     kind: "read",
     run: async (context, { document_id }) => {
-      const document = await findTypedDocument(context, document_id, "text")
+      const document = await findTypedDocument(context, document_id, "text", { read: true })
       if ("error" in document) return document
       const doc = await loadDocument(context.supabase, document.id)
       if (!doc) return { error: "This document could not be read." }
@@ -64,9 +64,16 @@ export const textTools = [
       return {
         text: [
           `# "${document.title}" (${document.id})${document.source ? ", read only: imported from a repository" : ""}`,
+          ...(document.in_trash ? [READ_FROM_TRASH] : []),
           ...blocks.map((block) => `<!-- block ${block.id} -->\n${block.markdown}`),
         ].join("\n\n"),
-        data: { document_id: document.id, title: document.title, read_only: document.source !== null, blocks },
+        data: {
+          document_id: document.id,
+          title: document.title,
+          read_only: document.source !== null,
+          in_trash: document.in_trash,
+          blocks,
+        },
       }
     },
   }),
