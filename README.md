@@ -112,9 +112,9 @@ A deployment that sells subscriptions turns on two things:
 
 1. **The free plan's limits**, enforced in the database:
    ```sql
-   update private.config set free_private_document_limit = 100, free_editor_limit = 3;
+   update private.config set free_private_document_limit = 100, free_editor_limit = 1;
    ```
-   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), and 3 editors. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limit on documents or editors. Storage for pictures and videos has a cap of its own for each plan, off unless set (`free_media_storage_limit_bytes` and `paid_media_storage_limit_bytes`; subcanvas.app gives 1 GB free and 100 GB on Pro).
+   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), and 1 editor. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limit on documents or editors. Storage for pictures and videos has a cap of its own for each plan, off unless set (`free_media_storage_limit_bytes` and `paid_media_storage_limit_bytes`; subcanvas.app gives 1 GB free and 100 GB on Pro).
 2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security

@@ -14,7 +14,8 @@ export function privateDocumentLimitMessage(limit?: number) {
 }
 
 export function editorLimitMessage(limit?: number) {
-  return `This would take the workspace past the free plan's ${limit ? `${limit} editors` : "limit on editors"}. Viewers are unlimited.`
+  const editors = limit === 1 ? "one editor" : limit ? `${limit} editors` : "limit on editors"
+  return `This would take the workspace past the free plan's ${editors}. Viewers are unlimited.`
 }
 
 // The limit is the one number in the database's message.

@@ -16,7 +16,7 @@ export default async function OrgLayout({
         <p role="status" className="border-b bg-destructive/10 px-4 py-2 text-sm">
           {plan.locked
             ? "This workspace is read-only: its subscription ended and it has more editors than the free plan includes."
-            : `This workspace's subscription ended. It becomes read-only on ${new Date(plan.grace_ends_at).toLocaleDateString("en-US", { dateStyle: "long" })} unless it has ${plan.editor_limit} editors or fewer.`}{" "}
+            : `This workspace's subscription ended. It becomes read-only on ${new Date(plan.grace_ends_at).toLocaleDateString("en-US", { dateStyle: "long" })} unless it has ${plan.editor_limit === 1 ? "only one editor" : `${plan.editor_limit} editors or fewer`}.`}{" "}
           {role === "owner"
             ? "Resubscribe in Billing, or change some editors to viewers in Members."
             : "An owner can fix this."}
