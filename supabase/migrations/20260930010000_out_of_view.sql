@@ -129,9 +129,12 @@ begin
     return new;
   end if;
 
+  -- A place that does not exist is left to the foreign keys, and for a
+  -- document to check_document_home, which runs first.
   if tg_table_name = 'folders' then
     if new.parent_folder_id is not null
        and (tg_op = 'INSERT' or new.parent_folder_id is distinct from old.parent_folder_id)
+       and exists (select 1 from public.folders f where f.id = new.parent_folder_id)
        and not private.folder_is_live(new.parent_folder_id)
     then
       raise exception 'That folder is in the trash, or inside a folder that is. Restore it first, or choose another place.'
