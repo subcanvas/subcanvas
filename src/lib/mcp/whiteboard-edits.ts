@@ -465,7 +465,7 @@ export function setObjectDocument(
 ): EditResult<{ kind: "node" | "edge" }> {
   const node = nodesMap(doc).get(objectId)
   const map = node ?? edgesMap(doc).get(objectId)
-  if (!map) return missing("node or edge", [objectId])
+  if (!map) return missing("node or arrow", [objectId])
   patchYMap(map, { docId: held?.docId ?? null, docType: held?.docType ?? null })
   return { kind: node ? "node" : "edge" }
 }
