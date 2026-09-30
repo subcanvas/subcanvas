@@ -73,7 +73,7 @@ export default async function MembersPage({
         title="Members"
         description={
           billingConfigured()
-            ? "Owners, admins, and editors can change things, and are the seats a paid plan is billed for. Viewers can only look, and are always free."
+            ? "Owners, admins, and editors can change things, and are the seats Pro is billed for. Viewers can only look, and are always free."
             : "Owners, admins, and editors can change things. Viewers can only look."
         }
       />

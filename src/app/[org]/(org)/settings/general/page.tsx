@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
+import { ASK_AN_OWNER } from "@/lib/billing/limit"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
@@ -115,8 +116,24 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
             !billingConfigured()
               ? "This server limits how much the workspace keeps in pictures and videos."
               : plan?.paid
-                ? `Your plan includes ${formatBytes(storage.limit)} for pictures and videos.`
-                : `The free plan includes ${formatBytes(storage.limit)} for pictures and videos. ${isOwner ? "Upgrading raises it." : "An owner can upgrade to raise it."}`
+                ? `Pro includes ${formatBytes(storage.limit)} for pictures and videos.`
+                : (
+                    // Said as a plan limit is (components/limit-refusal.tsx):
+                    // an owner is offered the upgrade, anyone else asks one.
+                    <>
+                      The free plan includes {formatBytes(storage.limit)} for pictures and videos.{" "}
+                      {isOwner ? (
+                        <>
+                          <Link href={`/${org.slug}/settings/billing`} className="font-medium underline underline-offset-4">
+                            Upgrade to Pro
+                          </Link>{" "}
+                          to raise it.
+                        </>
+                      ) : (
+                        ASK_AN_OWNER
+                      )}
+                    </>
+                  )
           }
         >
           <StorageMeter used={storage.used} limit={storage.limit} />
