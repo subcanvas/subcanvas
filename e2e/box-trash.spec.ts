@@ -16,7 +16,7 @@ import {
   whiteboardTools,
 } from "./support/app"
 import { nodeNamed } from "./support/canvas"
-import { clickCanvas } from "./support/collab"
+import { clickCanvas, expectSavedByNow } from "./support/collab"
 
 // Deleting a box means what deleting means everywhere inside a project:
 // what it held goes to the trash, with everything nested in it, and comes
@@ -54,7 +54,9 @@ test("deleting a box sends the whiteboard inside it to the trash, and undo bring
   await expect(inspector(page).getByText("A whiteboard. Click to go inside.")).toBeVisible()
   await expandInTree(page, top)
   await expect(treeRow(page, inner)).toBeVisible()
-  await expectSaved(page)
+  // The save may be over by the time the tree has caught up, so "Saving…"
+  // is not waited for here.
+  await expectSavedByNow(page)
 
   // The panel's own control, which a touch screen has too.
   await inspector(page).getByRole("button", { name: "Delete box" }).click()
