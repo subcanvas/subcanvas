@@ -68,7 +68,7 @@ export function PasteMarkdownDialog({
           <DialogHeader>
             <DialogTitle>Paste Markdown</DialogTitle>
             <DialogDescription>
-              It becomes a new text document in {target.name}. A heading on the first line is its title.
+              It becomes a new page in {target.name}. A heading on the first line is its title.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">

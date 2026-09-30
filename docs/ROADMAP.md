@@ -20,7 +20,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 **Status.** Account connectors (Google Drive, Slack, Notion over OAuth) are deferred. What exists instead is file import: Markdown files, folders, and the zips that Notion, Obsidian, and wikis export become documents in a project. See [IMPORTING.md](IMPORTING.md).
 
-**What.** Today, what is inside a node, edge, or group is a Subcanvas document: a whiteboard or a page of text. Add a third option: **a link to a document that lives elsewhere**. The node on the diagram is ours; the page behind it is the team's existing Google Doc, Slack canvas, Notion page, or Figma file.
+**What.** Today, what is inside a node or an arrow is a Subcanvas document: a whiteboard or a page. Add a third option: **a link to a document that lives elsewhere**. The node on the diagram is ours; the page behind it is the team's existing Google Doc, Slack canvas, Notion page, or Figma file.
 
 **How it works.**
 
@@ -45,15 +45,15 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 2. Full-access MCP server
 
-**Status: first version built** ([MCP.md](MCP.md)). Built: the endpoint at `/mcp`, sign-in through Supabase Auth's OAuth server with the consent page, tools for orgs (list), projects, folders and documents, text by block, whiteboards, GitHub import and embeds, live announcement of edits over Realtime's HTTP broadcast, the "Connect an agent" page, and the parity test. Not built: tools for members, invites, and billing (listed with reasons in the parity test), the "read only" and "only these projects" choices at consent, the "agent is editing" notice, and rate limits.
+**Status: first version built** ([MCP.md](MCP.md)). Built: the endpoint at `/mcp`, sign-in through Supabase Auth's OAuth server with the consent page, tools for orgs (list), projects (create, rename, make public or private), folders and documents, pages by block, whiteboards, GitHub import and embeds, live announcement of edits over Realtime's HTTP broadcast, the "Connect an agent" page, Connected agents with Revoke in Settings → Profile, and the parity test. Not built: tools for members, invites, billing, and workspace administration, the "read only" and "only these projects" choices at consent, the "agent is editing" notice, and rate limits. Deliberately left to people, with the reasons in the parity test and in MCP.md: deleting a project or a workspace, a person's own name and picture, and approving or revoking agents.
 
 **Principle: nothing a human can do that an agent cannot.** An agent connected to Subcanvas over the [Model Context Protocol](https://modelcontextprotocol.io) can read and change everything its user can, with the same permissions and the same limits.
 
 **What that means in practice.**
 
 - **It acts as a user, never as an admin.** The agent signs in through OAuth as a person and gets that person's role in each org. Row-level security stays the one place access is decided, exactly as for the web app. There is no service key behind the MCP server and no separate permission model to keep in step.
-- **The tool list is the feature list.** Orgs and members (list, invite, change role, remove). Projects (create, rename, make public or private, delete). Folders and documents (create, move, rename, trash, restore, link, list references). Whiteboards (add, move, restyle, connect, group, and delete nodes, edges, and groups; open what is inside them). Text (read as Markdown, insert, replace, delete blocks). Billing (read the plan; return a checkout or portal link, since paying is the one step that needs a human and a card).
-- **Agents are collaborators, not importers.** An agent's edits are Yjs updates to the same documents people edit, so they merge with what people are typing, people watching see them arrive live, and undo works.
+- **The tool list is the feature list.** Orgs and members (list, invite, change role, remove). Projects (create, rename, make public or private; deleting one stays with people, since it cannot be undone). Folders and documents (create, move, rename, trash, restore, link, list what links to them). Whiteboards (add, move, restyle, connect, group, and delete nodes, arrows, and groups; open what is inside them). Pages (read as Markdown, insert, replace, delete blocks). Billing (read the plan; return a checkout or portal link, since paying is the one step that needs a human and a card).
+- **Agents are collaborators, not importers.** An agent's edits are Yjs updates to the same documents people edit, so they merge with what people are typing and people watching see them arrive live. A person's undo is their own: it never takes back an agent's edits, and an agent undoes its work by changing it back.
 - **Yjs, but no standing connection.** MCP is request and response, the endpoint runs on serverless functions that cannot hold a socket, and Realtime is billed by concurrent connections (the reason viewers hold none). So each tool call is a short session: read the snapshot and update log from Postgres (at most about a second behind, since browsers persist after ~1 s), append the change to `document_updates`, and announce it on the document's channel through Realtime's HTTP broadcast. Browsers that miss the broadcast pick the change up on their next database re-read. Tools address blocks and objects by id, never by position or matching text, so a read that is a second stale cannot make an edit land in the wrong place.
 - **Shown while working.** Realtime presence needs a socket, so an agent is not a standing avatar. While it is making changes, people in the document see "Trevin's agent is editing", sent over the same HTTP broadcast and expiring after a few seconds.
 - **Parity is tested, not promised.** A feature is not done until its tool exists. A test lists every server action and fails when one has no matching tool.
@@ -64,7 +64,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 | Question | Recommendation |
 |---|---|
-| Should destructive tools (delete a project, remove a member) ask for confirmation? | No special case. The web app sends documents to the trash instead of destroying them, and the agent gets the same safety net. Mark the tools as destructive in their MCP annotations so clients can ask their user. |
+| Should destructive tools (delete a project, remove a member) ask for confirmation? | Decided: what cannot be undone (deleting a project or a workspace) has no tool at all, and removing members waits for the members tools. The rest is marked destructive in its MCP annotations, so clients can ask their user, and documents go to the trash, where the agent gets the same safety net as a person. |
 | Can a user limit an agent to one project or to read-only? | Yes, at connection time: the OAuth consent screen offers "everything I can do" (the default), "read only", and "only these projects". |
 | Are agents billed as editors? | No. An agent acts as its user, who is already counted. |
 | Can an agent watch a document and react to changes? | Later, as an optional live mode. It needs a long-lived process outside the serverless deployment, which is a cost for us and for self-hosters, so it waits for a use case that needs it. |
@@ -84,7 +84,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 - A node that comes from a repository carries its **folder path**, shown next to its title (`Payments` · `services/payments`). The path is the node's identity: rename the node freely, and it still follows the folder.
 - The node's document is the folder's `README.md`, shown read-only with an "Edit on GitHub" link. A folder with no README gets a node with no document.
 - A folder that contains other mapped folders opens into its own whiteboard. Depth in the repository is depth in Subcanvas.
-- **The repository owns** which folders exist, their READMEs, and the connections declared in `.subcanvas` files. **Subcanvas owns** where nodes sit, their colors, their titles, and anything the user adds by hand: extra nodes, extra edges, notes. A sync never moves or restyles anything, and never touches what the user added.
+- **The repository owns** which folders exist, their READMEs, and the connections declared in `.subcanvas` files. **Subcanvas owns** where nodes sit, their colors, their titles, and anything the user adds by hand: extra nodes, extra arrows, notes. A sync never moves or restyles anything, and never touches what the user added.
 
 **`.subcanvas` files.** An optional file in any folder that says what the folder is and what it talks to. Proposed format (YAML):
 
@@ -102,9 +102,9 @@ ignore:
   - fixtures                     # subfolders that are not part of the design
 ```
 
-`connects` becomes edges, and an edge's `description` becomes the edge's document, which is the second half of the product's pitch (click an arrow, read the protocol). A folder with a `.subcanvas` file is always mapped, which also makes the file the way to include a folder the automatic pass skipped.
+`connects` becomes arrows, and a connection's `description` becomes the arrow's description, a page, which is the second half of the product's pitch (click an arrow, read the protocol). A folder with a `.subcanvas` file is always mapped, which also makes the file the way to include a folder the automatic pass skipped.
 
-**Sync.** A GitHub App with read-only access to contents and metadata. On first connect, and on every push to the default branch: new folders appear (placed near their parent, flagged as new), deleted folders are flagged as gone rather than silently removed, READMEs refresh, declared edges are reconciled. Sync writes into the whiteboard's Yjs state from the server, so anyone with the diagram open sees the change arrive.
+**Sync.** A GitHub App with read-only access to contents and metadata. On first connect, and on every push to the default branch: new folders appear (placed near their parent, flagged as new), deleted folders are flagged as gone rather than silently removed, READMEs refresh, declared arrows are reconciled. Sync writes into the whiteboard's Yjs state from the server, so anyone with the diagram open sees the change arrive.
 
 **Open questions.** These are the ones that decide what gets built.
 
@@ -112,7 +112,7 @@ ignore:
 |---|---|
 | Are nodes created automatically, or does the user link folders by hand? | **Both, automatic first.** The first import maps folders automatically, because a full diagram in the first minute is the whole point for a new user. The user then deletes what is not part of the design, and deleted paths are remembered so a later sync does not bring them back. Any node, including one drawn by hand, can also be linked to a folder from its inspector. |
 | Which folders does the automatic pass map? | Not every folder has design relevance. Map a folder when it has a `README.md` or a `.subcanvas` file, or is a direct child of a conventional root (`services/`, `apps/`, `packages/`, `cmd/`, `internal/`). Skip dot-folders, dependencies, and build output (`node_modules`, `dist`, `vendor`, `target`). Cap the first pass at two levels deep and offer "map the folders inside" on any node. The heuristic will be wrong sometimes; deleting is one click, and that is the fix. |
-| Does Subcanvas open pull requests that add `.subcanvas` files? | **Not at first, then opt-in.** Reading is enough to demonstrate the idea, and asking for write access on first connect will cost sign-ups. Later: when a user draws an edge between two repository nodes, offer "save this to the repository", which opens a pull request. That needs a second, separate permission grant, requested only at that moment. |
+| Does Subcanvas open pull requests that add `.subcanvas` files? | **Not at first, then opt-in.** Reading is enough to demonstrate the idea, and asking for write access on first connect will cost sign-ups. Later: when a user draws an arrow between two repository boxes, offer "save this to the repository", which opens a pull request. That needs a second, separate permission grant, requested only at that moment. |
 | When a user edits a README in Subcanvas, where does the edit go? | Nowhere: READMEs are read-only here. Notes that belong to the diagram and not the repository go in a separate Subcanvas document on the same node. |
 | How are new nodes laid out? | Automatic layout (ELK) on the first import only. After that, a sync places new nodes beside their parent and never moves existing ones. |
 | Private repositories and the free plan? | A public repository makes a public project, which is free and unlimited, consistent with R7. A private repository makes a private project and its READMEs count toward the private document limit like any other document. |
@@ -145,7 +145,7 @@ GitHub supports `<picture>` with a color-scheme source, so the diagram matches t
 
 **What it takes.**
 
-- **A renderer that needs no browser.** React Flow draws in the browser; the embed endpoint has to produce an SVG on the server from the whiteboard's Yjs state. Nodes, groups, and edges are simple shapes, so this is a renderer of our own that reads the same schema: boxes with the sheet-stack edge for anything that holds a whiteboard, labels, arrows with their labels, the grid left out. The same renderer is the export feature (R8.6), so it is built once.
+- **A renderer that needs no browser.** React Flow draws in the browser; the embed endpoint has to produce an SVG on the server from the whiteboard's Yjs state. Nodes, groups, and arrows are simple shapes, so this is a renderer of our own that reads the same schema: boxes with the sheet-stack edge for anything that holds a whiteboard, labels, arrows with their labels, the grid left out. The same renderer is the export feature (R8.6), so it is built once.
 - **Freshness.** The endpoint sends a short `Cache-Control` lifetime and an `ETag` from the document's latest update, so GitHub's proxy re-fetches soon after a change and cheaply when nothing changed. A push that changes the diagram shows up in the README within minutes, with no commit to the README.
 - **Public only.** The endpoint serves documents in public projects and nothing else, with the same check as the public pages. Making a project private again turns its embeds into a plain "this diagram is private" image.
 - **A small mark.** Each embed carries a quiet "subcanvas.app" in a corner. Every README that embeds a diagram is then also how the next person finds the product.
@@ -166,9 +166,9 @@ GitHub supports `<picture>` with a color-scheme source, so the diagram matches t
 
 ## 5. Launch
 
-**When.** After items 3 and 4 work on this repository: a diagram generated from the repository and its `.subcanvas` files, embedded in the README, and a try-it path a stranger can finish in a minute. Then Product Hunt, and posts where developers are (Reddit, Hacker News), each linking to the repository, whose README is the demonstration.
+**Status.** What the launch waited for is built: items 3 and 4 work on this repository (its `.subcanvas` files draw its diagram, which is embedded at the top of the README and opens the live version), and the demo records itself (below). The try-it box on the landing page (section 3) is not built, so a stranger's minute starts with signing up. The launch is Product Hunt, then posts where developers are (Reddit, Hacker News), each linking to the repository, whose README is the demonstration.
 
-**A demo video that records itself.** A product demo recorded by hand goes stale with every interface change and takes an afternoon to redo. Instead: a Python script moves the real cursor through a storyboard while the Openscreen CLI records the screen, so the video can be regenerated after any release with one command.
+**A demo video that records itself. Built** (`scripts/demo/`, with its own README). A product demo recorded by hand goes stale with every interface change and takes an afternoon to redo. Instead, `record_demo.py` moves the real cursor through a storyboard while OpenScreen records the window, so the video can be regenerated after any release with one command.
 
 - **A storyboard file**, not code: an ordered list of steps (go to this page, move to this element, click, type this text, pause, caption). Changing the demo means editing the list.
 - **Find by element, move for real.** Pixel coordinates break the moment the layout shifts. The script asks the browser where an element is (by its accessible name, through Playwright or the DevTools protocol), then moves the operating system's cursor there along an eased curve with small pauses, so it looks like a person and lands on the right thing.
@@ -181,7 +181,7 @@ GitHub supports `<picture>` with a color-scheme source, so the diagram matches t
 |---|---|
 | Does the script live in this repository? | Yes, under `scripts/demo/`, with its storyboard. It doubles as a smoke test of the main flow. |
 | Voice-over or captions? | Captions, burned in from the storyboard. Most feeds autoplay muted, and captions regenerate with the video. |
-| What else has to be true on launch day? | Sign-up open to strangers (real email delivery through Resend, Google and GitHub sign-in), the try-it box on the landing page, billing either on or clearly "free for now", the Terms and Privacy pages live, and a status or contact address that someone is reading. |
+| What else has to be true on launch day? | Sign-up open to strangers (email delivered through an SMTP provider, Google and GitHub sign-in), billing either on or plainly absent (the landing page says which, from the server's own setup), the Terms and Privacy pages, and a contact address that someone reads. The try-it box is not among them: it is not built. |
 
 ---
 

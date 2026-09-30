@@ -36,19 +36,21 @@ export function AppSidebar({
   org,
   orgs,
   user,
+  agents,
   children,
   footer,
 }: {
   org: Org
   orgs: Org[]
   user: SidebarUser
+  agents: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
 
-  const pages = orgPages(org.slug)
+  const pages = orgPages(org.slug, agents)
 
   return (
     <>

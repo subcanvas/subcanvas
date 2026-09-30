@@ -15,10 +15,12 @@ import { cn } from "@/lib/utils"
 export function DesktopSidebar({
   slug,
   user,
+  agents,
   children,
 }: {
   slug: string
   user: SidebarUser
+  agents: boolean
   children: React.ReactNode
 }) {
   const { open, toggleSidebar } = useSidebar()
@@ -31,7 +33,7 @@ export function DesktopSidebar({
           <PanelLeftOpen />
         </Button>
         <nav aria-label="Org" className="mt-1 flex flex-col items-center gap-1 border-t border-rule pt-2">
-          {orgPages(slug).map((page) => (
+          {orgPages(slug, agents).map((page) => (
             <Link
               key={page.href}
               href={page.href}

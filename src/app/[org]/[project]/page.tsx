@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation"
 
 import { ShareProject } from "@/components/share-project"
+import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 
 export default async function ProjectPage({ params }: PageProps<"/[org]/[project]">) {
   const { org: slug, project: projectId } = await params
-  const { supabase, org, role, canEdit } = await getOrgContext(slug)
+  const { supabase, org, role, canEdit, plan } = await getOrgContext(slug)
   const { data: project } = await supabase
     .from("projects")
     .select("visibility")
@@ -22,6 +23,7 @@ export default async function ProjectPage({ params }: PageProps<"/[org]/[project
           project={{ slug: org.slug, orgId: org.id, projectId }}
           visibility={project.visibility}
           canChange={hasRole(role, "admin") && canEdit}
+        privateLimit={privateDocumentLimit(plan)}
         />
       </div>
       <div className="flex flex-1 items-center justify-center p-8">

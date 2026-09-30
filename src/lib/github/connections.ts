@@ -32,7 +32,7 @@ export function resolveConnections(
   for (const connection of connections) {
     const where = `${connection.from ? `${connection.from}/` : ""}${SUBCANVAS_FILE_NAME}`
     if (connection.from === ROOT) {
-      warnings.push(`${where}: the repository itself is not a node, so \`connects\` was ignored here.`)
+      warnings.push(`${where}: the repository itself is not a box on the diagram, so \`connects\` was ignored here.`)
       continue
     }
 

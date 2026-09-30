@@ -40,9 +40,9 @@ export async function createInsideObject(
   if (!doc) return { error: "This document could not be read." }
   const object = nodesMap(doc).get(objectId) ?? edgesMap(doc).get(objectId)
   if (!object)
-    return { error: `No node or edge with id ${objectId} on this whiteboard. Read the whiteboard again for current ids.` }
+    return { error: `No node or arrow with id ${objectId} on this whiteboard. Read the whiteboard again for current ids.` }
   if (object.get("docId"))
-    return { error: "This object already holds a document. Detach it first, or edit the document it holds." }
+    return { error: "This node or arrow already holds a document. Detach it first, or edit the document it holds." }
 
   // The canvas names the document after the object, which for an arrow is
   // its label.

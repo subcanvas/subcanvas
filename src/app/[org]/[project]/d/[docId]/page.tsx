@@ -9,6 +9,7 @@ import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { readDocumentSource } from "@/lib/github/source"
 import { parseVia } from "@/lib/navigation"
+import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
@@ -29,7 +30,7 @@ export default async function DocumentPage({
 }: PageProps<"/[org]/[project]/d/[docId]">) {
   const { org: slug, project: projectId, docId } = await params
   const via = parseVia((await searchParams).via).filter((id) => id !== docId)
-  const { supabase, user, org, role, canEdit } = await getOrgContext(slug)
+  const { supabase, user, org, role, canEdit, plan } = await getOrgContext(slug)
 
   const [{ data: document }, { data: profile }, { data: project }] = await Promise.all([
     supabase
@@ -86,7 +87,8 @@ export default async function DocumentPage({
         project={{ slug: org.slug, orgId: org.id, projectId }}
         visibility={project.visibility}
         canChange={hasRole(role, "admin") && canEdit}
-        whiteboard={document.type === "whiteboard" ? { docId: document.id, title: document.title } : undefined}
+        privateLimit={privateDocumentLimit(plan)}
+        current={{ id: document.id, title: document.title, type: document.type, via }}
       />
     </div>
   )
