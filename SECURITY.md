@@ -10,7 +10,7 @@ You will hear back within three working days. Once it is fixed, the fix ships an
 
 ## Scope
 
-- **subcanvas.app** and everything it serves: the app, the public project pages, embed images, the MCP endpoint at `/mcp`, and the OAuth consent page.
+- **subcanvas.app** and everything it serves: the app, the public project pages, the embed SVGs, the MCP endpoint at `/mcp`, and the OAuth consent page.
 - **This repository's code**, including what a self-hosted copy runs.
 
 A copy of Subcanvas that someone else runs is theirs to secure. If a flaw is in the code, report it here; if it is in how they set it up, tell them.
