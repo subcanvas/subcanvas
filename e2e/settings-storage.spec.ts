@@ -12,7 +12,7 @@ test("Settings → General leaves out the storage meter when no cap is set", asy
 
   // The page is the one we mean, and it rendered all the way through.
   await expect(page.getByRole("heading", { name: "General", exact: true })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Org", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Workspace", exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Your role", exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Danger zone", exact: true })).toBeVisible()
 

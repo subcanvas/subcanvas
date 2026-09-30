@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process"
-import { readFileSync } from "node:fs"
-import path from "node:path"
 
 import { test as base, expect, type Page } from "@playwright/test"
 import Stripe from "stripe"
+
+import { setting } from "./env"
 
 // Paying for real, against Stripe's sandbox. The server needs the STRIPE_*
 // variables to offer a plan at all, and the org only flips to paid when
@@ -15,27 +15,6 @@ import Stripe from "stripe"
 // environment, or from .env.local when the environment has neither, which
 // is where `next start` reads them from too, so the relay signs with the
 // secret the server checks against. Without a key the specs skip.
-
-const ROOT = path.resolve(__dirname, "../..")
-
-// The variables `next start` loads, for a run started from a plain shell.
-function dotEnvLocal(): Record<string, string> {
-  let text: string
-  try {
-    text = readFileSync(path.join(ROOT, ".env.local"), "utf8")
-  } catch {
-    return {}
-  }
-  const values: Record<string, string> = {}
-  for (const line of text.split("\n")) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/)
-    if (match) values[match[1]] = match[2].replace(/^(["'])(.*)\1$/, "$2")
-  }
-  return values
-}
-
-const fromFile = dotEnvLocal()
-const setting = (name: string) => process.env[name] || fromFile[name] || ""
 
 export const stripeSecretKey = setting("STRIPE_SECRET_KEY")
 export const billingConfigured = Boolean(stripeSecretKey)
@@ -130,12 +109,13 @@ export async function payAtCheckout(page: Page) {
   await page.waitForURL(/\/settings\/billing\?checkout=success$/, { timeout: 60_000 })
 }
 
-// Reloads the billing page until the webhook has flipped the org, which
-// happens a few seconds after checkout and outside the browser's view.
+// Reloads the billing page until the webhook has put the workspace on Pro,
+// the paid plan (once called Team), which happens a few seconds after
+// checkout and outside the browser's view.
 export async function expectTeamPlan(page: Page) {
   await expect(async () => {
     await page.reload()
-    await expect(page.getByText("Team plan", { exact: true })).toBeVisible({ timeout: 3_000 })
+    await expect(page.getByText("Pro plan", { exact: true })).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 45_000 })
 }
 

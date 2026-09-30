@@ -53,7 +53,7 @@ function parentsFirst(nodes: WbNode[]) {
 
 // What a node is called, in the panel and to a screen reader.
 export function nodeLabel(wb: WbNode) {
-  if (wb.kind === "media") return wb.mediaType === "video" ? "Video" : "Image"
+  if (wb.kind === "media") return wb.mediaType === "video" ? "Video" : "Picture"
   return wb.kind === "plain" ? "Box" : wb.kind === "text" ? "Text" : "Group"
 }
 

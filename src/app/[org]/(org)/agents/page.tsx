@@ -5,16 +5,18 @@ import { PageHeader } from "@/components/page-header"
 import { buttonVariants } from "@/components/ui/button"
 import { claudeCodeCommand, codexCommand, cursorInstallLink, vscodeInstallLink } from "@/lib/mcp/install-links"
 import { MCP_PATH } from "@/lib/mcp/origin"
+import { agentSignInAvailable } from "@/lib/mcp/sign-in"
 import { originFromHeaders } from "@/lib/origin"
 import type { ToolGroup } from "@/lib/mcp/tool"
 import { tools } from "@/lib/mcp/tools"
 import { getOrgContext } from "@/lib/orgs"
+import { docsUrl } from "@/lib/source"
 
 import { CopyField } from "./copy-field"
 
 export const metadata = { title: "Connect an agent" }
 
-const GROUPS: ToolGroup[] = ["Orgs and projects", "Documents", "Text documents", "Whiteboards", "GitHub and embeds"]
+const GROUPS: ToolGroup[] = ["Workspaces and projects", "Documents", "Pages", "Whiteboards", "GitHub and embeds"]
 
 // `wide` is for a client whose instructions hold a command too long for half
 // the page.
@@ -31,6 +33,23 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
   const { org: slug } = await params
   const { org, role } = await getOrgContext(slug)
   const url = `${originFromHeaders(await headers())}${MCP_PATH}`
+
+  // The sidebar leaves this page out on such a server; a saved link still
+  // lands here, and is told why nothing below would work.
+  if (!(await agentSignInAvailable()))
+    return (
+      <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
+        <PageHeader eyebrow={org.name} title="Connect an agent" />
+        <p className="max-w-xl text-sm leading-relaxed text-graphite">
+          Agents cannot sign in to this server: it does not have Supabase&apos;s OAuth server switched on.
+          Whoever runs it can switch it on, as{" "}
+          <a href={docsUrl("MCP.md", "turning-it-on")} className="font-medium text-ink underline underline-offset-4">
+            the MCP guide
+          </a>{" "}
+          describes.
+        </p>
+      </main>
+    )
 
   return (
     <main id="main" className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
@@ -101,7 +120,7 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">What an agent can do here</h2>
           <p className="max-w-xl text-sm leading-relaxed text-graphite">
-            Exactly what you can, and no more: it acts with your role in each org
+            Exactly what you can, and no more: it acts with your role in each workspace
             {role === "viewer" ? ", so in this one it can read but not change anything" : ""}. Its
             edits merge with what people are typing and show up live. Members and billing stay with
             you.

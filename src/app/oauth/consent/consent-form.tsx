@@ -4,7 +4,7 @@ import { useActionState } from "react"
 
 import { Button } from "@/components/ui/button"
 
-import { decideAuthorization } from "./actions"
+import { decideAuthorization, signOutInstead } from "./actions"
 
 export function ConsentForm({ authorizationId, clientName }: { authorizationId: string; clientName: string }) {
   const [state, action, pending] = useActionState(
@@ -25,6 +25,20 @@ export function ConsentForm({ authorizationId, clientName }: { authorizationId: 
           {state.error}
         </p>
       )}
+    </form>
+  )
+}
+
+// "Not you?": refuses the request, signs out, and sends the browser back to
+// the app with the refusal, where connecting again starts over.
+export function SignOutInstead({ authorizationId }: { authorizationId: string }) {
+  const [, action, pending] = useActionState(async () => signOutInstead(authorizationId), null)
+
+  return (
+    <form action={action} className="inline">
+      <Button type="submit" variant="link" className="h-auto p-0 text-ink underline underline-offset-4" disabled={pending}>
+        {pending ? "Signing out…" : "Sign out"}
+      </Button>
     </form>
   )
 }

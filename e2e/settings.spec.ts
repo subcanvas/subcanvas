@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createOrg, freshId, signIn, signOut, signUpWithOrg } from "./support/app"
+import { createOrg, freshId, personalSlug, signIn, signOut, signUpWithOrg } from "./support/app"
 import { signInLinkFor } from "./support/mailpit"
 
 // Settings and the account: what a person changes about themselves and
@@ -59,7 +59,7 @@ test("Appearance: the theme is kept in this browser across loads", async ({ page
   await expect(theme.getByRole("radio", { name: "Light" })).toBeChecked()
 })
 
-test("General: renaming the org renames it in the sidebar", async ({ page }) => {
+test("General: renaming the workspace renames it in the sidebar", async ({ page }) => {
   const { slug } = await signUpWithOrg(page)
   await page.goto(`/${slug}/settings/general`)
 
@@ -68,7 +68,7 @@ test("General: renaming the org renames it in the sidebar", async ({ page }) => 
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await expect(page.getByText("Name saved.")).toBeVisible()
 
-  // The org switcher at the top of the sidebar, and the page's own eyebrow.
+  // The switcher at the top of the sidebar, and the page's own eyebrow.
   await expect(page.getByRole("button", { name })).toBeVisible()
   await page.goto(`/${slug}`)
   await expect(page.getByRole("button", { name })).toBeVisible()
@@ -76,9 +76,9 @@ test("General: renaming the org renames it in the sidebar", async ({ page }) => 
   await expect(page).toHaveURL(`/${slug}`)
 })
 
-test("General: deleting an org asks for its name and then it is gone", async ({ page }) => {
-  const { slug: home } = await signUpWithOrg(page)
-  // A second org to throw away, so the first is still there to land on.
+test("General: deleting a team workspace asks for its name and then it is gone", async ({ page }) => {
+  const { account } = await signUpWithOrg(page)
+  // A second one to throw away.
   const doomed = freshId()
   const slug = await createOrg(page, doomed)
   const orgName = `E2E ${doomed}`
@@ -87,7 +87,7 @@ test("General: deleting an org asks for its name and then it is gone", async ({ 
   await page.getByRole("button", { name: "Delete", exact: true }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByRole("heading", { name: `Delete ${orgName}?` })).toBeVisible()
-  const confirm = dialog.getByRole("button", { name: "Delete this org" })
+  const confirm = dialog.getByRole("button", { name: "Delete this workspace" })
   // Nothing typed, or not quite the name: no way through.
   await expect(confirm).toBeDisabled()
   await dialog.getByLabel(`Type ${orgName} to confirm`).fill(orgName.toLowerCase())
@@ -97,9 +97,9 @@ test("General: deleting an org asks for its name and then it is gone", async ({ 
   await confirm.click()
 
   await expect(page.getByText(`${orgName} was deleted.`)).toBeVisible()
-  // Home is the first org that is left.
-  await page.waitForURL(`/${home}`)
-  // The deleted org is not found, for its former owner too.
+  // Home is the personal workspace.
+  await page.waitForURL(`/${personalSlug(account)}`)
+  // The deleted workspace is not found, for its former owner too.
   const gone = await page.goto(`/${slug}`)
   expect(gone?.status()).toBe(404)
 })
@@ -119,11 +119,11 @@ test("Profile: changing the password from the profile page", async ({ page }) =>
 
   await signOut(page)
   await signIn(page, changed)
-  await page.waitForURL(`/${slug}`)
+  await page.waitForURL(`/${personalSlug(account)}`)
 })
 
 test("resets a forgotten password through the link in the email", async ({ page }) => {
-  const { account, slug } = await signUpWithOrg(page)
+  const { account } = await signUpWithOrg(page)
   await signOut(page)
 
   await page.getByRole("button", { name: "Forgot your password?" }).click()
@@ -140,11 +140,11 @@ test("resets a forgotten password through the link in the email", async ({ page 
   const reset = { ...account, password: `reset-${account.id}` }
   await page.getByLabel("New password").fill(reset.password)
   await page.getByRole("button", { name: "Save password" }).click()
-  await page.waitForURL(`/${slug}`)
+  await page.waitForURL(`/${personalSlug(account)}`)
 
   await signOut(page)
   await signIn(page, reset)
-  await page.waitForURL(`/${slug}`)
+  await page.waitForURL(`/${personalSlug(account)}`)
 })
 
 test("the account menu names the person, leads to the profile, and signs out", async ({ page }) => {

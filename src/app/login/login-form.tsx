@@ -31,7 +31,7 @@ type Mode = "signin" | "signup" | "link" | "reset"
 const COPY: Record<Mode, { title: string; description: string; submit: string; pending: string }> = {
   signin: {
     title: "Sign in",
-    description: "New here? Continue with GitHub or Google and your account is made for you.",
+    description: "With your email and password, or a sign-in link we email you.",
     submit: "Sign in",
     pending: "Signing in…",
   },
@@ -172,13 +172,18 @@ export function LoginForm({
 
   const copy = COPY[mode]
   const withPassword = mode === "signin" || mode === "signup"
+  // Only the buttons this server shows are named.
+  const description =
+    mode === "signin" && providers.length
+      ? `New here? Continue with ${providers.map((provider) => PROVIDERS[provider].label).join(" or ")} and your account is made for you.`
+      : copy.description
   const link = "rounded-sm text-cobalt underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
 
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle>{copy.title}</CardTitle>
-        <CardDescription>{copy.description}</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {withPassword && providers.length > 0 && (

@@ -17,7 +17,7 @@ export async function findDocument({ supabase }: ToolContext, documentId: string
 
 export const NO_DOCUMENT = { error: "No such document, or you do not have access to it." }
 export const NO_PROJECT = { error: "No such project, or you do not have access to it." }
-export const NO_ORG = { error: "No such org, or you are not a member of it." }
+export const NO_ORG = { error: "No such workspace, or you are not a member of it." }
 
 export async function findTypedDocument(
   context: ToolContext,
@@ -31,7 +31,7 @@ export async function findTypedDocument(
       error:
         type === "text"
           ? "That document is a whiteboard. Use the whiteboard tools on it."
-          : "That document is a text document. Use the text document tools on it.",
+          : "That document is a page. Use the page tools (`read_text_document` and the block tools) on it.",
     }
   return document
 }

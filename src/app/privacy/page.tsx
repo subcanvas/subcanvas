@@ -73,9 +73,10 @@ export default async function PrivacyPage() {
       <h3>Product interactions</h3>
       <p>
         We store on our servers the content that you create or maintain in your account: whiteboards, documents,
-        folders, projects, and orgs, which orgs you belong to and your role in each, and the email addresses of
+        folders, projects, and workspaces, which workspaces you belong to and your role in each, and the email addresses of
         people you invite. This is so you can use the product as intended. We keep this content as long as your
-        account is active. If you delete your account, we&apos;ll delete the content within 60 days. We do not use
+        account is active. If you delete your account, we&apos;ll delete the content within 60 days, except what
+        stays with workspaces that other people are still members of (see below). We do not use
         your content to train machine-learning models.
       </p>
 
@@ -124,7 +125,7 @@ export default async function PrivacyPage() {
         <li><strong>Google and GitHub</strong>: sign-in, only if you choose them. They learn that you signed in to this service.</li>
       </ul>
       <p>
-        Members of your orgs can see your name, email address, and picture, what you create and edit there, and
+        Members of your workspaces can see your name, email address, and picture, what you create and edit there, and
         your cursor while you work.
       </p>
       <p>
@@ -243,14 +244,17 @@ export default async function PrivacyPage() {
       <h2>How we secure your data</h2>
       <p>
         All data is encrypted via SSL/TLS when transmitted from our servers to your browser. Data is encrypted at
-        rest by our database provider, and database rules limit each account to the orgs it belongs to.
+        rest by our database provider, and database rules limit each account to the workspaces it belongs to.
       </p>
 
       <h2>What happens when you delete content</h2>
       <p>
         Documents you trash stay in the project&apos;s trash, where you can restore them, until you delete them
-        for good. If you ask us to delete your account, your content will become immediately inaccessible and
-        should be purged from our systems in full within 60 days.
+        for good. You can delete your account from Profile, or ask us to. Deleting it deletes your personal
+        workspace and every workspace that has no other members, with all of their content. Content in
+        workspaces that other people are still members of stays with those workspaces, since it is theirs too.
+        The content deleted with your account will become immediately inaccessible and should be purged from our
+        systems in full within 60 days.
       </p>
 
       <h2>Data retention</h2>

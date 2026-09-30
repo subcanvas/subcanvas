@@ -143,7 +143,7 @@ export function PictureForm({
             </Button>
           </div>
           <p id="picture-url-hint" role={error ? "alert" : undefined} className={error ? "text-sm text-destructive" : "text-sm text-graphite"}>
-            {error ?? "A link to a picture that is already online, starting with https://. Uploading one is not possible yet."}
+            {error ?? "The address of a picture that is already online, starting with https://. Members of your workspaces see it with your name."}
           </p>
         </form>
       </div>

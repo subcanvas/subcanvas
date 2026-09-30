@@ -8,7 +8,9 @@ import { ReferencedBy } from "@/components/referenced-by"
 import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { readDocumentSource } from "@/lib/github/source"
+import { abuseContact } from "@/lib/legal"
 import { parseVia } from "@/lib/navigation"
+import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
@@ -29,7 +31,7 @@ export default async function DocumentPage({
 }: PageProps<"/[org]/[project]/d/[docId]">) {
   const { org: slug, project: projectId, docId } = await params
   const via = parseVia((await searchParams).via).filter((id) => id !== docId)
-  const { supabase, user, org, role, canEdit } = await getOrgContext(slug)
+  const { supabase, user, org, role, canEdit, plan } = await getOrgContext(slug)
 
   const [{ data: document }, { data: profile }, { data: project }] = await Promise.all([
     supabase
@@ -40,8 +42,8 @@ export default async function DocumentPage({
       .eq("org_id", org.id)
       .is("deleted_at", null)
       .maybeSingle(),
-    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
-    supabase.from("projects").select("name, visibility").eq("id", projectId).maybeSingle(),
+    supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
+    supabase.from("projects").select("name, visibility, taken_down_at").eq("id", projectId).maybeSingle(),
   ])
   if (!document || !project) notFound()
 
@@ -86,7 +88,9 @@ export default async function DocumentPage({
         project={{ slug: org.slug, orgId: org.id, projectId }}
         visibility={project.visibility}
         canChange={hasRole(role, "admin") && canEdit}
-        whiteboard={document.type === "whiteboard" ? { docId: document.id, title: document.title } : undefined}
+        privateLimit={privateDocumentLimit(plan)}
+        current={{ id: document.id, title: document.title, type: document.type, via }}
+        takenDown={project.taken_down_at ? { contact: abuseContact() } : null}
       />
     </div>
   )
@@ -98,6 +102,7 @@ export default async function DocumentPage({
     id: user.id,
     name: profile?.display_name ?? user.email ?? "Someone",
     color: userColor(user.id),
+    avatarUrl: profile?.avatar_url ?? null,
   }
   const title = (compact: boolean) => (
     <DocumentTitle
