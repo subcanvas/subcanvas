@@ -12,6 +12,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 
 | Word | What it means | In code and tool names |
 |---|---|---|
+| **Workspace** | Where projects live, with the people in it and its plan. Everyone has a personal workspace, theirs alone; a team workspace is shared with the people invited to it. Not "org" or "organization". | `orgs`, `org_id`, the `[org]` route; the tools say `workspace_id` |
 | **Document** | Anything in a project's tree: a whiteboard or a page. | `documents` |
 | **Whiteboard** | A document to draw on: nodes and arrows on a canvas (its drawing surface). | `type: whiteboard` |
 | **Page** | A document of rich text. Not "text doc" or "note". | a text document, `type: text` (`read_text_document`) |
@@ -152,4 +153,4 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R8.4 | **Minimal Vercel dependence:** Vercel only hosts the Next.js app. No Vercel-specific services (KV, Blob, Postgres, Cron, Edge Config). The app must run on any Node host or container. State, auth, realtime, storage, and scheduled jobs all live in Supabase. |
 | R8.4a | Open source under the AGPL-3.0 license, with a documented self-hosting path (own Supabase project and Vercel deployment). |
 | R8.5 | Search across document titles and content **(later)**. |
-| R8.6 | Export (whiteboard to PNG/SVG, text doc to Markdown) **(later)**. |
+| R8.6 | Export: a page as Markdown, a whiteboard as SVG, and a whole project as a zip that Import files reads back ([docs/EXPORTING.md](docs/EXPORTING.md)). Anyone who can read a document can export it. A whiteboard as PNG **(later)**. |

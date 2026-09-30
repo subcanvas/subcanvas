@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join, relative } from "node:path"
 
 import { describe, expect, it } from "vitest"
@@ -62,6 +62,17 @@ const NOT_EXPOSED: Record<string, string> = {
   "oauth/consent/actions.signOutInstead": "answers the consent screen, and signs a person out",
 }
 
+// Downloads are not server actions: a person's browser reads them as files
+// from routes. None has a tool, because a tool's result is text for an
+// agent to read, and an agent reads the same things more usefully without
+// them (docs/MCP.md). Named here so the reason is kept with the others.
+const DOWNLOADS_NOT_EXPOSED: Record<string, string> = {
+  "api/documents/[docId]/markdown/route": "read_text_document returns the same Markdown, block by block, with ids to edit by",
+  "api/documents/[docId]/svg/route": "read_whiteboard returns everything the picture is drawn from, as JSON",
+  "api/projects/[projectId]/export/route": "a zip is a file, not text; get_project and the read tools cover every document in it",
+  "api/projects/[projectId]/export/documents/route": "the documents of that zip, for the browser that writes it",
+}
+
 const APP = join(__dirname, "../../app")
 
 function serverActions() {
@@ -99,6 +110,11 @@ describe("MCP parity with the web app", () => {
 
   it("does not account for the same action twice", () => {
     expect(Object.keys(NOT_EXPOSED).filter((action) => covered.has(action))).toEqual([])
+  })
+
+  it("names only downloads that exist", () => {
+    const missing = Object.keys(DOWNLOADS_NOT_EXPOSED).filter((route) => !existsSync(join(APP, `${route}.ts`)))
+    expect(missing).toEqual([])
   })
 
   it("names only actions that exist", () => {

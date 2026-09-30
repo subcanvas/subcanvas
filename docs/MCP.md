@@ -95,6 +95,8 @@ Some things people do in the browser are not server actions, so the parity test 
 - **Uploading pictures and videos to a page**, for the reasons given above for whiteboards. A picture already in Subcanvas can be shown in a page by its `/api/media/…` address in Markdown image syntax; the app copies the file under that page the next time someone who can edit it opens it, so that the page's readers can see it.
 - **Copy, paste, and undo.** These live in a person's browser. An agent's edits are its own, and a person's undo never takes them back.
 
+Downloads and exports ([EXPORTING.md](EXPORTING.md)) have no tools either. A tool's result is text for an agent to read, and a project's zip is a file. What is in it an agent already reads, better suited to editing: `read_text_document` returns the same Markdown as a download, block by block with ids, and `read_whiteboard` the same contents as a whiteboard's JSON file. The reasons are kept in the same test, beside the routes that serve the downloads.
+
 ## Security model
 
 In plain words: **the agent is you, and the database decides what you may do.**

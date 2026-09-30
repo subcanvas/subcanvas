@@ -1,7 +1,7 @@
 import { MEDIA_MAX_BYTES, mediaTypeOfName } from "@/lib/whiteboard/media"
 
 import { MAX_FILE_BYTES, MAX_HTML_FILE_BYTES, MAX_INNER_ZIP_BYTES, MAX_TOTAL_BYTES } from "./limits"
-import { isClutter, kindOf, safePath, type FileKind } from "./paths"
+import { baseName, isClutter, kindOf, parentOf, safePath, type FileKind } from "./paths"
 import type { PickedFile } from "./picked"
 import type { Skipped, SourceFile } from "./plan"
 import { listZip, readZipEntry, ZipError } from "./zip"
@@ -20,6 +20,25 @@ function mediaOf(path: string, size: number) {
   const type = mediaTypeOfName(path)
   if (!type) return null
   return size <= MEDIA_MAX_BYTES[type.startsWith("video/") ? "video" : "image"] ? type : null
+}
+
+// A project exported from Subcanvas (lib/export) says so with a file at its
+// top. That file and the README beside it are about the export, not notes.
+// A whiteboard is a picture and a JSON file of the same name, and is not
+// imported; the pages its boxes held are, from the folder beside it.
+const EXPORT_MANIFEST = "subcanvas-export.json"
+const EXPORT_README = "README.txt"
+
+function exportPartOf(paths: string[]) {
+  const roots = new Set(paths.filter((path) => baseName(path) === EXPORT_MANIFEST).map(parentOf))
+  if (!roots.size) return () => null
+  const all = new Set(paths.map((path) => path.toLowerCase()))
+  return (path: string): "about" | "whiteboard" | null => {
+    if (![...roots].some((root) => !root || path.startsWith(`${root}/`))) return null
+    if (roots.has(parentOf(path)) && [EXPORT_MANIFEST, EXPORT_README].includes(baseName(path))) return "about"
+    const stem = path.replace(/\.(svg|json)$/i, "").toLowerCase()
+    return stem !== path.toLowerCase() && all.has(`${stem}.svg`) && all.has(`${stem}.json`) ? "whiteboard" : null
+  }
 }
 
 // Thrown for what stops the whole import, with a message for the person.
@@ -54,6 +73,7 @@ export async function collect(picked: PickedFile[]): Promise<Collected> {
       if (error instanceof ZipError) throw new CollectError(`${zipPath}: ${error.message}`)
       throw error
     }
+    const exportPart = exportPartOf(entries.flatMap((entry) => safePath(entry.name) ?? []))
     for (const entry of entries) {
       if (entry.directory) continue
       const path = safePath(entry.name)
@@ -62,6 +82,12 @@ export async function collect(picked: PickedFile[]): Promise<Collected> {
         continue
       }
       if (isClutter(path)) continue
+      const part = exportPart(path)
+      if (part === "about") continue
+      if (part === "whiteboard") {
+        skipped.push({ path, reason: "whiteboard" })
+        continue
+      }
       const kind = kindOf(path)
       const limit = limitOf(kind)
       const type = entry.encrypted ? null : mediaOf(path, entry.size)
@@ -89,9 +115,16 @@ export async function collect(picked: PickedFile[]): Promise<Collected> {
     }
   }
 
+  const exportPart = exportPartOf(picked.flatMap(({ path }) => safePath(path) ?? []))
   for (const { path: rawPath, file } of picked) {
     const path = safePath(rawPath)
     if (!path || isClutter(path)) continue
+    const part = exportPart(path)
+    if (part === "about") continue
+    if (part === "whiteboard") {
+      skipped.push({ path, reason: "whiteboard" })
+      continue
+    }
     const kind = kindOf(path)
     const limit = limitOf(kind)
     const type = mediaOf(path, file.size)
