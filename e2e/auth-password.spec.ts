@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { cardTitled, createOrg, signIn, signOut, signUp } from "./support/app"
+import { createOrg, personalSlug, signIn, signOut, signUp } from "./support/app"
 import { authProviders } from "./support/env"
 
 const PROVIDER_LABELS = { google: "Google", github: "GitHub" }
@@ -23,7 +23,6 @@ test("the sign-in card names only the sign-in buttons this server shows", async 
 
 test("after signing in, an address that leads to another site is not followed", async ({ page, baseURL }) => {
   const account = await signUp(page)
-  const slug = await createOrg(page, account.id)
   await signOut(page)
 
   // A browser reads the backslash as a slash: "//evil.example", another site.
@@ -31,19 +30,20 @@ test("after signing in, an address that leads to another site is not followed", 
   await page.getByLabel("Email").fill(account.email)
   await page.getByLabel("Password").fill(account.password)
   await page.getByRole("button", { name: "Sign in", exact: true }).click()
-  await page.waitForURL(`/${slug}`)
+  // Where signing in goes when it is not sent elsewhere: the personal workspace.
+  await page.waitForURL(`/${personalSlug(account)}`)
   expect(new URL(page.url()).origin).toBe(new URL(baseURL!).origin)
 })
 
 test("signs up with a password, changes it, and signs back in with the new one", async ({
   page,
 }) => {
+  // Every account has a personal workspace, and sign-up lands in it.
   const account = await signUp(page)
-
-  // Nobody's first account has an org, so sign-up lands on onboarding.
-  await expect(cardTitled(page, "Name your org")).toBeVisible()
-  const slug = await createOrg(page, account.id)
+  const home = `/${personalSlug(account)}`
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
+  // A team workspace too, which signing in does not go to.
+  await createOrg(page, account.id)
 
   // /auth/password is where anyone already signed in — by link, by password,
   // or through Google or GitHub — gives the account a password.
@@ -51,25 +51,25 @@ test("signs up with a password, changes it, and signs back in with the new one",
   const changed = { ...account, password: `changed-${account.id}` }
   await page.getByLabel("New password").fill(changed.password)
   await page.getByRole("button", { name: "Save password" }).click()
-  // With nowhere else asked for, it sends you to your own work: the org.
-  await page.waitForURL(`/${slug}`)
+  // With nowhere else asked for, it sends you to your own work: the
+  // personal workspace.
+  await page.waitForURL(home)
 
   await signOut(page)
   await expect(page.getByLabel("Email")).toBeVisible()
 
   await signIn(page, changed)
-  await page.waitForURL(`/${slug}`)
+  await page.waitForURL(home)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
 })
 
 test("refuses the old password once it has been changed", async ({ page }) => {
   const account = await signUp(page)
-  const slug = await createOrg(page, account.id)
 
   await page.goto("/auth/password")
   await page.getByLabel("New password").fill(`changed-${account.id}`)
   await page.getByRole("button", { name: "Save password" }).click()
-  await page.waitForURL(`/${slug}`)
+  await page.waitForURL(`/${personalSlug(account)}`)
   await signOut(page)
 
   await page.goto("/login")

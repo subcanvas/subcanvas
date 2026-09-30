@@ -1,13 +1,13 @@
 // Drives every tool of the MCP server with a real MCP client, as three
-// people: an owner, a viewer of the owner's org, and someone from another
-// org. It checks the results and the security model, and leaves a project
-// behind to look at in the browser.
+// people: an owner, a viewer of the owner's team workspace, and someone from
+// another workspace. It checks the results and the security model, and
+// leaves a project behind to look at in the browser.
 //
 //   MCP_URL=http://localhost:3000/mcp node --env-file=.env.local scripts/mcp/smoke.mjs \
 //     <owner email> <viewer email> <outsider email> <password they share>
 //
-// Local test accounts only. The viewer must already be a viewer in an org
-// the owner owns; the outsider must not be a member of it.
+// Local test accounts only. The viewer must already be a viewer in a team
+// workspace the owner owns; the outsider must not be a member of it.
 import assert from "node:assert/strict"
 
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client"
@@ -75,12 +75,15 @@ const viewer = await connect(viewerEmail)
 const outsider = await connect(outsiderEmail)
 const listed = (await owner.listTools()).tools.map((tool) => tool.name)
 
-const { orgs } = await ok(owner, "list_orgs")
-const org = orgs.find((candidate) => candidate.role === "owner")
+const { workspaces } = await ok(owner, "list_workspaces")
+const workspace = workspaces.find((candidate) => candidate.role === "owner" && !candidate.personal)
 const projectName = `MCP smoke ${new Date().toISOString()}`
-const { project_id } = await ok(owner, "create_project", { org_id: org.id, name: `${projectName} (draft)` })
+const { project_id } = await ok(owner, "create_project", { workspace_id: workspace.id, name: `${projectName} (draft)` })
 await ok(owner, "rename_project", { project_id, name: projectName })
-assert.equal((await ok(owner, "list_projects", { org_id: org.id })).projects.find((project) => project.id === project_id).name, projectName)
+assert.equal(
+  (await ok(owner, "list_projects", { workspace_id: workspace.id })).projects.find((project) => project.id === project_id).name,
+  projectName
+)
 
 // The tree.
 const { folder_id } = await ok(owner, "create_folder", { project_id, name: "Notes" })
@@ -189,7 +192,7 @@ assert.equal((await fetch(embed.image_url)).status, 200)
 await ok(owner, "set_project_visibility", { project_id, visibility: "private" })
 
 // The importer, against the fixture repository when the server has one.
-const imported = await call(owner, "import_github_repository", { org_id: org.id, repository: "fixture/shop" })
+const imported = await call(owner, "import_github_repository", { workspace_id: workspace.id, repository: "fixture/shop" })
 if (imported.isError) console.log("  (no fixture repository on this server; the import's other paths are not checked)")
 else {
   // A README that came from the repository is read-only, for an agent too.
@@ -225,22 +228,22 @@ await refused(viewer, "add_nodes", { whiteboard_id: board, nodes: [{ title: "Vie
 await refused(viewer, "append_markdown", { document_id: page, markdown: "Viewer was here" }, /do not have permission to change/)
 await refused(viewer, "rename_document", { id: page, name: "Viewer was here" }, /permission/)
 await refused(viewer, "create_document", { project_id, type: "text" }, /permission/)
-await refused(viewer, "create_project", { org_id: org.id, name: "Viewer was here" }, /permission/)
+await refused(viewer, "create_project", { workspace_id: workspace.id, name: "Viewer was here" }, /permission/)
 await refused(viewer, "rename_project", { project_id, name: "Viewer was here" }, /permission/)
 await refused(viewer, "trash_document", { document_id: page }, /permission/)
 await refused(viewer, "set_project_visibility", { project_id, visibility: "public" }, /permission/)
-await refused(viewer, "import_github_repository", { org_id: org.id, repository: "fixture/shop" }, /permission/)
+await refused(viewer, "import_github_repository", { workspace_id: workspace.id, repository: "fixture/shop" }, /permission/)
 await refused(viewer, "import_markdown_documents", { project_id, files: [{ path: "note.md", markdown: "Viewer was here" }] }, /permission/)
 assert.equal((await ok(owner, "read_whiteboard", { whiteboard_id: board })).nodes.length, 6)
 
-// Someone from another org sees none of it.
+// Someone from another workspace sees none of it.
 await refused(outsider, "get_project", { project_id }, /No such project/)
-await refused(outsider, "list_projects", { org_id: org.id }, /No such org/)
+await refused(outsider, "list_projects", { workspace_id: workspace.id }, /No such workspace/)
 await refused(outsider, "read_whiteboard", { whiteboard_id: board }, /No such document/)
 await refused(outsider, "read_text_document", { document_id: page }, /No such document/)
 await refused(outsider, "add_nodes", { whiteboard_id: board, nodes: [{ title: "Outsider was here" }] }, /No such document/)
 await refused(outsider, "create_document", { project_id, type: "text" }, /No such project/)
-assert.ok(!(await ok(outsider, "list_orgs")).orgs.some((candidate) => candidate.id === org.id))
+assert.ok(!(await ok(outsider, "list_workspaces")).workspaces.some((candidate) => candidate.id === workspace.id))
 
 const unused = listed.filter((name) => !used.has(name))
 assert.deepEqual(unused, [], "every tool is exercised")

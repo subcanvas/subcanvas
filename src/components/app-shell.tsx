@@ -27,10 +27,14 @@ export async function AppShell({
 }) {
   const { supabase, user, org } = await getOrgContext(slug)
   const [{ data: orgs }, { data: profile }, agents] = await Promise.all([
-    supabase.from("orgs").select("name, slug").order("created_at"),
+    supabase.from("orgs").select("name, slug, personal_owner").order("created_at"),
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
     agentSignInAvailable(),
   ])
+  // The switcher lists the personal workspace first, then the team ones.
+  const workspaces = (orgs ?? [])
+    .map(({ name, slug, personal_owner }) => ({ name, slug, personal: personal_owner !== null }))
+    .sort((a, b) => Number(b.personal) - Number(a.personal))
 
   const sidebarUser = {
     email: user.email ?? "",
@@ -38,7 +42,7 @@ export async function AppShell({
     avatarUrl: profile?.avatar_url ?? null,
   }
   const contents = (
-    <AppSidebar org={org} orgs={orgs ?? []} user={sidebarUser} agents={agents} footer={footer}>
+    <AppSidebar org={org} workspaces={workspaces} user={sidebarUser} agents={agents} footer={footer}>
       {tree}
     </AppSidebar>
   )

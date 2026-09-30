@@ -18,7 +18,7 @@ export type ToolContext = {
 // `text` is what a model reads; `data` is the same result for code.
 export type ToolResult = { error: string } | { text: string; data: Record<string, unknown> }
 
-export type ToolGroup = "Orgs and projects" | "Documents" | "Pages" | "Whiteboards" | "GitHub and embeds"
+export type ToolGroup = "Workspaces and projects" | "Documents" | "Pages" | "Whiteboards" | "GitHub and embeds"
 
 export type Tool = {
   name: string

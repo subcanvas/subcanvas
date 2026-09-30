@@ -11,7 +11,7 @@ export const SERVER_INFO = { name: "subcanvas", title: "Subcanvas", version: "0.
 const INSTRUCTIONS = [
   "Subcanvas is a whiteboard where every box opens: any node or arrow can hold a page or a whole nested whiteboard.",
   "Words, as the app uses them: a document is a whiteboard or a page (a page is what the tools call a text document, type `text`). On a whiteboard, a node is a box (kind `plain`), a text node (a heading with body text, no box), a group, or a picture or video (kind `media`); arrows (`edges`) join nodes. A page that belongs to a node or arrow is its description. Links to a document from elsewhere are listed by list_references, which the app shows as Linked from.",
-  "You act as the signed-in person, with their role in each org. Start with list_orgs, then list_projects and get_project to find documents. Everything is addressed by id.",
+  "You act as the signed-in person, with their role in each workspace. Start with list_workspaces, then list_projects and get_project to find documents. Everything is addressed by id.",
   "People may be editing the same documents while you work. Your edits merge with theirs, so change only what you mean to: update fields in place, and address text by block id.",
   "To draw a diagram: add_nodes, then connect_nodes with the returned ids, then arrange_nodes. To go deeper, attach_document with type whiteboard puts a new whiteboard inside a node.",
 ].join("\n")

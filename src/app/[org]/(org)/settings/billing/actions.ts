@@ -60,7 +60,7 @@ export async function startCheckout(orgId: string): Promise<BillingState> {
     .eq("org_id", orgId)
     .maybeSingle()
   if (existing && ["active", "trialing", "past_due"].includes(existing.status))
-    return { error: "This org already has a subscription. Use Manage billing." }
+    return { error: "This workspace already has a subscription. Use Manage billing." }
 
   let customerId = existing?.stripe_customer_id
   if (!customerId) {
@@ -106,7 +106,7 @@ export async function openPortal(orgId: string): Promise<BillingState> {
     .select("stripe_customer_id")
     .eq("org_id", orgId)
     .maybeSingle()
-  if (!row) return { error: "This org has no billing account yet." }
+  if (!row) return { error: "This workspace has no billing account yet." }
 
   const session = await getStripe().billingPortal.sessions.create({
     customer: row.stripe_customer_id,

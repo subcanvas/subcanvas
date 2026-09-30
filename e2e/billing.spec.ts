@@ -32,7 +32,7 @@ test.setTimeout(180_000)
 
 const billing = (slug: string) => `/${slug}/settings/billing`
 
-test("an owner upgrades at checkout and comes back on the Team plan, limits lifted", async ({
+test("an owner upgrades at checkout and comes back on the Pro plan, limits lifted", async ({
   page,
 }) => {
   const { account, slug } = await signUpWithOrg(page)

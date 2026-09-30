@@ -48,7 +48,7 @@ select throws_ok(
   $$ insert into public.document_links (org_id, source_document_id, source_object_id, target_document_id)
      values ('00000000-0000-0000-0000-0000000002a1', '00000000-0000-0000-0000-0000000002d1', 'node-2',
              '00000000-0000-0000-0000-0000000002d3') $$,
-  'P0001', 'Both documents must belong to this org.',
+  'P0001', 'Both documents must belong to this workspace.',
   'a link cannot point into another org');
 
 select throws_ok(

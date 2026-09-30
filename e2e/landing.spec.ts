@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { signUpWithOrg } from "./support/app"
+import { personalSlug, signUpWithOrg } from "./support/app"
 import { billingConfigured } from "./support/billing"
 import { oauthServerEnabled } from "./support/mcp"
 
@@ -20,8 +20,10 @@ test("a visitor sees the landing page, and its buttons lead to sign-in", async (
   )
 })
 
-test("someone signed in sees the landing page too, and Your projects leads to their org", async ({ page }) => {
-  const { slug } = await signUpWithOrg(page)
+test("someone signed in sees the landing page too, and Your projects leads to their workspace", async ({ page }) => {
+  // A team workspace as well, which is not where these lead.
+  const { account } = await signUpWithOrg(page)
+  const slug = personalSlug(account)
 
   await page.goto("/")
   await expect(page.getByRole("heading", { level: 1, name: HEADLINE })).toBeVisible()

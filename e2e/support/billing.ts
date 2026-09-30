@@ -109,12 +109,13 @@ export async function payAtCheckout(page: Page) {
   await page.waitForURL(/\/settings\/billing\?checkout=success$/, { timeout: 60_000 })
 }
 
-// Reloads the billing page until the webhook has flipped the org, which
-// happens a few seconds after checkout and outside the browser's view.
+// Reloads the billing page until the webhook has put the workspace on Pro,
+// the paid plan (once called Team), which happens a few seconds after
+// checkout and outside the browser's view.
 export async function expectTeamPlan(page: Page) {
   await expect(async () => {
     await page.reload()
-    await expect(page.getByText("Team plan", { exact: true })).toBeVisible({ timeout: 3_000 })
+    await expect(page.getByText("Pro plan", { exact: true })).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 45_000 })
 }
 

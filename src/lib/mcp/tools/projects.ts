@@ -20,21 +20,21 @@ function outline(nodes: TreeNode[], depth = 0): string[] {
 
 export const projectTools = [
   defineTool({
-    name: "list_orgs",
-    title: "List orgs",
-    group: "Orgs and projects",
+    name: "list_workspaces",
+    title: "List workspaces",
+    group: "Workspaces and projects",
     description:
-      "Lists the orgs the signed-in person belongs to, with their role in each. Start here: every project lives in an org, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of an org whose paid plan has lapsed.",
+      "Lists the workspaces the signed-in person belongs to, with their role in each: their personal workspace first (`personal` is true; it is theirs alone), then the team workspaces they share with others. Start here: every project lives in a workspace, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of a workspace whose paid plan has lapsed.",
     input: {},
     kind: "read",
     run: async (context) => {
       const { data, error } = await context.supabase
         .from("org_members")
-        .select("role, orgs(id, name, slug)")
+        .select("role, orgs(id, name, slug, personal_owner)")
         .eq("user_id", context.userId)
       if (error) return { error: error.message }
 
-      const orgs = await Promise.all(
+      const workspaces = await Promise.all(
         data.flatMap((row) =>
           row.orgs
             ? [
@@ -42,6 +42,7 @@ export const projectTools = [
                   id: row.orgs.id,
                   name: row.orgs.name,
                   slug: row.orgs.slug,
+                  personal: row.orgs.personal_owner !== null,
                   role: row.role,
                   can_edit: access?.canEdit ?? false,
                 })),
@@ -49,11 +50,17 @@ export const projectTools = [
             : []
         )
       )
+      workspaces.sort((a, b) => Number(b.personal) - Number(a.personal))
       return {
-        text: orgs.length
-          ? orgs.map((org) => `- ${org.name} (${org.id}): ${org.role}${org.can_edit ? "" : ", read only"}`).join("\n")
-          : "You are not a member of any org yet. Create one in the web app first.",
-        data: { orgs },
+        text: workspaces.length
+          ? workspaces
+              .map(
+                (workspace) =>
+                  `- ${workspace.name} (${workspace.id}): ${workspace.personal ? "personal, " : ""}${workspace.role}${workspace.can_edit ? "" : ", read only"}`
+              )
+              .join("\n")
+          : "You are not a member of any workspace.",
+        data: { workspaces },
       }
     },
   }),
@@ -61,18 +68,18 @@ export const projectTools = [
   defineTool({
     name: "list_projects",
     title: "List projects",
-    group: "Orgs and projects",
+    group: "Workspaces and projects",
     description:
-      "Lists the projects of one org, oldest first, with how many documents each holds. Use `get_project` next to see what is inside one.",
-    input: { org_id: id("The org, from `list_orgs`.") },
+      "Lists the projects of one workspace, oldest first, with how many documents each holds. Use `get_project` next to see what is inside one.",
+    input: { workspace_id: id("The workspace, from `list_workspaces`.") },
     kind: "read",
-    run: async (context, { org_id }) => {
-      const slug = await orgSlug(context, org_id)
+    run: async (context, { workspace_id }) => {
+      const slug = await orgSlug(context, workspace_id)
       if (!slug) return NO_ORG
       const { data, error } = await context.supabase
         .from("projects")
         .select("id, name, visibility, source, documents(count)")
-        .eq("org_id", org_id)
+        .eq("org_id", workspace_id)
         .eq("documents.kind", "standard")
         .is("documents.deleted_at", null)
         .order("created_at")
@@ -89,7 +96,7 @@ export const projectTools = [
       return {
         text: projects.length
           ? projects.map((p) => `- "${p.name}" (${p.id}): ${p.visibility}, ${p.documents} documents`).join("\n")
-          : "This org has no projects yet.",
+          : "This workspace has no projects yet.",
         data: { projects },
       }
     },
@@ -98,7 +105,7 @@ export const projectTools = [
   defineTool({
     name: "get_project",
     title: "Get a project and its document tree",
-    group: "Orgs and projects",
+    group: "Workspaces and projects",
     description:
       "Returns one project and the tree of everything in it: folders, whiteboards, and pages, nested the way the sidebar shows them. A document nested under a whiteboard lives inside one of that whiteboard's nodes or arrows. The pages that are nodes' and arrows' descriptions are not in the tree; `read_whiteboard` gives their ids. Documents in the trash are left out; pass `include_trash` to list them separately.",
     input: {
@@ -137,7 +144,7 @@ export const projectTools = [
         data: {
           project: {
             id: project.id,
-            org_id: project.org_id,
+            workspace_id: project.org_id,
             name: project.name,
             visibility: project.visibility,
             imported_from: project.source,
@@ -153,25 +160,25 @@ export const projectTools = [
   defineTool({
     name: "create_project",
     title: "Create a project",
-    group: "Orgs and projects",
+    group: "Workspaces and projects",
     description:
-      "Creates an empty project in an org. Needs the editor role or higher. Follow with `create_document` to put a first whiteboard or page in it.",
+      "Creates an empty project in a workspace. Needs the editor role or higher. Follow with `create_document` to put a first whiteboard or page in it.",
     input: {
-      org_id: id("The org to create it in, from `list_orgs`."),
+      workspace_id: id("The workspace to create it in, from `list_workspaces`."),
       name: z.string().min(1).max(200).describe("The project's name."),
       visibility: visibility.default("private"),
     },
     kind: "write",
     covers: ["[org]/(org)/actions.createProject"],
-    run: async (context, { org_id, name, visibility: wanted }) => {
+    run: async (context, { workspace_id, name, visibility: wanted }) => {
       const result = await operations.createProject(context.supabase, {
-        orgId: org_id,
+        orgId: workspace_id,
         userId: context.userId,
         name,
         visibility: wanted,
       })
       if ("error" in result) return result
-      const slug = await orgSlug(context, org_id)
+      const slug = await orgSlug(context, workspace_id)
       return {
         text: `Created project "${name.trim()}" (${result.id}).`,
         data: { project_id: result.id, url: slug ? `${context.origin}/${slug}/${result.id}` : null },
@@ -182,7 +189,7 @@ export const projectTools = [
   defineTool({
     name: "set_project_visibility",
     title: "Make a project public or private",
-    group: "Orgs and projects",
+    group: "Workspaces and projects",
     description:
       "Changes who can read a project. Public means anyone with the address can read every document in it, without signing in; ask the person before making something public. Making a project private can fail on the free plan when it would hold more private documents than the plan allows.",
     input: { project_id: id("The project."), visibility },
@@ -198,7 +205,7 @@ export const projectTools = [
   defineTool({
     name: "rename_project",
     title: "Rename a project",
-    group: "Orgs and projects",
+    group: "Workspaces and projects",
     description:
       "Gives a project a new name, 1 to 120 characters. Needs the editor role or higher. Its address, its documents, and links to it stay the same.",
     input: {

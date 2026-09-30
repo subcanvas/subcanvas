@@ -218,7 +218,7 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free until your org needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
+                  ? "Free until your workspace needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
                   : "Nothing to pay. This server has no paid plan."}
               </p>
             </div>
@@ -239,7 +239,7 @@ export default async function Home() {
                   />
                   <Plan
                     start={start}
-                    name="Team"
+                    name="Pro"
                     price="$5"
                     unit="per editor, per month"
                     highlight

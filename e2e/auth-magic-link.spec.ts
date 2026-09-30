@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { cardTitled, createOrg, freshAccount } from "./support/app"
+import { cardTitled, freshAccount, personalSlug } from "./support/app"
 import { signInLinkFor } from "./support/mailpit"
 
 test("signs in by following the link in the email", async ({ page }) => {
@@ -20,11 +20,10 @@ test("signs in by following the link in the email", async ({ page }) => {
   await page.goto(link)
 
   // The Auth API sends the browser to /auth/callback, which swaps the code
-  // for a session and then follows `next`. A brand new account has no org.
-  await page.waitForURL("/onboarding")
-  await expect(cardTitled(page, "Name your org")).toBeVisible()
-
-  const slug = await createOrg(page, account.id)
+  // for a session and then follows `next`: to the personal workspace the
+  // new account was given.
+  const slug = personalSlug(account)
+  await page.waitForURL(`/${slug}`)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
 
   // Really signed in, not merely past the redirect: the account menu is

@@ -4,7 +4,7 @@ import { getOrgContext } from "@/lib/orgs"
 import { BackToSettings, SettingsNav } from "./settings-nav"
 
 // Settings is one place with sections: yours (profile, appearance) and the
-// org's (general, members, billing). A wide screen keeps the section list
+// workspace's (general, members, billing). A wide screen keeps the section list
 // beside the page; a narrow one has it as the page at /settings.
 export default async function SettingsLayout({ children, params }: LayoutProps<"/[org]/settings">) {
   const { org: slug } = await params
