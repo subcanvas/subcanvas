@@ -11,7 +11,7 @@ export function SettingsNav({
   org,
   showBilling,
 }: {
-  org: { name: string; slug: string }
+  org: { name: string; slug: string; personal: boolean }
   showBilling: boolean
 }) {
   const pathname = usePathname()

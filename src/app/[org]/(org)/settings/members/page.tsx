@@ -1,4 +1,7 @@
+import Link from "next/link"
+
 import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -9,11 +12,13 @@ import {
 } from "@/components/ui/table"
 import { PageHeader } from "@/components/page-header"
 import { PersonAvatar } from "@/components/person-avatar"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { emailConfigured } from "@/lib/email"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
 import { userColor } from "@/lib/user-color"
 
+import { SettingsSection } from "../settings-section"
 import { InviteForm } from "./invite-form"
 import { InviteActions, MemberActions } from "./row-actions"
 
@@ -25,6 +30,26 @@ export default async function MembersPage({
   const { org: slug } = await params
   const { supabase, user, org, role: myRole } = await getOrgContext(slug)
   const isAdmin = hasRole(myRole, "admin")
+
+  // Nobody else can be in a personal workspace, so there is nobody to list
+  // and nobody to invite. The database refuses both anyway.
+  if (org.personal)
+    return (
+      <main id="main" className="flex w-full max-w-3xl flex-col gap-8">
+        <PageHeader eyebrow={org.name} title="Members" />
+        <SettingsSection id="members-personal" title="Just you">
+          <div className="flex flex-col items-start gap-4">
+            <p className="max-w-xl text-sm leading-relaxed">
+              This is your personal workspace, and it is yours alone: nobody else can join it or be invited to it.
+              To work with other people, create a team workspace and invite them there.
+            </p>
+            <Link href={`/onboarding?from=${encodeURIComponent(org.slug)}`} className={buttonVariants()}>
+              Create a team workspace
+            </Link>
+          </div>
+        </SettingsSection>
+      </main>
+    )
 
   const [{ data: members }, { data: invites }] = await Promise.all([
     supabase
@@ -46,7 +71,11 @@ export default async function MembersPage({
       <PageHeader
         eyebrow={org.name}
         title="Members"
-        description="Owners, admins, and editors can change things, and are the seats a paid plan is billed for. Viewers can only look, and are always free."
+        description={
+          billingConfigured()
+            ? "Owners, admins, and editors can change things, and are the seats a paid plan is billed for. Viewers can only look, and are always free."
+            : "Owners, admins, and editors can change things. Viewers can only look."
+        }
       />
 
       <div className="overflow-hidden rounded-xl border border-rule bg-sheet">

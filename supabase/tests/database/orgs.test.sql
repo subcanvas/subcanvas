@@ -47,14 +47,16 @@ select is((select count(*) from public.profiles where email like '%@pgtap.test')
 
 select pg_temp.login(:alice, 'alice@pgtap.test');
 select lives_ok($$ select public.create_org('Acme', 'pgtap-acme') $$, 'alice creates an org');
-select is((select role from public.org_members where user_id = :alice), 'owner'::public.org_role,
+select is((select m.role from public.org_members m join public.orgs o on o.id = m.org_id
+            where m.user_id = :alice and o.slug = 'pgtap-acme'), 'owner'::public.org_role,
   'the creator is the owner');
 
 select pg_temp.login(:bob, 'bob@pgtap.test');
 select lives_ok($$ select public.create_org('Bobco', 'pgtap-bobco') $$, 'bob creates an org');
-select is((select array_agg(slug) from public.orgs), array['pgtap-bobco'],
+-- Everyone also has a personal workspace (workspaces.test.sql).
+select is((select array_agg(slug) from public.orgs where personal_owner is distinct from :bob), array['pgtap-bobco'],
   'bob sees only his own org');
-select is((select count(*) from public.org_members), 1::bigint,
+select is((select count(*) from public.org_members where user_id <> :bob), 0::bigint,
   'bob sees only his own membership');
 select is((select count(*) from public.profiles), 1::bigint,
   'bob cannot see profiles of people outside his orgs');
@@ -88,7 +90,8 @@ select throws_ok(
 select pg_temp.login(:carol, 'carol@pgtap.test');
 select lives_ok($$ select public.accept_invite('cccccccc-0000-0000-0000-000000000000') $$,
   'carol accepts her invite');
-select is((select array_agg(slug) from public.orgs), array['pgtap-acme'], 'carol now sees the org');
+select is((select array_agg(slug) from public.orgs where personal_owner is distinct from :carol), array['pgtap-acme'],
+  'carol now sees the org');
 select throws_ok(
   $$ select public.accept_invite('cccccccc-0000-0000-0000-000000000000') $$,
   'P0001', 'This invite is invalid or has expired.', 'an invite works once');
@@ -99,12 +102,14 @@ update public.orgs set name = 'Hacked' where slug = 'pgtap-acme';
 select is((select name from public.orgs where slug = 'pgtap-acme'), 'Acme', 'a viewer cannot rename the org');
 select throws_ok(
   $$ insert into public.org_invites (org_id, email, role, invited_by)
-     select id, 'eve@pgtap.test', 'editor', 'c0000000-0000-0000-0000-000000000003' from public.orgs $$,
+     select id, 'eve@pgtap.test', 'editor', 'c0000000-0000-0000-0000-000000000003' from public.orgs
+     where slug = 'pgtap-acme' $$,
   '42501', null, 'a viewer cannot invite');
 select is((select count(*) from public.org_invites), 0::bigint, 'a viewer cannot read invites');
 update public.org_members set role = 'admin' where user_id = :carol;
-select is((select role from public.org_members where user_id = :carol), 'viewer'::public.org_role,
-  'a viewer cannot promote themselves');
+select is((select role from public.org_members
+            where user_id = :carol and org_id = (select id from public.orgs where slug = 'pgtap-acme')),
+  'viewer'::public.org_role, 'a viewer cannot promote themselves');
 
 -- Admin limits ---------------------------------------------------------------------
 
@@ -118,15 +123,17 @@ select throws_ok(
   '42501', null, 'an admin cannot grant owner');
 delete from public.org_members where user_id = :alice;
 select pg_temp.logout();
-select is((select count(*) from public.org_members where user_id = :alice), 1::bigint,
+select is((select count(*) from public.org_members
+            where user_id = :alice and org_id = (select id from public.orgs where slug = 'pgtap-acme')), 1::bigint,
   'an admin cannot remove an owner');
 
 -- Last owner ------------------------------------------------------------------------
 
 select pg_temp.login(:alice, 'alice@pgtap.test');
 select throws_ok(
-  $$ delete from public.org_members where user_id = 'a0000000-0000-0000-0000-000000000001' $$,
-  'P0001', 'An org must have at least one owner.', 'the last owner cannot leave');
+  $$ delete from public.org_members where user_id = 'a0000000-0000-0000-0000-000000000001'
+     and org_id = (select id from public.orgs where slug = 'pgtap-acme') $$,
+  'P0001', 'A workspace must have at least one owner.', 'the last owner cannot leave');
 select lives_ok($$ delete from public.orgs where slug = 'pgtap-acme' $$, 'an owner can delete the org');
 
 -- Anonymous ---------------------------------------------------------------------------

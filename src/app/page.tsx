@@ -8,10 +8,10 @@ import { buttonVariants } from "@/components/ui/button"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { WORKSPACE_HOME } from "@/lib/home"
 import { legalDetails } from "@/lib/legal"
+import { agentSignInAvailable } from "@/lib/mcp/sign-in"
+import { SOURCE_URL } from "@/lib/source"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
-
-const SOURCE_URL = "https://github.com/subcanvas/subcanvas"
 
 export const metadata: Metadata = {
   title: { absolute: "Subcanvas: turn a GitHub repo into a diagram you can click into" },
@@ -21,7 +21,7 @@ const INSIDE = [
   {
     icon: FileText,
     title: "A page of notes",
-    body: "Click a box and write beside it: headings, lists, images, code. The notes open in a side panel, so the drawing stays where it is.",
+    body: "Click a box and write beside it: headings, lists, pictures, code. The page opens in a side panel, so the drawing stays where it is.",
   },
   {
     icon: Workflow,
@@ -57,9 +57,12 @@ const USES = [
 
 export default async function Home() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const [
+    {
+      data: { user },
+    },
+    agents,
+  ] = await Promise.all([supabase.auth.getUser(), agentSignInAvailable()])
 
   // The same page for everyone. Someone signed in gets a way to their own
   // work in place of Sign in, and the buttons that would ask them to sign in
@@ -67,7 +70,10 @@ export default async function Home() {
   const start = user ? WORKSPACE_HOME : "/login"
 
   // Without Stripe there is no plan to buy, so the page shows what this
-  // server actually offers instead of a price nobody can pay.
+  // server actually offers instead of a price nobody can pay. What it says
+  // then has to hold for any server run without billing: no limits by
+  // default, and no storage cap unless its operator set one, which this
+  // page cannot read.
   const selling = billingConfigured()
 
   return (
@@ -109,9 +115,7 @@ export default async function Home() {
                 Or start blank
               </Link>
             </div>
-            <p className="text-sm text-graphite">
-              {selling ? "Free, private projects included. No card." : "Free while Subcanvas is this new. No card."}
-            </p>
+            <p className="text-sm text-graphite">Free, private projects included. No card.</p>
           </div>
           <HeroCanvas />
         </section>
@@ -135,9 +139,9 @@ export default async function Home() {
               who only need to look can watch for free.
             </p>
             <p className="max-w-2xl leading-relaxed text-graphite">
-              Bring your notes from Notion, Obsidian, or a folder of Markdown. And connect an AI agent (Claude
-              Code, Codex, Cursor, or anything else that speaks MCP) to read and edit your whiteboards as you,
-              with your permissions.
+              Bring your notes from Notion, Obsidian, or a folder of Markdown.
+              {agents &&
+                " And connect an AI agent (Claude Code, Codex, Cursor, or anything else that speaks MCP) to read and edit your whiteboards as you, with your permissions."}
             </p>
           </div>
         </section>
@@ -214,8 +218,8 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free until your org needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
-                  : "Nothing to pay yet. There is no paid plan while Subcanvas is this new."}
+                  ? "Free until your workspace needs a fourth editor or more private work. Then $5 a month for each editor. Viewers are always free."
+                  : "Nothing to pay. This server has no paid plan."}
               </p>
             </div>
             <div className={cn("grid gap-6", selling ? "md:grid-cols-3" : "md:grid-cols-2")}>
@@ -227,7 +231,7 @@ export default async function Home() {
                     price="$0"
                     points={[
                       "Unlimited public projects",
-                      "100 private whiteboards and pages (a box's notes don't count)",
+                      "100 private whiteboards and pages (descriptions of boxes and arrows don't count)",
                       "Up to 3 editors, you included",
                       "Unlimited viewers",
                       "1 GB of pictures and videos",
@@ -235,7 +239,7 @@ export default async function Home() {
                   />
                   <Plan
                     start={start}
-                    name="Team"
+                    name="Pro"
                     price="$5"
                     unit="per editor, per month"
                     highlight
@@ -252,13 +256,12 @@ export default async function Home() {
                   start={start}
                   name="Hosted"
                   price="Free"
-                  unit="while Subcanvas is this new"
+                  unit="on this server"
                   highlight
                   points={[
                     "Public and private projects alike",
                     "As many editors and viewers as you like",
-                    "1 GB of pictures and videos per org",
-                    "A paid plan comes later, and this work stays yours",
+                    "No card, nothing to pay",
                   ]}
                 />
               )}

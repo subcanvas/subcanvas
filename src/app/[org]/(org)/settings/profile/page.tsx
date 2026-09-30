@@ -9,6 +9,7 @@ import { getOrgContext } from "@/lib/orgs"
 
 import { SettingsSection } from "../settings-section"
 import { ConnectedAgents } from "./connected-agents"
+import { DeleteAccount } from "./delete-account"
 import { PICTURE_PROVIDERS, PROVIDER_LABELS, providerPicture } from "./identities"
 import { DisplayNameForm, PictureForm } from "./profile-forms"
 
@@ -48,10 +49,13 @@ function Method({
 export default async function ProfilePage({ params }: PageProps<"/[org]/settings/profile">) {
   const { org: slug } = await params
   const { supabase, user } = await getOrgContext(slug)
-  const [{ data: profile }, { data: hasPassword }, grants] = await Promise.all([
+  const [{ data: profile }, { data: hasPassword }, grants, { data: plan }] = await Promise.all([
     supabase.from("profiles").select("display_name, avatar_url").eq("id", user.id).single(),
     supabase.rpc("has_password"),
     supabase.auth.oauth.listGrants(),
+    // What deleting the account would do to each workspace, from the same
+    // rule the deletion itself follows.
+    supabase.rpc("account_deletion_plan"),
   ])
   // Absent where agents cannot sign in: a server without Supabase's OAuth
   // server switched on answers with an error, and there is nothing to list.
@@ -75,13 +79,33 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
   })).filter(({ provider, connected }) => connected || offered.includes(provider))
 
   const legal = legalDetails()
+  // Deleting needs the server's secret key (the action says why). A server
+  // without one leaves it to whoever runs it.
+  const selfService = Boolean(process.env.SUPABASE_SECRET_KEY)
+  const workspaces = plan ?? []
+  const deleted = workspaces.filter((workspace) => workspace.outcome === "delete")
+  const left = workspaces.filter((workspace) => workspace.outcome === "leave")
+  const blockers = workspaces.filter((workspace) => workspace.outcome === "only_owner" || workspace.outcome === "subscribed")
+  const teams = deleted.filter((workspace) => !workspace.personal).length
+  const summary = [
+    `This deletes your account and your personal workspace${
+      teams === 0 ? "" : teams === 1 ? ", and 1 team workspace nobody else is in" : `, and ${teams} team workspaces nobody else is in`
+    }, with every project, whiteboard, document, picture and video in them.`,
+    left.length === 1
+      ? "You leave 1 team workspace; what you made there stays with it."
+      : left.length > 1
+        ? `You leave ${left.length} team workspaces; what you made there stays with them.`
+        : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return (
     <main id="main" className="flex w-full max-w-3xl flex-col gap-8">
       <PageHeader
         eyebrow="Your account"
         title="Profile"
-        description="Who you are to the people you work with. It is the same in every org you belong to."
+        description="Who you are to the people you work with. It is the same in every workspace you belong to."
       />
 
       <SettingsSection
@@ -141,7 +165,7 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
         <SettingsSection
           id="profile-agents"
           title="Connected agents"
-          description="Agents you let in on the consent page. Each one acts as you, with your role in every org. Revoke one and it is refused from its next request; to come back, it has to be approved again."
+          description="Agents you let in on the consent page. Each one acts as you, with your role in every workspace. Revoke one and it is refused from its next request; to come back, it has to be approved again."
         >
           <ConnectedAgents agents={agents} connectHref={`/${slug}/agents`} />
         </SettingsSection>
@@ -151,25 +175,68 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
         id="profile-delete"
         title="Delete your account"
         danger
-        description="Deleting your account removes your profile and your membership of every org. It cannot be undone."
+        description="Deletes your account, your personal workspace, and every team workspace nobody else is in, with everything in them. Team workspaces other people are in stay theirs, with what you made there. It cannot be undone."
       >
-        <p className="max-w-xl text-sm leading-relaxed">
-          {legal ? (
-            <>
-              Accounts are deleted by hand, so nothing is lost by accident. Email{" "}
-              <a
-                className="font-medium underline underline-offset-4"
-                href={`mailto:${legal.contact}?subject=${encodeURIComponent("Delete my Subcanvas account")}`}
-              >
-                {legal.contact}
-              </a>{" "}
-              from {email} and ask.
-            </>
-          ) : (
-            "Ask whoever runs this server to delete it for you."
-          )}{" "}
-          If you are the only owner of an org, delete the org or make someone else an owner first.
-        </p>
+        {!selfService ? (
+          <p className="max-w-xl text-sm leading-relaxed">
+            {legal ? (
+              <>
+                Email{" "}
+                <a
+                  className="font-medium underline underline-offset-4"
+                  href={`mailto:${legal.contact}?subject=${encodeURIComponent("Delete my Subcanvas account")}`}
+                >
+                  {legal.contact}
+                </a>{" "}
+                from {email} and ask.
+              </>
+            ) : (
+              "Ask whoever runs this server to delete it for you."
+            )}
+          </p>
+        ) : blockers.length ? (
+          <div className="flex flex-col gap-3 text-sm leading-relaxed">
+            <ul className="flex max-w-xl flex-col gap-2">
+              {blockers.map((workspace) => (
+                <li key={workspace.org_id}>
+                  {workspace.outcome === "only_owner" ? (
+                    <>
+                      You are the only owner of{" "}
+                      <Link href={`/${workspace.org_slug}/settings/members`} className="font-medium underline underline-offset-4">
+                        {workspace.org_name}
+                      </Link>
+                      , which has other members. Make one of them an owner, or delete the workspace.
+                    </>
+                  ) : (
+                    <>
+                      <Link href={`/${workspace.org_slug}/settings/billing`} className="font-medium underline underline-offset-4">
+                        {workspace.org_name}
+                      </Link>{" "}
+                      has a subscription. Cancel it in its Billing settings first.
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="text-graphite">Then you can delete your account here.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <dl className="flex max-w-md flex-col gap-3 text-sm leading-relaxed">
+              <div className="flex flex-col gap-0.5">
+                <dt className="text-graphite">Deleted, with everything in them</dt>
+                <dd>{deleted.map((workspace) => workspace.org_name).join(", ")}</dd>
+              </div>
+              {left.length > 0 && (
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-graphite">Left, and kept by the people still in them</dt>
+                  <dd>{left.map((workspace) => workspace.org_name).join(", ")}</dd>
+                </div>
+              )}
+            </dl>
+            <DeleteAccount email={email} summary={summary} />
+          </div>
+        )}
       </SettingsSection>
     </main>
   )

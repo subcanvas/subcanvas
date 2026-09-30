@@ -23,3 +23,15 @@ export async function decideAuthorization(
   if (error || !data) return { error: error?.message ?? "This request could not be answered. Start again from the app you are connecting." }
   redirect(data.redirect_url)
 }
+
+// For someone signed in as another account than the one they meant. Supabase
+// ties a request to the first account that opens it, so it cannot be handed
+// to another: this one is refused as that account, which is then signed out,
+// and the app that asked is told no. Connecting again from the app starts a
+// new request, which asks who is signing in.
+export async function signOutInstead(authorizationId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
+  await supabase.auth.signOut()
+  redirect(data?.redirect_url ?? "/login")
+}

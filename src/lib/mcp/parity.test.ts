@@ -13,31 +13,31 @@ import { tools } from "./tools"
 
 const NOT_EXPOSED: Record<string, string> = {
   // Members and invites. An agent acts as its user, and an agent that can
-  // add people to an org, raise their role, or remove them turns one
+  // add people to a workspace, raise their role, or remove them turns one
   // prompt-injected document into an account takeover. It also changes the
-  // seats an org is billed for. Planned, behind a consent-screen choice.
+  // seats a workspace is billed for. Planned, behind a consent-screen choice.
   "[org]/(org)/settings/members/actions.changeRole": "changes who has access, and billed seats",
   "[org]/(org)/settings/members/actions.removeMember": "changes who has access, and billed seats",
-  "[org]/(org)/settings/members/actions.createInvite": "changes who has access; sends email in the org's name",
+  "[org]/(org)/settings/members/actions.createInvite": "changes who has access; sends email in the workspace's name",
   "[org]/(org)/settings/members/actions.revokeInvite": "kept with the rest of invites",
-  "[org]/(org)/settings/members/actions.resendInvite": "kept with the rest of invites; sends email in the org's name",
-  "invite/[token]/actions.acceptInvite": "joining an org is a person's decision, made from the emailed link",
+  "[org]/(org)/settings/members/actions.resendInvite": "kept with the rest of invites; sends email in the workspace's name",
+  "invite/[token]/actions.acceptInvite": "joining a workspace is a person's decision, made from the emailed link",
   // Billing. Paying needs a person and a card. Both actions only return a
   // Stripe link for the owner to open; a tool that reads the plan and
   // returns that link is planned with the members tools.
   "[org]/(org)/settings/billing/actions.startCheckout": "returns a Stripe checkout link; paying needs a person",
   "[org]/(org)/settings/billing/actions.openPortal": "returns a Stripe portal link; paying needs a person",
-  // The org itself. Deleting an org cannot be undone and takes every
-  // project with it, leaving one changes who has access, and both are the
-  // kind of step one prompt-injected document should not be able to take.
-  // Renaming is harmless but belongs with them. Planned with the members
-  // tools, behind the same consent-screen choice.
+  // The workspace itself. Deleting a workspace cannot be undone and takes
+  // every project with it, leaving one changes who has access, and both are
+  // the kind of step one prompt-injected document should not be able to
+  // take. Renaming is harmless but belongs with them. Planned with the
+  // members tools, behind the same consent-screen choice.
   "[org]/(org)/settings/general/actions.deleteOrg": "irreversible, and takes every project with it",
   // The same for one project: it goes for good with everything in it, trash
   // included, and a person confirms it by typing its name.
   "[org]/[project]/tree-actions.deleteProject": "irreversible, and takes every document in it",
   "[org]/(org)/settings/general/actions.leaveOrg": "changes who has access; a person's decision",
-  "[org]/(org)/settings/general/actions.renameOrg": "kept with the rest of org administration",
+  "[org]/(org)/settings/general/actions.renameOrg": "kept with the rest of workspace administration",
   // Your own name and picture are how other people recognise you. An agent
   // acts as you; it does not get to change who you appear to be.
   "[org]/(org)/settings/profile/actions.updateDisplayName": "a person's identity is theirs to change",
@@ -45,17 +45,21 @@ const NOT_EXPOSED: Record<string, string> = {
   "[org]/(org)/settings/profile/actions.revokeAgent": "a person's control over their agents",
   "[org]/(org)/settings/profile/actions.updatePicture": "a person's identity is theirs to change",
   "[org]/(org)/settings/profile/actions.adoptProviderPicture": "a person's identity is theirs to change",
-  // An agent gets in through an org's member, so it cannot exist before the
-  // first org does. Creating further orgs waits for the members tools,
-  // since a new org is only useful once people can be invited to it.
-  "onboarding/actions.createOrg": "the first org is created by a person during sign-up",
+  // Deleting the account takes the person's workspaces and everything in
+  // them, cannot be undone, and ends the agent's own access with it.
+  "[org]/(org)/settings/profile/actions.deleteAccount": "irreversible; a person's decision about their own account",
+  // A team workspace is for working with other people, and is only useful
+  // once they can be invited to it, so creating one waits for the members
+  // tools. Every account already has a personal workspace to work in.
+  "onboarding/actions.createOrg": "a team workspace is for inviting people, which has no tools yet",
   // A report is a reader's word to the operator about a public page, and it
-  // emails the operator. An agent acts inside its own person's orgs, and one
-  // that could file reports could flood that inbox.
+  // emails the operator. An agent acts inside its own person's workspaces,
+  // and one that could file reports could flood that inbox.
   "p/[projectId]/actions.reportAbuse": "a person's report to the operator; it emails them",
   // The consent screen is where a person lets an agent in. An agent must
   // never be able to answer it.
   "oauth/consent/actions.decideAuthorization": "approving an agent is the one thing an agent must not do",
+  "oauth/consent/actions.signOutInstead": "answers the consent screen, and signs a person out",
 }
 
 const APP = join(__dirname, "../../app")

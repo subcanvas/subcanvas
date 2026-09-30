@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronsUpDown, PanelLeftClose, Plus } from "lucide-react"
+import { Check, ChevronsUpDown, PanelLeftClose, Plus, UserRound, Users } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -27,28 +27,31 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-type Org = { name: string; slug: string }
+type Workspace = { name: string; slug: string; personal: boolean }
 
-// What is in the sidebar on every page of an org: which org this is at the
-// top, the org's pages, and your account at the bottom. Inside a project, the
-// project's documents go in the middle.
+// What is in the sidebar on every page of a workspace: which workspace this
+// is at the top, its pages, and your account at the bottom. Inside a
+// project, the project's documents go in the middle.
 export function AppSidebar({
   org,
-  orgs,
+  workspaces,
   user,
+  agents,
   children,
   footer,
 }: {
-  org: Org
-  orgs: Org[]
+  org: Workspace
+  // Personal first, then team workspaces.
+  workspaces: Workspace[]
   user: SidebarUser
+  agents: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
 
-  const pages = orgPages(org.slug)
+  const pages = orgPages(org.slug, agents)
 
   return (
     <>
@@ -65,19 +68,24 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 }
               />
-              <DropdownMenuContent align="start" className="min-w-52">
+              <DropdownMenuContent align="start" className="max-w-72 min-w-56">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>Orgs</DropdownMenuLabel>
-                  {orgs.map((o) => (
-                    <DropdownMenuItem key={o.slug} render={<Link href={`/${o.slug}`} />}>
-                      {o.name}
-                    </DropdownMenuItem>
-                  ))}
+                  <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+                  {workspaces.map((workspace) => {
+                    const Icon = workspace.personal ? UserRound : Users
+                    return (
+                      <DropdownMenuItem key={workspace.slug} render={<Link href={`/${workspace.slug}`} />}>
+                        <Icon className="text-graphite" />
+                        <span className="truncate">{workspace.name}</span>
+                        {workspace.slug === org.slug && <Check className="ml-auto" aria-hidden />}
+                      </DropdownMenuItem>
+                    )
+                  })}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem render={<Link href="/onboarding" />}>
+                <DropdownMenuItem render={<Link href={`/onboarding?from=${encodeURIComponent(org.slug)}`} />}>
                   <Plus />
-                  New org
+                  New team workspace
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -98,7 +106,7 @@ export function AppSidebar({
 
       <SidebarContent>
         <SidebarGroup>
-          <nav aria-label="Org">
+          <nav aria-label="Workspace">
             <SidebarMenu>
               {pages.map((page) => (
                 <SidebarMenuItem key={page.href}>

@@ -160,9 +160,9 @@ def keep_title(page: Page):
     )
 
 
-def sign_in(page: Page, base_url: str, email: str, password: str, org: str):
-    """Signs in, creating the account and its org the first time. Only ever
-    used before the camera rolls."""
+def sign_in(page: Page, base_url: str, email: str, password: str):
+    """Signs in, creating the account the first time, and opens its personal
+    workspace. Only ever used before the camera rolls."""
     page.goto(f"{base_url}/login", wait_until="networkidle")
     page.get_by_label("Email").fill(email)
     page.get_by_label("Password").fill(password)
@@ -174,13 +174,8 @@ def sign_in(page: Page, base_url: str, email: str, password: str, org: str):
         page.get_by_label("Password").fill(password)
         page.get_by_role("button", name="Create account").click()
         page.wait_for_url(lambda url: "/login" not in url, timeout=15_000)
-    # A new account is sent on to create its org, a redirect later.
-    page.goto(base_url, wait_until="networkidle")
-    if "/onboarding" in page.url:
-        page.get_by_label("Name").fill(org)
-        page.get_by_label("Web address").fill(re.sub(r"[^a-z0-9]+", "-", f"{org}-{email.split('@')[0]}".lower()).strip("-")[:40])
-        page.get_by_role("button", name="Create org").click()
-        page.wait_for_url(lambda url: "/onboarding" not in url, timeout=15_000)
+    # Every account has a personal workspace, and /auth/home opens it.
+    page.goto(f"{base_url}/auth/home", wait_until="networkidle")
 
 
 def run_step(step: dict, page: Page, cursor: Cursor, take: Take, base_url: str, env: dict[str, str]):
@@ -206,7 +201,7 @@ def run_step(step: dict, page: Page, cursor: Cursor, take: Take, base_url: str, 
     elif kind == "wait_url":
         page.wait_for_url(re.compile(value), timeout=60_000)
     elif kind == "sign_in":
-        sign_in(page, base_url, fill(value["email"]), fill(value["password"]), fill(value.get("org", "Demo")))
+        sign_in(page, base_url, fill(value["email"]), fill(value["password"]))
     elif kind == "caption":
         take.captions.append((take.now(), take.now() + float(step.get("pause", 3)), value))
     elif kind == "clip":

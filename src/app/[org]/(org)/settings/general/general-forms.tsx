@@ -21,7 +21,7 @@ import { WORKSPACE_HOME } from "@/lib/home"
 
 import { deleteOrg, leaveOrg, renameOrg } from "./actions"
 
-export function RenameOrgForm({ orgId, initial }: { orgId: string; initial: string }) {
+export function RenameOrgForm({ orgId, initial, personal }: { orgId: string; initial: string; personal: boolean }) {
   const [saved, setSaved] = useState(initial)
   const [name, setName] = useState(initial)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +60,7 @@ export function RenameOrgForm({ orgId, initial }: { orgId: string; initial: stri
       </div>
       {/* The hint and the error share one line, so an error moves nothing. */}
       <p id="org-name-hint" role={error ? "alert" : undefined} className={error ? "text-sm text-destructive" : "text-sm text-graphite"}>
-        {error ?? "Shown in the sidebar and on invites."}
+        {error ?? (personal ? "Shown in the sidebar." : "Shown in the sidebar and on invites.")}
       </p>
     </form>
   )
@@ -92,7 +92,7 @@ export function LeaveOrg({ slug, orgId, orgName }: { slug: string; orgId: string
         <DialogFooter>
           <DialogClose render={<Button variant="outline">Cancel</Button>} />
           <Button variant="destructive" disabled={pending} onClick={leave}>
-            {pending ? "Leaving…" : "Leave the org"}
+            {pending ? "Leaving…" : "Leave the workspace"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -139,10 +139,10 @@ export function DeleteOrg({
             <DialogTitle>Delete {orgName}?</DialogTitle>
             <DialogDescription>
               {projects === 0
-                ? "This deletes the org for every member."
+                ? "This deletes the workspace for every member."
                 : projects === 1
-                  ? "This deletes the org, its 1 project, and every whiteboard and document in it, for every member."
-                  : `This deletes the org, its ${projects} projects, and every whiteboard and document in them, for every member.`}{" "}
+                  ? "This deletes the workspace, its 1 project, and every whiteboard and document in it, for every member."
+                  : `This deletes the workspace, its ${projects} projects, and every whiteboard and document in them, for every member.`}{" "}
               It cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -169,7 +169,7 @@ export function DeleteOrg({
           <DialogFooter>
             <DialogClose render={<Button variant="outline">Cancel</Button>} />
             <Button type="submit" variant="destructive" disabled={pending || typed.trim() !== orgName}>
-              {pending ? "Deleting…" : "Delete this org"}
+              {pending ? "Deleting…" : "Delete this workspace"}
             </Button>
           </DialogFooter>
         </form>
