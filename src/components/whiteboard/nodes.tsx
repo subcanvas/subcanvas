@@ -5,7 +5,7 @@ import { FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
 import { useEffect, useRef } from "react"
 
 import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
-import { MEDIA_MIN_SIDE } from "@/lib/whiteboard/media"
+import { MAX_NODE_SIDE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { useMediaUrl } from "@/lib/whiteboard/media-urls"
 import { COLORS, DEFAULT_SIZE, type DocType, type WbNode } from "@/lib/whiteboard/schema"
 import { linesThatFit, shapeGeometry, type Point, type Side } from "@/lib/whiteboard/shapes"
@@ -47,22 +47,23 @@ function Handles({ visible, anchors }: { visible: boolean; anchors?: Record<Side
   )
 }
 
+// The limits are the ones the MCP tools hold agents to (lib/whiteboard/limits).
 function Resizer({
   selected,
-  minWidth,
-  minHeight,
+  kind,
   keepAspectRatio = false,
 }: {
   selected: boolean
-  minWidth: number
-  minHeight: number
+  kind: "plain" | "group" | "media"
   keepAspectRatio?: boolean
 }) {
   return (
     <NodeResizer
       isVisible={selected}
-      minWidth={minWidth}
-      minHeight={minHeight}
+      minWidth={MIN_NODE_SIZE[kind].width}
+      minHeight={MIN_NODE_SIZE[kind].height}
+      maxWidth={MAX_NODE_SIDE}
+      maxHeight={MAX_NODE_SIDE}
       keepAspectRatio={keepAspectRatio}
       lineClassName="!border-cobalt/60"
       handleClassName="!size-2 !rounded-[2px] !border-cobalt !bg-sheet"
@@ -218,7 +219,7 @@ export function PlainNode({ id, data, selected, width, height }: NodeProps<FlowN
           />
         )}
       </svg>
-      <Resizer selected={selected} minWidth={80} minHeight={40} />
+      <Resizer selected={selected} kind="plain" />
       <div
         className="pointer-events-none absolute flex flex-col items-center justify-center gap-0.5"
         style={{
@@ -260,7 +261,8 @@ export function TextNode({ data, selected, width }: NodeProps<FlowNode>) {
     >
       <NodeResizer
         isVisible={selected}
-        minWidth={120}
+        minWidth={MIN_NODE_SIZE.text.width}
+        maxWidth={MAX_NODE_SIDE}
         // Height follows the text.
         shouldResize={(_, params) => params.direction[1] === 0}
         lineClassName="!border-transparent"
@@ -322,7 +324,7 @@ export function GroupNode({ data, selected, width }: NodeProps<FlowNode>) {
           }}
         />
       ))}
-      <Resizer selected={selected} minWidth={160} minHeight={100} />
+      <Resizer selected={selected} kind="group" />
       {wb.title && (
         // A tab on the top edge, like the label on a folder.
         <div
@@ -345,7 +347,7 @@ export function MediaNode({ data, selected, width }: NodeProps<FlowNode>) {
   const { wb, upload } = data
   return (
     <div className="group/node relative size-full">
-      <Resizer selected={selected} minWidth={MEDIA_MIN_SIDE} minHeight={MEDIA_MIN_SIDE} keepAspectRatio />
+      <Resizer selected={selected} kind="media" keepAspectRatio />
       <div
         className={cn(
           "size-full overflow-hidden rounded-md border border-rule bg-sheet",

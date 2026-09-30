@@ -77,11 +77,13 @@ const listed = (await owner.listTools()).tools.map((tool) => tool.name)
 
 const { workspaces } = await ok(owner, "list_workspaces")
 const workspace = workspaces.find((candidate) => candidate.role === "owner" && !candidate.personal)
-const { project_id } = await ok(owner, "create_project", {
-  workspace_id: workspace.id,
-  name: `MCP smoke ${new Date().toISOString()}`,
-})
-await ok(owner, "list_projects", { workspace_id: workspace.id })
+const projectName = `MCP smoke ${new Date().toISOString()}`
+const { project_id } = await ok(owner, "create_project", { workspace_id: workspace.id, name: `${projectName} (draft)` })
+await ok(owner, "rename_project", { project_id, name: projectName })
+assert.equal(
+  (await ok(owner, "list_projects", { workspace_id: workspace.id })).projects.find((project) => project.id === project_id).name,
+  projectName
+)
 
 // The tree.
 const { folder_id } = await ok(owner, "create_folder", { project_id, name: "Notes" })
@@ -121,11 +123,13 @@ const { node_ids } = await ok(owner, "add_nodes", {
   whiteboard_id: board,
   nodes: [
     { title: "Browser", color: "blue" },
-    { title: "API", description: "Next.js route handlers" },
-    { title: "Postgres", color: "green" },
-    { kind: "text", title: "Agent-drawn system" },
+    { title: "API", shape: "hexagon" },
+    { title: "Postgres", color: "green", shape: "cylinder" },
+    { kind: "text", title: "Agent-drawn system", description: "Drawn over MCP." },
   ],
 })
+// Only a text node shows body text; a box gets notes by holding a text document.
+await refused(owner, "add_nodes", { whiteboard_id: board, nodes: [{ title: "API", description: "Next.js route handlers" }] }, /only a text node shows body text/)
 const [browser, api, postgres, heading] = node_ids
 const { edge_ids } = await ok(owner, "connect_nodes", {
   whiteboard_id: board,
@@ -225,6 +229,7 @@ await refused(viewer, "append_markdown", { document_id: page, markdown: "Viewer 
 await refused(viewer, "rename_document", { id: page, name: "Viewer was here" }, /permission/)
 await refused(viewer, "create_document", { project_id, type: "text" }, /permission/)
 await refused(viewer, "create_project", { workspace_id: workspace.id, name: "Viewer was here" }, /permission/)
+await refused(viewer, "rename_project", { project_id, name: "Viewer was here" }, /permission/)
 await refused(viewer, "trash_document", { document_id: page }, /permission/)
 await refused(viewer, "set_project_visibility", { project_id, visibility: "public" }, /permission/)
 await refused(viewer, "import_github_repository", { workspace_id: workspace.id, repository: "fixture/shop" }, /permission/)
@@ -242,5 +247,5 @@ assert.ok(!(await ok(outsider, "list_workspaces")).workspaces.some((candidate) =
 
 const unused = listed.filter((name) => !used.has(name))
 assert.deepEqual(unused, [], "every tool is exercised")
-console.log(`\nAll ${listed.length} tools exercised. Project ${project_id}, whiteboard ${board}, text document ${page}.`)
+console.log(`\nAll ${listed.length} tools exercised. Project ${project_id}, whiteboard ${board}, page ${page}.`)
 await Promise.all([owner.close(), viewer.close(), outsider.close()])

@@ -36,6 +36,7 @@ export function AppSidebar({
   org,
   workspaces,
   user,
+  agents,
   children,
   footer,
 }: {
@@ -43,13 +44,14 @@ export function AppSidebar({
   // Personal first, then team workspaces.
   workspaces: Workspace[]
   user: SidebarUser
+  agents: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
   const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
 
-  const pages = orgPages(org.slug)
+  const pages = orgPages(org.slug, agents)
 
   return (
     <>

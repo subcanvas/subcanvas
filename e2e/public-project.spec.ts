@@ -27,16 +27,26 @@ test("a project made public reads back for a visitor with no account", async ({ 
   await page.getByRole("dialog").getByRole("button", { name: "Make public" }).click()
   await expect(page.getByText("This project is now public.")).toBeVisible()
 
+  // The link Share offers opens the whiteboard on screen, not the project's
+  // empty pane; the project's own link is one button away.
+  const { origin, pathname } = new URL(page.url())
+  const boardId = pathname.split("/").at(-1)
+  await page.getByRole("button", { name: "Share" }).click()
+  await expect(page.getByLabel("Link to this whiteboard")).toHaveValue(`${origin}/p/${projectId}/d/${boardId}`)
+  await expect(page.getByRole("button", { name: "Copy the project's link" })).toBeVisible()
+
   // A context of its own: no cookies, no session, nothing carried over.
-  const origin = new URL(page.url()).origin
   const visitorContext = await browser.newContext()
   const visitor = await visitorContext.newPage()
   try {
-    await visitor.goto(`${origin}/p/${projectId}`)
+    await visitor.goto(`${origin}/p/${projectId}/d/${boardId}`)
     await expect(visitor.getByText("Public project")).toBeVisible()
+    await expect(nodeLabelled(visitor, nodeTitle)).toBeVisible()
     // Offered a way in, which is how a page knows nobody is signed in.
     await expect(visitor.getByRole("link", { name: "Sign in" })).toBeVisible()
 
+    // The project's own address lists what is in it.
+    await visitor.goto(`${origin}/p/${projectId}`)
     await visitor.getByRole("link", { name: "Board" }).click()
     await expect(nodeLabelled(visitor, nodeTitle)).toBeVisible()
 

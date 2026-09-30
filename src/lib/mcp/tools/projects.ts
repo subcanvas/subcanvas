@@ -107,7 +107,7 @@ export const projectTools = [
     title: "Get a project and its document tree",
     group: "Workspaces and projects",
     description:
-      "Returns one project and the tree of everything in it: folders, whiteboards, and text documents, nested the way the sidebar shows them. A document nested under a whiteboard lives inside one of that whiteboard's nodes or arrows. Documents in the trash are left out; pass `include_trash` to list them separately.",
+      "Returns one project and the tree of everything in it: folders, whiteboards, and pages, nested the way the sidebar shows them. A document nested under a whiteboard lives inside one of that whiteboard's nodes or arrows. The pages that are nodes' and arrows' descriptions are not in the tree; `read_whiteboard` gives their ids. Documents in the trash are left out; pass `include_trash` to list them separately.",
     input: {
       project_id: id("The project, from `list_projects`."),
       include_trash: z.boolean().default(false).describe("Also list the documents in this project's trash."),
@@ -162,7 +162,7 @@ export const projectTools = [
     title: "Create a project",
     group: "Workspaces and projects",
     description:
-      "Creates an empty project in a workspace. Needs the editor role or higher. Follow with `create_document` to put a first whiteboard or text document in it.",
+      "Creates an empty project in a workspace. Needs the editor role or higher. Follow with `create_document` to put a first whiteboard or page in it.",
     input: {
       workspace_id: id("The workspace to create it in, from `list_workspaces`."),
       name: z.string().min(1).max(200).describe("The project's name."),

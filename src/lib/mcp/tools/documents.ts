@@ -20,7 +20,7 @@ const container = z
     z.object({ kind: z.literal("folder"), id: id("The folder.") }),
     z
       .object({ kind: z.literal("document"), id: id("The parent document.") })
-      .describe("Nested under another document in the tree, without belonging to one of its objects."),
+      .describe("Nested under another document in the tree, without belonging to one of its nodes or arrows."),
   ])
   .describe("Where in the project's tree.")
 
@@ -31,9 +31,9 @@ const place = z
       .object({
         kind: z.literal("object"),
         whiteboard_id: id("The whiteboard the node or arrow is on."),
-        object_id: id("The node, group, or edge that will hold the new document."),
+        object_id: id("The node or arrow that will hold the new document."),
       })
-      .describe("Inside a whiteboard's node, group, or arrow. Same as `attach_document`."),
+      .describe("Inside a whiteboard's node or arrow. Same as `attach_document`: a page made here is that node's or arrow's description."),
   ])
   .describe("Where the new document lives. Every document has exactly one home.")
 
@@ -55,19 +55,19 @@ export const documentTools = [
     title: "Create a document",
     group: "Documents",
     description:
-      "Creates a whiteboard or a text document in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node, group, or arrow (which is how diagrams nest in Subcanvas). Returns the new document's id. A text document can be given its first content as Markdown. On the free plan this fails with an explanation once the workspace's private-document allowance is used up.",
+      "Creates a whiteboard or a page in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node or arrow (which is how whiteboards nest in Subcanvas). Returns the new document's id. A page can be given its first content as Markdown. On the free plan this fails with an explanation once the workspace's private-document allowance is used up.",
     input: {
       project_id: id("The project, from `list_projects`."),
-      type: z.enum(["whiteboard", "text"]).describe("A whiteboard is a canvas of nodes and arrows; a text document is a page of rich text."),
-      title: z.string().min(1).max(200).optional().describe("Defaults to \"Untitled\", or inside an object to that object's title."),
+      type: z.enum(["whiteboard", "text"]).describe("`whiteboard`: a canvas of nodes and arrows. `text`: a page of rich text."),
+      title: z.string().min(1).max(200).optional().describe("Defaults to \"Untitled\", or inside a node or arrow to its title."),
       place: place.default({ kind: "root" }),
-      markdown: z.string().optional().describe("For a text document: its first content, as Markdown."),
+      markdown: z.string().optional().describe("For a page: its first content, as Markdown."),
     },
     kind: "write",
     covers: ["[org]/[project]/tree-actions.createDocument"],
     run: async (context, { project_id, type, title, place: where, markdown }) => {
       if (markdown !== undefined && type !== "text")
-        return { error: "Only a text document takes Markdown. Add nodes to a whiteboard with `add_nodes`." }
+        return { error: "Only a page takes Markdown. Add nodes to a whiteboard with `add_nodes`." }
       const project = await findProject(context, project_id)
       if (!project) return NO_PROJECT
 
@@ -94,7 +94,7 @@ export const documentTools = [
       }
       const url = await documentUrl(context, { id: created.id, org_id: project.org_id, project_id: project.id })
       return {
-        text: `Created the ${type === "text" ? "text document" : "whiteboard"} (${created.id}).${url ? ` Open it at ${url}` : ""}`,
+        text: `Created the ${type === "text" ? "page" : "whiteboard"} (${created.id}).${url ? ` Open it at ${url}` : ""}`,
         data: { document_id: created.id, type, url },
       }
     },
@@ -105,7 +105,7 @@ export const documentTools = [
     title: "Import Markdown files as documents",
     group: "Documents",
     description:
-      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as text documents, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a document with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new documents. Local images are not imported; their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the workspace has no room for it.",
+      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as pages, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a page with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new pages. Local pictures are not imported (people's own Import files uploads them); their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the workspace has no room for it.",
     input: {
       project_id: id("The project, from `list_projects`."),
       place: container.default({ kind: "root" }),
@@ -220,7 +220,7 @@ export const documentTools = [
     title: "Move a document or folder",
     group: "Documents",
     description:
-      "Moves a document or a folder to another place in the same project's tree; it goes after what is already there. A folder cannot go inside a document. A document that lived inside a whiteboard object stops belonging to that object when moved (the object keeps a link to it).",
+      "Moves a document or a folder to another place in the same project's tree; it goes after what is already there. A folder cannot go inside a document. A document that lived inside a whiteboard's node or arrow stops belonging to it when moved (the node or arrow keeps a link to it).",
     input: {
       kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
       id: id("The document or folder to move."),
@@ -304,7 +304,7 @@ export const documentTools = [
     title: "List what links to a document",
     group: "Documents",
     description:
-      "Lists the titles of the documents that link to this one from somewhere else (a whiteboard object that opens it, or a link block in a text document). Check this before trashing or deleting a document.",
+      "Lists the titles of the documents that link to this one from somewhere else (a node or arrow on a whiteboard that opens it, or a document link in a page). The app shows the same list as \"Linked from\". Check this before trashing or deleting a document.",
     input: { document_id: id("The document.") },
     kind: "read",
     covers: ["[org]/[project]/tree-actions.listReferences"],

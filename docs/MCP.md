@@ -1,6 +1,6 @@
 # The MCP server
 
-Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write text documents, nest a diagram inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
+Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write pages, nest a whiteboard inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
 
 - **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless). Both the 2025 protocol and 2026-07-28 are served. The tool list never changes while an agent is connected, so there is nothing to listen for: the server says `listChanged: false`, and a client opens no `subscriptions/listen` stream.
 - **Sign-in:** OAuth 2.1, with Supabase Auth as the authorization server. There are no API keys.
@@ -25,6 +25,8 @@ What happens next is the same everywhere. The client asks `/mcp` without a token
 
 Everything is addressed by id. Writes are marked in their MCP annotations as plain writes or as destructive, so a client can ask before it deletes something.
 
+The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREMENTS.md#glossary)), with a few older names kept for compatibility: a page is a document of type `text` and its tools say "text document", arrows are `edges`, a box is a node of kind `plain`, and a picture or video is kind `media`. A node's `description` is a text node's body text; the page inside a node or arrow, which the app calls its description, is a document it holds (`attach_document`).
+
 | Tool | What it does | Kind |
 |---|---|---|
 | `list_workspaces` | List workspaces | reads |
@@ -43,8 +45,8 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `delete_document_forever` | Delete a trashed document forever | destructive |
 | `delete_folder` | Delete a folder | destructive |
 | `list_references` | List what links to a document | reads |
-| `read_text_document` | Read a text document | reads |
-| `append_markdown` | Append Markdown to a text document | writes |
+| `read_text_document` | Read a page | reads |
+| `append_markdown` | Append Markdown to a page | writes |
 | `insert_after_block` | Insert Markdown after a block | writes |
 | `replace_block` | Replace a block | destructive |
 | `delete_block` | Delete a block | destructive |
@@ -76,13 +78,22 @@ Blocks are read and written as Markdown. The blocks Markdown has no syntax for a
 
 A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
 
-Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
+Nodes take what the canvas takes, and no more: the same words (a title up to 200 characters, body text up to 2,000, an arrow's label up to 120, alt text up to 500), the same sizes (a box can be no smaller than 80 by 40, a text node 120 wide, a group 160 by 100, a picture or video 48 on either side, and nothing larger than 4,000; a size outside that is brought within it), a box's shape at that shape's size, and a picture or video at its file's proportions. The limits are defined once, in `src/lib/whiteboard/limits.ts`. A field a node cannot show is refused rather than stored where nobody would see it: body text on a box, a shape on a group, alt text on anything but a picture or video, a color on a picture or video.
+
+Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports each with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
 
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.
 
 ### Not exposed yet
 
-Members and invites, billing, creating, renaming, leaving, or deleting a workspace, deleting a project, deleting your account, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting a workspace, deleting a project, deleting your account, your own name and picture, revoking an agent, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list. In short: they change who has access, cannot be undone, or are a person's own decision; an agent must never approve or disconnect agents, since that is how a person keeps control of them.
+
+Some things people do in the browser are not server actions, so the parity test cannot see them, and have no tool either:
+
+- **Which side an arrow leaves and enters by.** A person drags from one side of a node to a side of another. `connect_nodes` picks the sides that make the shortest path, `arrange_nodes` picks them again, and `read_whiteboard` does not report them. Choosing sides is layout by hand, which an agent does better by moving nodes.
+- **Document links in a page.** The card that links a page to another document is inserted from the page's `/` menu. Markdown has no syntax for it, so `read_text_document` shows one as `[Subcanvas document <id>]` and none of the tools write one. The Linked from list is kept by the browsers of people editing the page, so a link card an agent deletes with `delete_block` still counts in `list_references` until someone next edits that page.
+- **Uploading pictures and videos to a page**, for the reasons given above for whiteboards. A picture already in Subcanvas can be shown in a page by its `/api/media/…` address in Markdown image syntax; the app copies the file under that page the next time someone who can edit it opens it, so that the page's readers can see it.
+- **Copy, paste, and undo.** These live in a person's browser. An agent's edits are its own, and a person's undo never takes them back.
 
 ## Security model
 

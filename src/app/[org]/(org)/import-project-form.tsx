@@ -22,7 +22,8 @@ import { importFromGitHub, type ImportState } from "./actions"
 
 // Draws a public GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md.
-export function ImportProject({ slug }: { slug: string }) {
+// `privateLimit` is the limit on private documents, when there is one.
+export function ImportProject({ slug, privateLimit }: { slug: string; privateLimit: number | null }) {
   const router = useRouter()
   // An import that stops to show its notes leaves the page behind the dialog
   // as it was (see importFromGitHub), so it is refreshed once the dialog
@@ -46,7 +47,7 @@ export function ImportProject({ slug }: { slug: string }) {
         }
       />
       <DialogContent>
-        <ImportSteps slug={slug} onNotes={() => (stale.current = true)} />
+        <ImportSteps slug={slug} privateLimit={privateLimit} onNotes={() => (stale.current = true)} />
       </DialogContent>
     </Dialog>
   )
@@ -54,7 +55,15 @@ export function ImportProject({ slug }: { slug: string }) {
 
 // The form, then the notes if there are any. The dialog mounts it each time
 // it opens, so it always opens on the form.
-function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
+function ImportSteps({
+  slug,
+  privateLimit,
+  onNotes,
+}: {
+  slug: string
+  privateLimit: number | null
+  onNotes: () => void
+}) {
   const [state, action, pending] = useActionState(async (previous: ImportState, formData: FormData) => {
     const next = await importFromGitHub(slug, previous, formData)
     if (next && "ok" in next) onNotes()
@@ -127,9 +136,9 @@ function ImportSteps({ slug, onNotes }: { slug: string; onNotes: () => void }) {
         <span className="flex flex-col gap-0.5">
           <span className="font-medium">Make this project public (the repository already is)</span>
           <span className="text-xs leading-relaxed text-graphite">
-            Anyone with the link can read it. Only members can edit. Unticked, each README and
-            each whiteboard inside a box counts toward the free plan&apos;s 100 private whiteboards
-            and pages.
+            Anyone with the link can read it. Only members can edit.
+            {privateLimit != null &&
+              ` Unticked, each README and each whiteboard inside a box counts toward the limit of ${privateLimit} private documents.`}
           </span>
         </span>
       </label>
