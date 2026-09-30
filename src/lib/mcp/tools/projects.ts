@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import * as operations from "@/lib/documents/operations"
 import { readOrgAccess } from "@/lib/org-access"
+import type { Tables } from "@/lib/supabase/database.types"
 import { buildTree, type DocumentRow, type FolderRow, type TreeNode } from "@/lib/tree"
 
 import { findProject, NO_ORG, NO_PROJECT, orgSlug } from "../lookup"
@@ -87,11 +88,16 @@ export const projectTools = [
       if (!slug) return NO_ORG
       const { data, error } = await context.supabase
         .from("projects")
-        .select("id, name, visibility, taken_down_at, source, documents(count)")
+        // What each shows: nothing in the trash, nor inside something that
+        // is. `document_count` is computed by the database, which the
+        // generated types do not describe.
+        .select("id, name, visibility, taken_down_at, source, document_count")
         .eq("org_id", workspace_id)
-        .eq("documents.kind", "standard")
-        .is("documents.deleted_at", null)
         .order("created_at")
+        .overrideTypes<
+          (Pick<Tables<"projects">, "id" | "name" | "visibility" | "taken_down_at" | "source"> & { document_count: number })[],
+          { merge: false }
+        >()
       if (error) return { error: error.message }
 
       const projects = data.map((project) => ({
@@ -100,7 +106,7 @@ export const projectTools = [
         visibility: project.visibility,
         taken_down: project.taken_down_at !== null,
         shown_as: shownAs(project),
-        documents: project.documents[0]?.count ?? 0,
+        documents: project.document_count,
         imported_from: project.source,
         url: `${context.origin}/${slug}/${project.id}`,
       }))

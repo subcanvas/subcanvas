@@ -111,6 +111,7 @@ export function ProjectTree({
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   // A document that is linked from elsewhere, waiting for confirmation.
   const [confirmTrash, setConfirmTrash] = useState<{
+    kind: "folder" | "document"
     id: string
     name: string
     references: string[]
@@ -183,12 +184,13 @@ export function ProjectTree({
     )
   }
 
-  // Warn first when other documents link to this one (R1.8).
-  function requestTrash(id: string, name: string) {
+  // Warn first when other documents link to this one, or for a folder to
+  // anything inside it (R1.8).
+  function requestTrash(kind: "folder" | "document", id: string, name: string) {
     startTransition(async () => {
-      const references = await listReferences(id)
-      if (references.length) setConfirmTrash({ id, name, references })
-      else trash("document", id)
+      const references = await listReferences(id, kind)
+      if (references.length) setConfirmTrash({ kind, id, name, references })
+      else trash(kind, id)
     })
   }
 
@@ -324,7 +326,7 @@ export function ProjectTree({
               {node.kind === "document" && <DownloadItem id={node.id} type={node.type} />}
               <DropdownMenuItem
                 variant="destructive"
-                onClick={() => (node.kind === "folder" ? trash("folder", node.id) : requestTrash(node.id, node.name))}
+                onClick={() => requestTrash(node.kind, node.id, node.name)}
               >
                 <Trash2 />
                 Move to trash
@@ -417,8 +419,9 @@ export function ProjectTree({
           <DialogHeader>
             <DialogTitle>Move “{confirmTrash?.name}” to the trash?</DialogTitle>
             <DialogDescription>
-              It is linked from {confirmTrash?.references.length === 1 ? "another document" : "other documents"}.
-              Those links will show it as trashed until you restore it.
+              {confirmTrash?.kind === "folder" ? "What is in it is" : "It is"} linked from{" "}
+              {confirmTrash?.references.length === 1 ? "another document" : "other documents"}. Those links will show
+              it as trashed until you restore it.
             </DialogDescription>
           </DialogHeader>
           <ul className="list-disc pl-5 text-sm">
@@ -429,7 +432,7 @@ export function ProjectTree({
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirmTrash) trash("document", confirmTrash.id)
+                if (confirmTrash) trash(confirmTrash.kind, confirmTrash.id)
                 setConfirmTrash(null)
               }}
             >

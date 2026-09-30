@@ -43,3 +43,30 @@ export async function restoreHeldDocuments(supabase: Client, documentIds: string
     .not("deleted_at", "is", null)
   return error ? fail(error) : { ok: true }
 }
+
+// Detaching an object from the document it holds lets go of it: the
+// document stays under the whiteboard as one of its own, in the tree (a
+// description becomes a page, by the database's detach_description), so
+// deleting the object later leaves it alone. A document the object only
+// linked to lives elsewhere and is not touched: `released` is then null.
+export async function releaseHeldDocument(
+  supabase: Client,
+  whiteboardId: string,
+  objectId: string,
+  documentId: string
+): Promise<OperationResult<{ released: { id: string; title: string; type: "text" | "whiteboard" } | null }>> {
+  const { data, error } = await supabase
+    .from("documents")
+    .update({ parent_object_id: null })
+    .eq("id", documentId)
+    .eq("parent_document_id", whiteboardId)
+    .eq("parent_object_id", objectId)
+    .select("id, title, type")
+  if (error) return fail(error)
+  return { ok: true, released: data[0] ?? null }
+}
+
+// What a person or an agent is told once a detached document went.
+export function releasedWords(released: { title: string; type: "text" | "whiteboard" }) {
+  return `“${released.title}” is now a ${released.type === "text" ? "page" : "whiteboard"} of its own under this whiteboard, in the project tree.`
+}

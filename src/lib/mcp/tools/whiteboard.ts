@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { trashHeldDocuments } from "@/lib/documents/held"
+import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
 import { removeMedia } from "@/lib/documents/media-cleanup"
 import { loadDocument } from "@/lib/sync/server-document"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
@@ -11,7 +11,7 @@ import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from 
 import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
 
 import { editDocument } from "../edit-document"
-import { documentUrl, findDocument, findTypedDocument, NO_DOCUMENT } from "../lookup"
+import { documentUrl, findDocument, findTypedDocument, IN_TRASH, NO_DOCUMENT, READ_FROM_TRASH } from "../lookup"
 import { createInsideObject, reindexLinks } from "../object-documents"
 import { defineTool, id, type ToolContext, type ToolResult } from "../tool"
 import * as edits from "../whiteboard-edits"
@@ -103,7 +103,7 @@ export const whiteboardTools = [
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
-      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard", { read: true })
       if ("error" in whiteboard) return whiteboard
       const doc = await loadDocument(context.supabase, whiteboard.id)
       if (!doc) return { error: "This document could not be read." }
@@ -164,6 +164,7 @@ export const whiteboardTools = [
         whiteboard_id: whiteboard.id,
         title: whiteboard.title,
         url: await documentUrl(context, whiteboard),
+        ...(whiteboard.in_trash ? { in_trash: true, note: READ_FROM_TRASH } : {}),
         nodes,
         edges,
       }
@@ -443,8 +444,9 @@ export const whiteboardTools = [
         if (!target || target.project_id !== whiteboard.project_id)
           return target ? { error: "Only a document of the same project can be linked." } : NO_DOCUMENT
         // What the app's own picker offers: documents of the tree, not
-        // descriptions, and nothing from the trash.
-        if (target.kind !== "standard" || target.deleted_at)
+        // descriptions, and nothing in the trash or inside something that is.
+        if (target.in_trash) return IN_TRASH
+        if (target.kind !== "standard")
           return { error: "Only a document that is in the project's tree can be linked." }
         if (target.id === whiteboard.id) return { error: "A whiteboard cannot hold itself." }
         const linked = await editDocument(context, whiteboard.id, (doc) =>
@@ -475,20 +477,35 @@ export const whiteboardTools = [
     name: "detach_document",
     title: "Detach the document from a node or arrow",
     group: "Whiteboards",
-    description: "Makes a node or an arrow hold nothing again. The document itself is not deleted or moved; trash it separately if it is no longer wanted.",
+    description:
+      "Makes a node or an arrow hold nothing again. The document itself is not deleted: a document the node or arrow held stays under this whiteboard as one of its own, in the project tree (a description becomes a page), and deleting the node later leaves it alone; a document it only linked to stays where it is. Trash it separately if it is no longer wanted.",
     input: { whiteboard_id: whiteboardId, object_id: nodeId("The node or arrow.") },
     kind: "idempotent-write",
     run: async (context, { whiteboard_id, object_id }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const doc = await loadDocument(context.supabase, whiteboard.id)
+      if (!doc) return { error: "This document could not be read." }
+      const held = (nodesMap(doc).get(object_id) ?? edgesMap(doc).get(object_id))?.get("docId")
+
+      // Let go of it first: at the free plan's limit a description cannot
+      // become a page, and the node or arrow then keeps it.
+      let released: { id: string; title: string; type: "text" | "whiteboard" } | null = null
+      if (typeof held === "string") {
+        const result = await releaseHeldDocument(context.supabase, whiteboard.id, object_id, held)
+        if ("error" in result) return result
+        released = result.released
+      }
       const result = await change(
         context,
-        whiteboard_id,
-        (doc) => edits.setObjectDocument(doc, object_id, null),
-        () => ({ text: "Detached.", data: { object_id } })
+        whiteboard.id,
+        (board) => edits.setObjectDocument(board, object_id, null),
+        () => ({
+          text: released ? `Detached. ${releasedWords(released)}` : "Detached.",
+          data: { object_id, ...(released ? { released_document_id: released.id } : {}) },
+        })
       )
-      if (!("error" in result)) {
-        const whiteboard = await findDocument(context, whiteboard_id)
-        if (whiteboard) await reindexLinks(context, whiteboard)
-      }
+      if (!("error" in result)) await reindexLinks(context, whiteboard)
       return result
     },
   }),

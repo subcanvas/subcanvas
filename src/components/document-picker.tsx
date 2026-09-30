@@ -38,12 +38,11 @@ export function DocumentPicker({
     if (!open) return
     let cancelled = false
     const timer = setTimeout(async () => {
+      // Only what is in view: nothing in the trash, nor inside something that is.
       let request = createClient()
-        .from("documents")
+        .rpc("documents_in_view", { p_project_id: projectId })
         .select("id, title, type")
-        .eq("project_id", projectId)
         .eq("kind", "standard")
-        .is("deleted_at", null)
         .neq("id", excludeId)
         .order("updated_at", { ascending: false })
         .limit(20)

@@ -1,3 +1,5 @@
+import { inView } from "@/lib/documents/in-view"
+
 // Where everything goes in a project's export (docs/EXPORTING.md). Pure, so
 // the server that lists a project and the browser that writes the zip agree,
 // and so the rules can be tested without either.
@@ -166,6 +168,19 @@ export function layoutExport(folders: ExportFolderRow[], documents: ExportDocume
 
   placeFolder(null, "")
   return { folders: laidOutFolders, documents: laidOutDocuments }
+}
+
+// The project as it is in view: what is in the trash stays out of its
+// export, and so does everything inside it (lib/documents/in-view).
+export function layoutInView(
+  folders: (ExportFolderRow & { deleted_at: string | null })[],
+  documents: (ExportDocumentRow & { deleted_at: string | null })[]
+): ExportLayout {
+  const live = inView(folders, documents)
+  return layoutExport(
+    folders.filter((folder) => live.folders.has(folder.id)),
+    documents.filter((document) => live.documents.has(document.id))
+  )
 }
 
 // --- Links between files ----------------------------------------------------

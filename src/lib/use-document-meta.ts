@@ -26,25 +26,25 @@ export function useDocumentMeta(documentId: string | null): DocumentMeta | null 
   useEffect(() => {
     if (!documentId) return
     let cancelled = false
-    createClient()
-      .from("documents")
-      .select("id, title, type, kind, deleted_at, source")
-      .eq("id", documentId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return
-        setState({
-          id: documentId,
-          meta: data && {
-            id: data.id,
-            title: data.title,
-            type: data.type,
-            kind: data.kind,
-            trashed: data.deleted_at !== null,
-            source: readDocumentSource(data.source),
-          },
-        })
+    const supabase = createClient()
+    Promise.all([
+      supabase.from("documents").select("id, title, type, kind, deleted_at, source").eq("id", documentId).maybeSingle(),
+      supabase.rpc("document_is_live", { p_document_id: documentId }),
+    ]).then(([{ data }, { data: live }]) => {
+      if (cancelled) return
+      setState({
+        id: documentId,
+        meta: data && {
+          id: data.id,
+          title: data.title,
+          type: data.type,
+          kind: data.kind,
+          // Inside something in the trash is in the trash too.
+          trashed: data.deleted_at !== null || live === false,
+          source: readDocumentSource(data.source),
+        },
       })
+    })
     return () => {
       cancelled = true
     }

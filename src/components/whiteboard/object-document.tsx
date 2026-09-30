@@ -3,6 +3,7 @@
 import { ArrowUpRight, FileText, Link2, Unlink, Workflow } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
+import { toast } from "sonner"
 
 import { DocumentPicker } from "@/components/document-picker"
 import { useShowRefusal } from "@/components/limit-refusal"
@@ -11,6 +12,7 @@ import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { releasedWords, releaseHeldDocument } from "@/lib/documents/held"
 import { documentHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useDocumentMeta } from "@/lib/use-document-meta"
@@ -78,6 +80,21 @@ export function ObjectDocument({
     })
   }
 
+  // The object lets go of what it holds, which stays under this whiteboard
+  // as a document of its own; a document it only linked to stays where it is.
+  function detach() {
+    if (!docId) return
+    startTransition(async () => {
+      const result = await releaseHeldDocument(createClient(), context.whiteboardId, objectId, docId)
+      if ("error" in result) return showRefusal(result)
+      onChange({ docId: null, docType: null })
+      if (result.released) {
+        toast(releasedWords(result.released))
+        router.refresh()
+      }
+    })
+  }
+
   const open = () =>
     docId &&
     router.push(
@@ -113,11 +130,7 @@ export function ObjectDocument({
           </Button>
         )}
         {docId && editable && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange({ docId: null, docType: null })}
-          >
+          <Button variant="ghost" size="sm" disabled={pending} onClick={detach}>
             <Unlink />
             Detach
           </Button>
@@ -155,7 +168,7 @@ export function ObjectDocument({
         </p>
       ) : meta.trashed ? (
         <p className="px-4 text-sm text-muted-foreground">
-          “{meta.title}” is in the trash. Restore it to see it here.
+          “{meta.title}” is in the trash, or inside something that is. Restore it to see it here.
         </p>
       ) : meta.type === "whiteboard" ? (
         <button

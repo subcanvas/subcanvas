@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest"
 
 import { resolveRelative } from "@/lib/import/paths"
 
-import { claimName, layoutExport, relativeHref, safeName, type ExportDocumentRow, type ExportFolderRow } from "./layout"
+import {
+  claimName,
+  layoutExport,
+  layoutInView,
+  relativeHref,
+  safeName,
+  type ExportDocumentRow,
+  type ExportFolderRow,
+} from "./layout"
 
 const folder = (id: string, name: string, parent: string | null = null, position = 0): ExportFolderRow => ({
   id,
@@ -131,5 +139,36 @@ describe("links between files", () => {
     }
     expect(relativeHref("Guides/Setup/Install.md", "Welcome.md")).toBe("../../Welcome.md")
     expect(relativeHref("Welcome.md", "Guides/My page.md")).toBe("Guides/My%20page.md")
+  })
+})
+
+describe("what is in the trash", () => {
+  const TRASHED = "2026-09-30T00:00:00Z"
+  const live = <T extends object>(row: T, deleted_at: string | null = null) => ({ ...row, deleted_at })
+
+  it("leaves out a trashed folder and everything inside it, however deep", () => {
+    const layout = layoutInView(
+      [live(folder("plans", "Plans"), TRASHED), live(folder("inner", "Inner", "plans")), live(folder("kept", "Kept"))],
+      [
+        live(document("road", "Roadmap", { folder: "plans" })),
+        live(document("deep", "Deep", { parent: "road" })),
+        live(document("notes", "Notes", { folder: "inner" })),
+        live(document("top", "Overview")),
+        live(document("filed", "Filed", { folder: "kept" })),
+      ]
+    )
+    expect(pathsOf(layout)).toEqual({ kept: "Kept", filed: "Kept/Filed", top: "Overview" })
+  })
+
+  it("leaves out a trashed document and what is nested in it, and keeps its folder", () => {
+    const layout = layoutInView(
+      [live(folder("kept", "Kept"))],
+      [
+        live(document("board", "Board", { folder: "kept" }, { type: "whiteboard" }), TRASHED),
+        live(document("inside", "Inside", { parent: "board" })),
+        live(document("other", "Other")),
+      ]
+    )
+    expect(pathsOf(layout)).toEqual({ kept: "Kept", other: "Other" })
   })
 })
