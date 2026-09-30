@@ -46,7 +46,8 @@ test("at the free plan's limit the owner is offered the upgrade, and an editor i
 
   // In a dialog: the refusal stays in view, with the upgrade beside it.
   const dialog = await tryImport(page, limit! + 1)
-  await expect(dialog.getByRole("alert")).toContainText(`the free plan has room for ${limit} more private ones`)
+  await expect(dialog.getByRole("alert")).toContainText(`past the free plan's ${limit} private documents`)
+  await expect(dialog.getByRole("alert")).toContainText(`This import is ${limit! + 1} documents, and there is room for ${limit} more.`)
   await expect(dialog.getByRole("link", { name: "Upgrade" })).toHaveAttribute("href", `/${slug}/settings/billing`)
   await expect(dialog.getByText("Ask an owner")).toHaveCount(0)
   await page.keyboard.press("Escape")
