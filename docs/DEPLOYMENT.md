@@ -79,7 +79,7 @@ docker run -p 3000:3000 --env-file subcanvas.env subcanvas
 
 The `NEXT_PUBLIC_` values are compiled into the browser bundle, which is why they are build arguments: changing one means rebuilding the image. Everything else in the table (the `LEGAL_` and `SMTP_` variables, `SUPABASE_SECRET_KEY`, the Stripe keys) is read when the container runs, so it goes in the env file, and secrets never end up in an image layer. The container listens on port 3000 as a non-root user and keeps no state: all data is in Supabase, so it can be replaced or run in several copies freely. Put it behind something that terminates TLS.
 
-Point your domain at the host, open it, and sign up. Every account gets a personal workspace when it is made; create a team workspace from the switcher at the top of the sidebar to invite people.
+Point your domain at the host, open it, and sign up. Every account gets a personal workspace when it is made; create a team workspace with "New team workspace" in the sidebar, below the workspaces, to invite people.
 
 ## 5. Keeping it up to date
 

@@ -17,7 +17,7 @@ export default async function ProjectLayout({
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name, visibility")
+    .select("id, name, visibility, taken_down_at")
     .eq("id", projectId)
     .eq("org_id", org.id)
     .maybeSingle()
@@ -38,6 +38,12 @@ export default async function ProjectLayout({
   ])
 
   const projectRef = { slug: org.slug, orgId: org.id, projectId: project.id }
+  const sidebarProject = {
+    id: project.id,
+    name: project.name,
+    visibility: project.visibility,
+    takenDown: project.taken_down_at !== null,
+  }
   const showUsage =
     project.visibility === "private" &&
     plan &&
@@ -49,6 +55,7 @@ export default async function ProjectLayout({
     <ProjectTree
       project={projectRef}
       projectName={project.name}
+      row={{ href: `/${org.slug}/${project.id}`, ...sidebarProject }}
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={canEdit}
       canDelete={hasRole(role, "admin")}
@@ -78,7 +85,7 @@ export default async function ProjectLayout({
   )
 
   return (
-    <AppShell slug={slug} title={project.name} tree={tree} footer={footer}>
+    <AppShell slug={slug} title={project.name} project={sidebarProject} tree={tree} footer={footer}>
       {children}
     </AppShell>
   )

@@ -37,16 +37,19 @@ const CHOICES = [
 // `canPublish`: an admin or owner, who may make the project public. For
 // anyone else the choice is shown, off, with the reason.
 // `privateLimit`: the limit on private documents, when there is one.
+// `trigger`: the button that opens it, when not the usual one (the sidebar's +).
 export function NewProject({
   slug,
   orgId,
   canPublish,
   privateLimit,
+  trigger,
 }: {
   slug: string
   orgId: string
   canPublish: boolean
   privateLimit: number | null
+  trigger?: React.ReactElement
 }) {
   const [state, action, pending] = useActionState(createProject.bind(null, slug, orgId), null)
   const [visibility, setVisibility] = useState<"private" | "public">("private")
@@ -55,10 +58,12 @@ export function NewProject({
     <Dialog>
       <DialogTrigger
         render={
-          <Button variant="outline">
-            <Plus />
-            New project
-          </Button>
+          trigger ?? (
+            <Button variant="outline">
+              <Plus />
+              New project
+            </Button>
+          )
         }
       />
       <DialogContent>
