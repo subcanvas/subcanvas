@@ -673,6 +673,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      daily_activity: { Args: { p_day: string }; Returns: Json }
       delete_account: {
         Args: { p_user_id: string }
         Returns: {
@@ -785,6 +786,8 @@ export type Database = {
           private_documents: number
         }[]
       }
+      record_step: { Args: { p_step: string }; Returns: undefined }
+      record_visit: { Args: never; Returns: boolean }
       report_abuse: {
         Args: {
           p_document_id: string
