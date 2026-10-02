@@ -1,12 +1,10 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, test } from "@playwright/test"
 
-import { freshId, personalSlug, signUp } from "./support/app"
+import { freshId, openWorkspaceMenu, personalSlug, sidebar, signUp, workspaceSection } from "./support/app"
 
 // Personal and team workspaces. Every account gets a personal one when it is
-// made, which is its own alone; team workspaces are made from the switcher
-// and are where people are invited.
-
-const switcher = (page: Page, name: string) => page.getByRole("button", { name, exact: true })
+// made, which is its own alone; team workspaces are made from "New team
+// workspace" in the sidebar and are where people are invited.
 
 test("a new account lands in its personal workspace, named after it", async ({ page }) => {
   const account = await signUp(page)
@@ -15,13 +13,15 @@ test("a new account lands in its personal workspace, named after it", async ({ p
 
   await expect(page).toHaveURL(`/${slug}`)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
-  await expect(switcher(page, name)).toBeVisible()
+  // The sidebar has its section, open, and offers a team workspace.
+  await expect(workspaceSection(page, "Personal")).toHaveAttribute("aria-expanded", "true")
+  await expect(sidebar(page).getByText("No projects yet")).toBeVisible()
+  await expect(sidebar(page).getByRole("link", { name: "New team workspace" })).toBeVisible()
 
-  // The switcher lists it, and offers a team workspace.
-  await switcher(page, name).click()
-  const menu = page.getByRole("menu")
-  await expect(menu.getByText("Workspaces", { exact: true })).toBeVisible()
-  await expect(menu.getByRole("menuitem")).toHaveText([name, "New team workspace"])
+  // Its menu goes by its name.
+  const menu = await openWorkspaceMenu(page, "Personal")
+  await expect(menu.getByText(name, { exact: true })).toBeVisible()
+  await expect(menu.getByRole("menuitem", { name: "Projects" })).toHaveAttribute("href", `/${slug}`)
   await page.keyboard.press("Escape")
 
   await page.goto(`/${slug}/settings/general`)
@@ -55,15 +55,16 @@ test("a personal workspace cannot invite anyone, be left, or be deleted", async 
   await page.getByLabel("Name").fill(renamed)
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await expect(page.getByText("Name saved.")).toBeVisible()
-  await expect(switcher(page, renamed)).toBeVisible()
+  // The section is still Personal; its menu has the new name.
+  const menu = await openWorkspaceMenu(page, "Personal")
+  await expect(menu.getByText(renamed, { exact: true })).toBeVisible()
 })
 
-test("a team workspace is made from the switcher, and listed after the personal one", async ({ page }) => {
+test("a team workspace is made from the sidebar, and listed after the personal one", async ({ page }) => {
   const account = await signUp(page)
   const personal = `e2e-${account.id}'s workspace`
 
-  await switcher(page, personal).click()
-  await page.getByRole("menuitem", { name: "New team workspace" }).click()
+  await sidebar(page).getByRole("link", { name: "New team workspace" }).click()
   await page.waitForURL(`/onboarding?from=${personalSlug(account)}`)
   await expect(page.getByRole("main").getByText("New team workspace", { exact: true })).toBeVisible()
 
@@ -80,11 +81,14 @@ test("a team workspace is made from the switcher, and listed after the personal 
   await expect(page.getByLabel("Web address")).toHaveValue(`team-${id}`)
   await page.getByRole("button", { name: "Create workspace" }).click()
   await page.waitForURL(`/team-${id}`)
-  await expect(switcher(page, team)).toBeVisible()
-
-  await switcher(page, team).click()
-  await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText([personal, team, "New team workspace"])
-  await page.keyboard.press("Escape")
+  // Personal first, then the team workspace, then the way to another.
+  const headings = [
+    workspaceSection(page, "Personal"),
+    workspaceSection(page, team),
+    sidebar(page).getByRole("link", { name: "New team workspace" }),
+  ]
+  const tops = await Promise.all(headings.map(async (heading) => (await heading.boundingBox())?.y ?? NaN))
+  expect(tops).toEqual([...tops].sort((a, b) => a - b))
 
   // A team workspace is the one people are invited to.
   await page.goto(`/team-${id}/settings/members`)

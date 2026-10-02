@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createOrg, freshId, personalSlug, signIn, signOut, signUpWithOrg } from "./support/app"
+import { createOrg, freshId, personalSlug, signIn, signOut, signUpWithOrg, workspaceSection } from "./support/app"
 import { signInLinkFor } from "./support/mailpit"
 
 // Settings and the account: what a person changes about themselves and
@@ -68,10 +68,11 @@ test("General: renaming the workspace renames it in the sidebar", async ({ page 
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await expect(page.getByText("Name saved.")).toBeVisible()
 
-  // The switcher at the top of the sidebar, and the page's own eyebrow.
-  await expect(page.getByRole("button", { name })).toBeVisible()
+  // Its section in the sidebar, and the Projects page's eyebrow.
+  await expect(workspaceSection(page, name)).toBeVisible()
   await page.goto(`/${slug}`)
-  await expect(page.getByRole("button", { name })).toBeVisible()
+  await expect(workspaceSection(page, name)).toBeVisible()
+  await expect(page.getByRole("main").getByText(name, { exact: true })).toBeVisible()
   // The address is fixed, whatever the name.
   await expect(page).toHaveURL(`/${slug}`)
 })

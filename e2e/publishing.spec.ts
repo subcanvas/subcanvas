@@ -8,7 +8,7 @@ import { inviteAndJoin } from "./support/collab"
 // reason; the database refuses it on every other path (pgTAP, trash.test).
 
 async function newProjectDialog(page: Page) {
-  await page.getByRole("button", { name: "New project" }).click()
+  await page.getByRole("main").getByRole("button", { name: "New project", exact: true }).click()
   return page.getByRole("dialog")
 }
 

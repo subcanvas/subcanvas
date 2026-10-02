@@ -2,11 +2,20 @@ import { join } from "node:path"
 
 import { expect, test, type Page } from "@playwright/test"
 
-import { createProject, createWhiteboard, expectSaved, freshId, inspector, signUpWithOrg, whiteboardTools } from "./support/app"
+import {
+  createProject,
+  createWhiteboard,
+  expectSaved,
+  freshId,
+  inspector,
+  sidebar,
+  signUpWithOrg,
+  whiteboardTools,
+} from "./support/app"
 import { inviteAndJoin } from "./support/collab"
 import { FIXTURES } from "./support/import"
 
-// A project's own menu, beside its name in the sidebar: editors rename it,
+// A project's own menu, beside its row in the sidebar: editors rename it,
 // admins delete it. Deleting takes the name typed, as deleting an org does,
 // and takes everything in the project with it, pictures and videos included.
 
@@ -26,7 +35,8 @@ test("a project is renamed from its menu, and the new name is what the org's lis
   await expect(page.getByText(`New ${id}`, { exact: true }).filter({ visible: true }).first()).toBeVisible()
 
   await page.goto(`/${slug}`)
-  await expect(page.getByRole("link", { name: new RegExp(`New ${id}`) })).toBeVisible()
+  await expect(page.getByRole("main").getByRole("link", { name: new RegExp(`New ${id}`) })).toBeVisible()
+  await expect(sidebar(page).getByRole("link", { name: `New ${id}`, exact: true })).toBeVisible()
   await expect(page.getByText(`Old ${id}`)).toHaveCount(0)
 })
 

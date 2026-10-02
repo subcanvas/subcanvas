@@ -147,7 +147,7 @@ test("signs an agent in through the consent page, and it works as that person", 
 
   // What the agent made is there for the person, in the browser.
   await page.goto(`/${slug}`)
-  await page.getByRole("link", { name: projectName }).click()
+  await page.getByRole("main").getByRole("link", { name: projectName }).click()
   await page.waitForURL(`/${slug}/${project_id}`)
   await expect(page.getByRole("link", { name: boardName, exact: true })).toBeVisible()
   await page.goto(`/${slug}/${project_id}/trash`)

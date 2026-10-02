@@ -26,3 +26,13 @@ export function expireInvite(email: string) {
 export function takeDown(projectId: string) {
   sql(`update public.projects set taken_down_at = now() where id = ${literal(projectId)}`)
 }
+
+// Many projects at once, named "<prefix> 01" and on, in the workspace with
+// this address: more than anyone would make by hand to see a long list.
+export function addProjects(slug: string, prefix: string, count: number) {
+  sql(
+    `insert into public.projects (org_id, name)
+     select id, ${literal(prefix)} || ' ' || lpad(n::text, 2, '0') from public.orgs, generate_series(1, ${count}) n
+     where slug = ${literal(slug)}`
+  )
+}

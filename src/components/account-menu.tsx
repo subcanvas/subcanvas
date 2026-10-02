@@ -18,8 +18,9 @@ import {
 import { THEME_OPTIONS } from "@/components/theme-options"
 import { createClient } from "@/lib/supabase/client"
 
-// What the open sidebar and its collapsed rail both show: the org's pages
-// and the account menu. One definition, so the two cannot drift apart.
+// The account menu, which the open sidebar and its collapsed rail both show,
+// and the workspace's pages the rail shows as icons. (The open sidebar has
+// them in each workspace's menu, in workspace-sections.)
 
 export type SidebarUser = { email: string; name: string | null; avatarUrl: string | null }
 
