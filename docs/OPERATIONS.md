@@ -1,6 +1,6 @@
 # Operating a Subcanvas server
 
-What whoever runs a server does by hand: reviewing abuse reports, taking a project down and putting it back, deleting an account when its owner cannot, and seeing what new accounts do. None of it has a page in the app. Every step is SQL, run in the Supabase dashboard's SQL editor (or `psql`) as the database owner, which row-level security does not apply to. Tables and columns keep their original names: a workspace is a row in `orgs`.
+What whoever runs a server does by hand: reviewing abuse reports, taking a project down and putting it back, deleting an account when its owner cannot, seeing what new accounts do, and reading what went wrong. None of it has a page in the app. Every step is SQL, run in the Supabase dashboard's SQL editor (or `psql`) as the database owner, which row-level security does not apply to. Tables and columns keep their original names: a workspace is a row in `orgs`.
 
 ## Abuse reports
 
@@ -155,4 +155,43 @@ A day, as its summary email sees it:
 
 ```sql
 select jsonb_pretty(public.daily_activity('2026-10-05'));
+```
+
+## Errors
+
+What goes wrong is kept in the database, not sent to anyone: errors the server catches (`onRequestError` in `src/instrumentation.ts`, which also writes one line of JSON to the function log), and errors in people's browsers that nothing caught, which the app posts from the browser to `/api/errors`. Each distinct error is one row of `private.error_reports`, grouped by a fingerprint of its name, its message without numbers and ids, and the top frames of its stack, and counted each time it happens again.
+
+A row says where and what, never who: the route as a pattern (`/[org]/[project]/d/[docId]`, never a real address, id or query string), the message and stack with ids, numbers, email addresses and the server's own file paths taken out, and the release (`VERCEL_GIT_COMMIT_SHA`) when there is one. No account, IP address, cookie, header, request body or document content. The browser sends each error once per tab, at most 20 a tab; the route takes 20 reports a minute from one address (kept in memory for the limit, never stored) and adds at most 500 new distinct browser errors a day, while it goes on counting known ones. The daily cron deletes the errors not seen for 30 days, and its summary email lists how often things went wrong that day and the five errors that happened most.
+
+Without `SUPABASE_SECRET_KEY` nothing is stored, and the function log has the server's errors as before, and the browser's as `browser_error` lines.
+
+What is going wrong most at the moment:
+
+```sql
+select count, source, route, name, message, first_seen, last_seen, release
+from private.error_reports
+order by last_seen desc, count desc
+limit 20;
+```
+
+What happened on a day, and how often:
+
+```sql
+select d.count, r.source, r.route, r.name, r.message, r.first_seen
+from private.error_days d
+join private.error_reports r on r.fingerprint = d.fingerprint
+where d.day = '2026-10-05'
+order by d.count desc;
+```
+
+One error's stack, with its fingerprint from the query above:
+
+```sql
+select stack from private.error_reports where fingerprint = '<fingerprint>';
+```
+
+Once an error is fixed, delete its row, or leave it: if it does not come back it goes after 30 days.
+
+```sql
+delete from private.error_reports where fingerprint = '<fingerprint>';
 ```

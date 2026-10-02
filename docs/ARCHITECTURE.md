@@ -49,6 +49,9 @@ subscriptions     org_id (pk), stripe_customer_id, stripe_subscription_id,
                   status, seats, current_period_end                        (R7.3)
 
 private.account_steps  user_id, step, reached_at   -- the step record
+private.error_reports  fingerprint, source, name, message, stack, route,
+                       release, count, first_seen, last_seen
+private.error_days     fingerprint, day, count      -- for the daily summary
 ```
 
 Notes:
@@ -65,6 +68,7 @@ Notes:
 - **Lapse.** `subscriptions.lapsed_at` is stamped by a trigger when the status leaves the paid set (`active`, `trialing`, `past_due`; past due stays paid while Stripe retries the card). A lapsed workspace with more editors than the free plan allows is read-only for non-owners once `lapse_grace` (14 days) has passed. This is one change inside `private.has_org_role`: every write policy, including the Realtime channel policies, asks for at least `editor` through that function, so the whole schema follows. Without it, one paid month would buy unlimited editors forever. Nothing is deleted and nothing is ever made public.
 - **Billed seats (R7.2a, R7.4):** editors are `org_members` with `role <> 'viewer'`. The server actions that change membership (role change, removal, accepting an invite) call `syncSeats`, which sets the Stripe quantity; the webhook then records it. This replaced the planned trigger plus Edge Function: less machinery, and it runs on any Node host. Membership changed directly in the database is not synced until the next change made through the app.
 - **The step record.** `private.account_steps` keeps the first time each account reached a few steps (signed up, made a project, a whiteboard, an edit, an invite, upgraded, came back on a later day, and the like): the step's name and time only, deleted with the account. Steps that are a row being created are recorded by triggers; the rest by the server, as the person, through `record_step` and `record_visit` (`lib/activity.ts`). There is no script in the browser and no cookie. What an import writes carries a request header, so its whiteboards and text are not counted as the person's. `private.account_activity` is one row per account for the operator, and `daily_activity` one day of it for the summary email (docs/OPERATIONS.md); only the database owner and the secret key read either.
+- **Error reports.** Errors are kept in our own database, with no third party and no client library. The server's `onRequestError` (`src/instrumentation.ts`) logs one line of JSON as before and, with the secret key, calls `record_error` without holding up the response. In the browser, `components/error-reporter.tsx` in the root layout sends what nothing caught (`error`, `unhandledrejection`), and `app/error.tsx` what it caught that did not come from the server, to `/api/errors` with `sendBeacon`; `reportError` (`lib/errors/report.ts`) is there for errors caught on purpose. The route takes same-origin reports only, 16 KB at most, 20 a minute from one address, and 500 new distinct errors a day. `lib/errors/normalize.ts` decides what is kept (the route as a pattern; message and stack without ids, numbers, addresses or local paths) and what makes two reports one error (a fingerprint of the name, that message and the top frames). The daily cron deletes what was not seen for 30 days. See docs/OPERATIONS.md.
 - **Why the plan looks like this.** The cost of serving the product is live collaboration, not storage: Supabase bills each Realtime message once when sent and once per recipient, so a room of editors costs roughly the square of its size, while a hundred stored documents cost almost nothing. Charging per editor puts the price where the cost is. Public-is-free makes free users' work into pages that advertise the product, and the private document allowance lets a company evaluate with real, confidential data.
 
 ## 3. Shape of a Yjs document
@@ -156,6 +160,7 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
                                          the MCP server and an agent's sign-in
 /api/media/[...path], /api/stripe/webhook
 /api/cron/daily-summary                  the operator's daily email, for a scheduler holding CRON_SECRET
+/api/errors                              where the browser reports an error (same origin only)
 /terms, /privacy                         only when the LEGAL_ variables are set
 ```
 
