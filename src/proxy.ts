@@ -8,6 +8,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Error reports (api/errors) need no session, and a page that fails
+    // should not cost a sign-in check per report.
+    "/((?!_next/static|_next/image|favicon.ico|api/errors|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }

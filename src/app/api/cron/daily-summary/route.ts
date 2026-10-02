@@ -3,14 +3,15 @@ import { timingSafeEqual } from "node:crypto"
 import { NextResponse, type NextRequest } from "next/server"
 
 import { emailConfigured, sendEmail } from "@/lib/email"
-import { dailySummaryEmail, type DailyActivity } from "@/lib/email-messages"
+import { dailySummaryEmail, type DailyActivity, type DailyErrors } from "@/lib/email-messages"
 import { operatorContact } from "@/lib/legal"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 // Emails the operator a summary of a day (UTC): the accounts that signed up
 // and the steps each reached, the accounts that came back, and totals, from
-// the step record (lib/activity.ts). Yesterday by default; `?day=2026-10-05`
-// for another.
+// the step record (lib/activity.ts), and the errors that happened most
+// (lib/errors). Yesterday by default; `?day=2026-10-05` for another. Each
+// call also deletes the error reports not seen for 30 days.
 //
 // Vercel's cron calls it each morning (vercel.json) with
 // `Authorization: Bearer <CRON_SECRET>`. Any other scheduler can call it the
@@ -26,22 +27,35 @@ export async function GET(request: NextRequest) {
   const day = request.nextUrl.searchParams.get("day") ?? yesterday()
   if (!isDay(day)) return NextResponse.json({ error: "Give the day as YYYY-MM-DD." }, { status: 400 })
 
+  if (!process.env.SUPABASE_SECRET_KEY)
+    return NextResponse.json({ error: "SUPABASE_SECRET_KEY is not set, so the day cannot be read." }, { status: 503 })
+  const admin = createAdminClient()
+
+  const { error: retention } = await admin.rpc("delete_old_errors")
+  if (retention) console.error("Deleting old error reports failed:", retention.message)
+
   const to = operatorContact()
   if (!emailConfigured() || !to)
     return NextResponse.json({
       sent: false,
       reason: "This server emails no operator. Set SMTP_HOST, and OPERATOR_EMAIL or LEGAL_CONTACT.",
     })
-  if (!process.env.SUPABASE_SECRET_KEY)
-    return NextResponse.json({ error: "SUPABASE_SECRET_KEY is not set, so the day cannot be read." }, { status: 503 })
 
-  const { data, error } = await createAdminClient().rpc("daily_activity", { p_day: day })
-  if (error || !data) {
-    console.error(`Reading the activity of ${day} failed:`, error?.message)
+  const [activity, errors] = await Promise.all([
+    admin.rpc("daily_activity", { p_day: day }),
+    admin.rpc("daily_errors", { p_day: day }),
+  ])
+  if (activity.error || !activity.data) {
+    console.error(`Reading the activity of ${day} failed:`, activity.error?.message)
     return NextResponse.json({ error: "The day could not be read." }, { status: 500 })
   }
+  // The summary goes without its errors rather than not at all.
+  if (errors.error) console.error(`Reading the errors of ${day} failed:`, errors.error.message)
 
-  const result = await sendEmail({ to, ...dailySummaryEmail(data as DailyActivity) })
+  const result = await sendEmail({
+    to,
+    ...dailySummaryEmail(activity.data as DailyActivity, (errors.data as DailyErrors | null) ?? undefined),
+  })
   if (result !== "sent") return NextResponse.json({ error: "The summary could not be sent." }, { status: 500 })
   return NextResponse.json({ sent: true, day })
 }

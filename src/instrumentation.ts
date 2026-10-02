@@ -5,6 +5,9 @@ import type { Instrumentation } from "next"
 // person saw (the digest is what an error page shows). It records where and
 // what, never who: no headers, no cookies, no query string, since those carry
 // sessions, tokens, and the ids in sign-in and consent links.
+//
+// With SUPABASE_SECRET_KEY it is also counted in the database's error
+// reports (lib/errors), without holding up the response.
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   const failure = error instanceof Error ? error : new Error(String(error))
   const digest =
@@ -20,6 +23,20 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
       digest,
       message: failure.message,
       stack: failure.stack?.split("\n").slice(0, 8).join("\n"),
+    })
+  )
+
+  // Not found and redirects travel as errors whose digest starts NEXT_; they
+  // are how pages answer, not failures.
+  if (digest?.startsWith("NEXT_") || !process.env.SUPABASE_SECRET_KEY) return
+  const { inBackground, recordError } = await import("@/lib/errors/record")
+  inBackground(
+    recordError({
+      source: "server",
+      name: failure.name,
+      message: failure.message,
+      stack: failure.stack,
+      route: context.routePath,
     })
   )
 }

@@ -66,4 +66,6 @@ test("the daily summary, called with the secret, emails the operator the day's n
   expect(entry).toContain("Signed up")
   expect(entry).toContain("Created a project")
   expect(summary.Text).toMatch(/Accounts in all: \d+/)
+  // And what went wrong that day, from our own error reports, or that nothing did.
+  expect(summary.Text).toMatch(/Errors that day: (none|\d+ times?)/)
 })

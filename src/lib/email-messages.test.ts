@@ -206,6 +206,26 @@ describe("dailySummaryEmail", () => {
     expect(text).toContain("Nobody who signed up earlier was active.")
   })
 
+  it("gives the day's errors: how often, and the ones that happened most", () => {
+    const { text, html } = dailySummaryEmail(activity, {
+      occurrences: 9,
+      distinct: 2,
+      top: [
+        { source: "browser", route: "/[org]/[project]/d/[docId]", name: "TypeError", message: "x is undefined", count: 7, first_seen: "2026-10-05T10:00:00Z", new: true },
+        { source: "server", route: "/[org]", name: "Error", message: "fetch failed", count: 2, first_seen: "2026-09-30T10:00:00Z", new: false },
+      ],
+    })
+    expect(text).toContain("Errors that day: 9 times, 2 distinct errors")
+    expect(text).toContain("  7 times  /[org]/[project]/d/[docId] (browser)  TypeError: x is undefined  New")
+    expect(text).toContain("  2 times  /[org] (server)  Error: fetch failed  First seen September 30, 2026")
+    expect(html).toContain("Errors that day: 9 times, 2 distinct errors")
+  })
+
+  it("says when there were no errors, and says nothing of them when they could not be read", () => {
+    expect(dailySummaryEmail(activity, { occurrences: 0, distinct: 0, top: [] }).text).toContain("Errors that day: none")
+    expect(dailySummaryEmail(activity).text).not.toContain("Errors")
+  })
+
   it("has no links, no em dashes and no exclamation marks", () => {
     const { text, html } = dailySummaryEmail(activity)
     expect(text).not.toMatch(/https?:/)

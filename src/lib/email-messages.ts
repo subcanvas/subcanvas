@@ -231,10 +231,26 @@ export type DailyActivity = {
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
+// What public.daily_errors returns for a UTC day: the five errors that
+// happened most, from the app's own error reports (lib/errors).
+export type DailyErrors = {
+  occurrences: number
+  distinct: number
+  top: {
+    source: "server" | "browser"
+    route: string
+    name: string
+    message: string
+    count: number
+    first_seen: string
+    new: boolean
+  }[]
+}
+
 // To the operator, each morning, about the day before: who signed up and how
 // far each got, who came back and what they did, and how many reached each
 // step. No links, and only what the step record and the accounts hold.
-export function dailySummaryEmail(activity: DailyActivity) {
+export function dailySummaryEmail(activity: DailyActivity, errors?: DailyErrors) {
   const day = DAY.format(new Date(`${activity.day}T00:00:00Z`))
   // A step on the day itself shows its time; one after it, its date too.
   const at = (iso: string) => {
@@ -246,6 +262,18 @@ export function dailySummaryEmail(activity: DailyActivity) {
     `Returning accounts: ${activity.returning.length}`,
     `Accounts in all: ${activity.accounts}`,
   ]
+  // Errors: how many times anything went wrong, and the five that did most.
+  const errorTotal = errors?.occurrences
+    ? `Errors that day: ${count(errors.occurrences, "time", "times")}, ${count(errors.distinct, "distinct error", "distinct errors")}`
+    : errors
+      ? "Errors that day: none"
+      : null
+  const errorLines = (errors?.top ?? []).map(
+    (error) =>
+      `${count(error.count, "time", "times")}  ${error.route} (${error.source})  ${error.name}: ${error.message}  ${
+        error.new ? "New" : `First seen ${DAY.format(new Date(error.first_seen))}`
+      }`
+  )
   const reached = Object.keys(STEP_LABELS)
     .filter((step) => activity.steps[step])
     .map((step) => `${stepLabel(step)}: ${activity.steps[step]}`)
@@ -280,7 +308,7 @@ ${textEntries(returningEntries, "Nobody who signed up earlier was active.")}
 
 Steps reached for the first time that day:
 ${reached.length ? reached.map((line) => `  ${line}`).join("\n") : "  None"}
-
+${errorTotal ? `\n${errorTotal}${errorLines.map((line) => `\n  ${line}`).join("")}\n` : ""}
 ${OPERATOR_FOOTER}
 `
 
@@ -301,6 +329,7 @@ ${OPERATOR_FOOTER}
       htmlEntries(returningEntries, "Nobody who signed up earlier was active."),
       heading("Steps reached for the first time that day"),
       reached.length ? list(reached) : paragraph("None", `color:${GRAPHITE}`),
+      ...(errorTotal ? [heading(errorTotal), ...(errorLines.length ? [list(errorLines)] : [])] : []),
     ].join("\n"),
     escapeHtml(OPERATOR_FOOTER)
   )
