@@ -1,6 +1,6 @@
 # Operating a Subcanvas server
 
-What whoever runs a server does by hand: reviewing abuse reports, taking a project down and putting it back, and deleting an account when its owner cannot. None of it has a page in the app. Every step is SQL, run in the Supabase dashboard's SQL editor (or `psql`) as the database owner, which row-level security does not apply to. Tables and columns keep their original names: a workspace is a row in `orgs`.
+What whoever runs a server does by hand: reviewing abuse reports, taking a project down and putting it back, deleting an account when its owner cannot, and seeing what new accounts do. None of it has a page in the app. Every step is SQL, run in the Supabase dashboard's SQL editor (or `psql`) as the database owner, which row-level security does not apply to. Tables and columns keep their original names: a workspace is a row in `orgs`.
 
 ## Abuse reports
 
@@ -76,3 +76,83 @@ For when a person cannot delete their account themselves. Before anything, confi
    ```
    It deletes the workspaces marked `delete` with everything in them, then the account, its profile and memberships. What they made in the workspaces they left stays there with no author. It returns the pictures and videos of the deleted workspaces: remove those in the dashboard's Storage browser, never with SQL, which would leave the bytes behind.
 5. Reply to say it is done.
+
+## Seeing what new accounts do
+
+The server keeps a step record: for each account, the first time it reached each of a few steps, and nothing else. It is written by the database and the app's own server, never by a script in the browser, and sets no cookie. It holds the step's name and when it was reached, never what anyone wrote or drew, titles, or addresses. The rows belong to the account and are deleted with it, by `delete_account` or by deleting the user in the dashboard. The Privacy Policy says so. Nobody but the database owner and the server's secret key can read any of it.
+
+| Step | Recorded when |
+|---|---|
+| `signed_up` | The account is created, whichever way (its time is the account's). |
+| `opened_github_import` | The Import from GitHub dialog opens. |
+| `imported_repository` | An import from GitHub succeeds, from the dialog or by an agent. |
+| `imported_files` | A batch of imported files is written, from the project or by an agent. |
+| `created_project` | A project is made with New project, by the person or their agent. An imported one is `imported_repository` instead. |
+| `created_whiteboard` | A whiteboard is made, not one an import draws. |
+| `made_edit` | A change to a document is saved, in the editor or by their agent, not what an import writes. |
+| `invited_someone` | An invite is made or renewed. |
+| `connected_agent` | They approve an agent on the consent screen. |
+| `opened_billing` | They open a workspace's Billing page. |
+| `upgraded` | A workspace they own starts paying for Pro. |
+| `came_back` | They open a workspace, or reach any other step, on a later day (UTC) than the one they signed up on. |
+
+Steps reached before this record existed are not in it, except `signed_up`, `created_project` and `imported_repository`, which were filled in from the rows that already existed.
+
+### The emails
+
+When the server sends email (`SMTP_HOST`), it writes to `OPERATOR_EMAIL`, or to `LEGAL_CONTACT` when that is not set:
+
+- **About each new account**, once, when the account first opens a workspace in its first day: who (name and address), how they signed up (email, Google or GitHub), and when. It has no links. It is sent once the workspace has been shown, so signing up never waits on it, and a failure is only logged.
+- **A summary of each day** (UTC): the accounts that signed up and every step each has reached so far, the accounts that signed up earlier and were active that day (signed in, used a session in the app or through an agent, edited, or reached a step) with what they did for the first time, how many accounts reached each step, and how many accounts there are. On Vercel, the cron job in `vercel.json` asks for it at 13:00 UTC for the day before. Elsewhere, or to have any day again:
+  ```sh
+  curl -fsS -H "Authorization: Bearer $CRON_SECRET" "https://<your domain>/api/cron/daily-summary?day=2026-10-05"
+  ```
+  The route needs `CRON_SECRET` and `SUPABASE_SECRET_KEY` ([DEPLOYMENT.md](DEPLOYMENT.md)). Without `CRON_SECRET` it refuses every request.
+
+### Reading it
+
+`private.account_activity` has one row per account, from the step record and the data that already exists:
+
+```sql
+select * from private.account_activity order by signed_up_at desc limit 50;
+```
+
+| Column | What it is |
+|---|---|
+| `email`, `signed_up_at`, `signed_up_with`, `confirmed` | The account, when it was made, how (`email`, `google` or `github`), and whether its address is confirmed. |
+| `personal_workspace` | Its personal workspace's address. |
+| `team_workspaces_created`, `team_workspaces_joined` | Team workspaces it made, and others it is a member of. |
+| `projects_created`, `repositories_imported`, `imported_files` | Projects it made (imported ones included), how many came from GitHub, and whether it ever imported files. |
+| `whiteboards_created`, `pages_created` | Documents it made, the trashed ones included, descriptions not. |
+| `invites_open` | Its invites nobody has accepted yet. An accepted invite is deleted, so `invited_someone` in `steps` says whether it ever sent one. |
+| `plan` | `Pro` when a workspace it owns pays, else `Free`. |
+| `last_sign_in_at`, `last_active_at` | When it last signed in, and when one of its sessions, in the app or an agent's, was last used. |
+| `last_edit_at` | Its latest edit still in the log. A document's log is compacted every couple of hundred edits, so this can be earlier than its real last edit, or empty. |
+| `came_back` | Whether it did anything on a later day than it signed up. |
+| `steps`, `step_times` | The steps it has reached, in order, and when it reached each. |
+
+How far the accounts of the last week got:
+
+```sql
+select s.step, count(*) as accounts
+from private.account_steps s
+join auth.users u on u.id = s.user_id
+where u.created_at > now() - interval '7 days'
+group by s.step
+order by s.step;
+```
+
+Who signed up and did nothing else:
+
+```sql
+select email, signed_up_at, signed_up_with
+from private.account_activity
+where steps = array['signed_up']
+order by signed_up_at desc;
+```
+
+A day, as its summary email sees it:
+
+```sql
+select jsonb_pretty(public.daily_activity('2026-10-05'));
+```

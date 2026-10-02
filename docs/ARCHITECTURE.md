@@ -47,6 +47,8 @@ document_updates    id bigserial, document_id, update bytea, created_by, created
 
 subscriptions     org_id (pk), stripe_customer_id, stripe_subscription_id,
                   status, seats, current_period_end                        (R7.3)
+
+private.account_steps  user_id, step, reached_at   -- the step record
 ```
 
 Notes:
@@ -62,6 +64,7 @@ Notes:
 - **Plans (R7).** Free workspaces get unlimited documents in public projects, a capped number in private projects, and a capped number of editors; paid workspaces (Pro) have neither cap. Storage for pictures and videos is capped apart from these, for both plans (Picture and video nodes, below). All of it is enforced by triggers, so no client can bypass it: on `documents` (create, and anything that brings documents back into view: a restore, a move out of the trash, a description becoming a document), on `folders` (a restore, which counts everything that comes back with it), on `projects` (public to private), and on `org_members` (a new editor, or a viewer promoted). Only what is in view counts (`private.live_document_count`, walked from the top of each project down). A refusal names the limit and nothing else; the page it happens on adds what the person can do about the plan (`components/limit-refusal.tsx`: the upgrade for an owner, a line to ask an owner for anyone else, nothing where no plan is sold), and the MCP server does the same for agents. The limits live in `private.config` and are `null`, meaning off, unless a deployment that sells subscriptions sets them. The default favors self-hosters: forgetting to turn limits on costs the hosted service some free usage, while forgetting to turn them off would block a self-hosted team behind an upgrade button that leads nowhere.
 - **Lapse.** `subscriptions.lapsed_at` is stamped by a trigger when the status leaves the paid set (`active`, `trialing`, `past_due`; past due stays paid while Stripe retries the card). A lapsed workspace with more editors than the free plan allows is read-only for non-owners once `lapse_grace` (14 days) has passed. This is one change inside `private.has_org_role`: every write policy, including the Realtime channel policies, asks for at least `editor` through that function, so the whole schema follows. Without it, one paid month would buy unlimited editors forever. Nothing is deleted and nothing is ever made public.
 - **Billed seats (R7.2a, R7.4):** editors are `org_members` with `role <> 'viewer'`. The server actions that change membership (role change, removal, accepting an invite) call `syncSeats`, which sets the Stripe quantity; the webhook then records it. This replaced the planned trigger plus Edge Function: less machinery, and it runs on any Node host. Membership changed directly in the database is not synced until the next change made through the app.
+- **The step record.** `private.account_steps` keeps the first time each account reached a few steps (signed up, made a project, a whiteboard, an edit, an invite, upgraded, came back on a later day, and the like): the step's name and time only, deleted with the account. Steps that are a row being created are recorded by triggers; the rest by the server, as the person, through `record_step` and `record_visit` (`lib/activity.ts`). There is no script in the browser and no cookie. What an import writes carries a request header, so its whiteboards and text are not counted as the person's. `private.account_activity` is one row per account for the operator, and `daily_activity` one day of it for the summary email (docs/OPERATIONS.md); only the database owner and the secret key read either.
 - **Why the plan looks like this.** The cost of serving the product is live collaboration, not storage: Supabase bills each Realtime message once when sent and once per recipient, so a room of editors costs roughly the square of its size, while a hundred stored documents cost almost nothing. Charging per editor puts the price where the cost is. Public-is-free makes free users' work into pages that advertise the product, and the private document allowance lets a company evaluate with real, confidential data.
 
 ## 3. Shape of a Yjs document
@@ -152,6 +155,7 @@ Not yet tested: hosted Supabase (rate limits and latency differ from local), mor
 /mcp, /.well-known/oauth-protected-resource, /oauth/consent
                                          the MCP server and an agent's sign-in
 /api/media/[...path], /api/stripe/webhook
+/api/cron/daily-summary                  the operator's daily email, for a scheduler holding CRON_SECRET
 /terms, /privacy                         only when the LEGAL_ variables are set
 ```
 
