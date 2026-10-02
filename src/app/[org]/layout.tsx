@@ -1,4 +1,5 @@
 import { PlanProvider } from "@/components/limit-refusal"
+import { recordVisit } from "@/lib/activity"
 import { upgradeFor } from "@/lib/billing/limit"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
@@ -8,7 +9,10 @@ export default async function OrgLayout({
   params,
 }: LayoutProps<"/[org]">) {
   const { org: slug } = await params
-  const { role, plan } = await getOrgContext(slug)
+  const { supabase, user, role, plan } = await getOrgContext(slug)
+  // For the step record: coming back on a later day, and the operator's
+  // email about a new account (lib/activity.ts).
+  await recordVisit(supabase, user)
 
   return (
     <>

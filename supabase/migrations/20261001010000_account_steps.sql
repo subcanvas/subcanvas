@@ -77,9 +77,10 @@ revoke execute on function private.reach_step(uuid, private.account_step) from p
 
 -- Whether this write is an import's: what a repository or file import
 -- creates and writes is not someone making a whiteboard or an edit. The
--- importer says so with a request header (lib/activity.ts), which PostgREST
--- hands to the database with every request. Anyone can send it; all it
--- changes is which of their own steps are recorded.
+-- importer says so with a request header (IMPORT_HEADER, in
+-- lib/sync/server-document.ts), which PostgREST hands to the database with
+-- every request. Anyone can send it; all it changes is which of their own
+-- steps are recorded.
 create function private.writing_an_import()
 returns boolean
 language sql stable set search_path = ''

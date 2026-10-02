@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation"
 
+import { recordStep } from "@/lib/activity"
 import { createClient } from "@/lib/supabase/server"
 
 export type ConsentState = { error: string } | null
@@ -15,12 +16,13 @@ export async function decideAuthorization(
   formData: FormData
 ): Promise<ConsentState> {
   const supabase = await createClient()
-  const { data, error } =
-    formData.get("decision") === "approve"
-      ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
-      : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
+  const approve = formData.get("decision") === "approve"
+  const { data, error } = approve
+    ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
+    : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
 
   if (error || !data) return { error: error?.message ?? "This request could not be answered. Start again from the app you are connecting." }
+  if (approve) await recordStep(supabase, "connected_agent")
   redirect(data.redirect_url)
 }
 

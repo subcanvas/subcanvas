@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { abuseReportEmail, escapeHtml, formatExpiry, inviteEmail } from "./email-messages"
+import {
+  abuseReportEmail,
+  dailySummaryEmail,
+  escapeHtml,
+  formatExpiry,
+  inviteEmail,
+  signUpEmail,
+  type DailyActivity,
+} from "./email-messages"
 
 const invite = {
   inviter: "Ada Lovelace",
@@ -93,6 +101,116 @@ describe("abuseReportEmail", () => {
 
   it("says when the reporter left no address", () => {
     expect(abuseReportEmail(report).text).toContain("Reporter: no email given")
+  })
+})
+
+describe("signUpEmail", () => {
+  const signUp = { email: "ada@example.test", name: null, method: "email", at: new Date("2026-10-05T18:04:00Z") }
+
+  it("tells the operator who signed up, how, and when", () => {
+    const { subject, text, html } = signUpEmail({ ...signUp, name: "Ada Lovelace", method: "google" })
+    expect(subject).toBe("New account: ada@example.test")
+    for (const body of [text, html]) {
+      expect(body).toContain("Ada Lovelace, ada@example.test")
+      expect(body).toContain("Google")
+      expect(body).toMatch(/October 5, 2026 at 6:04\sPM UTC/)
+    }
+  })
+
+  it("names each way of signing up as the sign-in page does", () => {
+    expect(signUpEmail(signUp).text).toContain("How: Email")
+    expect(signUpEmail({ ...signUp, method: "github" }).text).toContain("How: GitHub")
+  })
+
+  it("has no links: nothing to click, nothing to track", () => {
+    const { text, html } = signUpEmail({ ...signUp, name: "Ada" })
+    expect(text).not.toMatch(/https?:/)
+    expect(html).not.toMatch(/https?:|<a /)
+  })
+
+  it("escapes a name, which anyone can choose, and keeps the subject to one line", () => {
+    const { html, subject } = signUpEmail({ ...signUp, name: `<img src=x onerror="alert(1)">`, email: "a@b.test\r\nBcc: c@d.test" })
+    expect(html).not.toContain("<img src=x")
+    expect(subject).not.toMatch(/[\r\n]/)
+  })
+})
+
+describe("dailySummaryEmail", () => {
+  const activity: DailyActivity = {
+    day: "2026-10-05",
+    accounts: 42,
+    new: [
+      {
+        email: "ada@example.test",
+        signed_up_at: "2026-10-05T18:04:00Z",
+        signed_up_with: "github",
+        steps: [
+          { step: "signed_up", at: "2026-10-05T18:04:00Z" },
+          { step: "opened_github_import", at: "2026-10-05T18:05:00Z" },
+          { step: "imported_repository", at: "2026-10-05T18:06:00Z" },
+          { step: "made_edit", at: "2026-10-06T01:30:00Z" },
+        ],
+      },
+    ],
+    returning: [
+      {
+        email: "<bob>@example.test",
+        signed_up_at: "2026-09-30T09:00:00Z",
+        signed_up_with: "email",
+        steps: [{ step: "came_back", at: "2026-10-05T10:00:00Z" }],
+      },
+      { email: "cy@example.test", signed_up_at: "2026-09-29T09:00:00Z", signed_up_with: "google", steps: [] },
+    ],
+    steps: { signed_up: 1, opened_github_import: 1, imported_repository: 1, came_back: 1 },
+  }
+
+  it("says what the day was in its subject", () => {
+    expect(dailySummaryEmail(activity).subject).toBe("Subcanvas, October 5, 2026: 1 new account, 2 returning")
+  })
+
+  it("gives the totals", () => {
+    const { text } = dailySummaryEmail(activity)
+    expect(text).toContain("October 5, 2026 (UTC)")
+    expect(text).toContain("New accounts: 1\nReturning accounts: 2\nAccounts in all: 42")
+  })
+
+  it("lists each new account with how it signed up and every step it reached, in words", () => {
+    const { text, html } = dailySummaryEmail(activity)
+    expect(text).toMatch(/ada@example\.test \(GitHub, 6:04\sPM\)/)
+    expect(text).toMatch(/6:05\sPM {2}Opened Import from GitHub/)
+    expect(text).toContain("Imported a repository")
+    // After the day, the date is given too.
+    expect(text).toMatch(/October 6 at 1:30\sAM {2}Made an edit/)
+    expect(html).toContain("Opened Import from GitHub")
+  })
+
+  it("lists each returning account with what it did for the first time that day", () => {
+    const { text, html } = dailySummaryEmail(activity)
+    expect(text).toContain("<bob>@example.test (signed up September 30, 2026)\n  Came back on a later day")
+    expect(text).toContain("cy@example.test (signed up September 29, 2026)\n  No step reached for the first time")
+    expect(html).toContain("&lt;bob&gt;@example.test")
+    expect(html).not.toContain("<bob>")
+  })
+
+  it("counts the accounts that reached each step, in the order of the steps", () => {
+    const { text } = dailySummaryEmail(activity)
+    expect(text).toContain(
+      "  Signed up: 1\n  Opened Import from GitHub: 1\n  Imported a repository: 1\n  Came back on a later day: 1"
+    )
+  })
+
+  it("says so on a quiet day", () => {
+    const { subject, text } = dailySummaryEmail({ day: "2026-10-05", accounts: 42, new: [], returning: [], steps: {} })
+    expect(subject).toBe("Subcanvas, October 5, 2026: 0 new accounts, 0 returning")
+    expect(text).toContain("Nobody signed up.")
+    expect(text).toContain("Nobody who signed up earlier was active.")
+  })
+
+  it("has no links, no em dashes and no exclamation marks", () => {
+    const { text, html } = dailySummaryEmail(activity)
+    expect(text).not.toMatch(/https?:/)
+    expect(html).not.toMatch(/https?:|<a /)
+    expect(`${text}${html.replace("<!doctype html>", "")}`).not.toMatch(/\u2014|!/)
   })
 })
 

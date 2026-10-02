@@ -149,3 +149,165 @@ export function abuseReportEmail(report: AbuseReportEmail) {
     html,
   }
 }
+
+// The steps of the step record (migration account_steps), in the order a new
+// account usually meets them, as the operator reads them.
+export const STEP_LABELS: Record<string, string> = {
+  signed_up: "Signed up",
+  opened_github_import: "Opened Import from GitHub",
+  imported_repository: "Imported a repository",
+  imported_files: "Imported files",
+  created_project: "Created a project",
+  created_whiteboard: "Created a whiteboard",
+  made_edit: "Made an edit",
+  invited_someone: "Invited someone",
+  connected_agent: "Connected an agent",
+  opened_billing: "Opened Billing",
+  upgraded: "Upgraded to Pro",
+  came_back: "Came back on a later day",
+}
+
+const stepLabel = (step: string) => STEP_LABELS[step] ?? step
+
+const METHODS: Record<string, string> = { email: "Email", google: "Google", github: "GitHub" }
+export const signUpMethod = (method: string) => METHODS[method] ?? method
+
+const DAY = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" })
+const TIME = new Intl.DateTimeFormat("en-US", { timeStyle: "short", timeZone: "UTC" })
+const DAY_AND_TIME = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+
+const OPERATOR_FOOTER = "Sent to the operator of this Subcanvas server. What each account does is in private.account_activity (docs/OPERATIONS.md)."
+
+export type SignUpEmail = {
+  email: string
+  // From Google or GitHub; null for an email sign-up.
+  name: string | null
+  // How the account was made: email, google or github.
+  method: string
+  at: Date
+}
+
+// To the operator, once per new account. No links: it says who, how and when.
+export function signUpEmail({ email, name, method, at }: SignUpEmail) {
+  const who = name?.trim() ? `${oneLine(name)}, ${email}` : email
+  const when = formatExpiry(at)
+  const how = signUpMethod(method)
+  const text = `Someone signed up for Subcanvas.
+
+Who: ${who}
+How: ${how}
+When: ${when}
+
+${OPERATOR_FOOTER}
+`
+  const html = layout(
+    [
+      paragraph("Someone signed up for Subcanvas."),
+      paragraph(
+        `<strong>Who:</strong> ${escapeHtml(who)}<br><strong>How:</strong> ${escapeHtml(how)}<br><strong>When:</strong> ${escapeHtml(when)}`,
+        "margin:0"
+      ),
+    ].join("\n"),
+    escapeHtml(OPERATOR_FOOTER)
+  )
+  return { subject: oneLine(`New account: ${email}`), text, html }
+}
+
+export type ActivityAccount = {
+  email: string
+  signed_up_at: string
+  signed_up_with: string
+  steps: { step: string; at: string }[]
+}
+
+// What public.daily_activity returns for a UTC day.
+export type DailyActivity = {
+  day: string
+  accounts: number
+  new: ActivityAccount[]
+  returning: ActivityAccount[]
+  steps: Record<string, number>
+}
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+// To the operator, each morning, about the day before: who signed up and how
+// far each got, who came back and what they did, and how many reached each
+// step. No links, and only what the step record and the accounts hold.
+export function dailySummaryEmail(activity: DailyActivity) {
+  const day = DAY.format(new Date(`${activity.day}T00:00:00Z`))
+  // A step on the day itself shows its time; one after it, its date too.
+  const at = (iso: string) => {
+    const date = new Date(iso)
+    return date.toISOString().slice(0, 10) === activity.day ? TIME.format(date) : DAY_AND_TIME.format(date)
+  }
+  const totals = [
+    `New accounts: ${activity.new.length}`,
+    `Returning accounts: ${activity.returning.length}`,
+    `Accounts in all: ${activity.accounts}`,
+  ]
+  const reached = Object.keys(STEP_LABELS)
+    .filter((step) => activity.steps[step])
+    .map((step) => `${stepLabel(step)}: ${activity.steps[step]}`)
+
+  type Entry = { heading: string; lines: string[] }
+  const newEntries: Entry[] = activity.new.map((account) => ({
+    heading: `${account.email} (${signUpMethod(account.signed_up_with)}, ${at(account.signed_up_at)})`,
+    lines: account.steps.map(({ step, at: when }) => `${at(when)}  ${stepLabel(step)}`),
+  }))
+  const returningEntries: Entry[] = activity.returning.map((account) => ({
+    heading: `${account.email} (signed up ${DAY.format(new Date(account.signed_up_at))})`,
+    lines: account.steps.length
+      ? account.steps.map(({ step }) => stepLabel(step))
+      : ["No step reached for the first time"],
+  }))
+
+  const textEntries = (entries: Entry[], none: string) =>
+    entries.length
+      ? entries.map(({ heading, lines }) => [heading, ...lines.map((line) => `  ${line}`)].join("\n")).join("\n\n")
+      : none
+  const text = `${day} (UTC)
+
+${totals.join("\n")}
+
+New accounts, and the steps each has reached so far:
+
+${textEntries(newEntries, "Nobody signed up.")}
+
+Returning accounts, and the steps each reached for the first time that day:
+
+${textEntries(returningEntries, "Nobody who signed up earlier was active.")}
+
+Steps reached for the first time that day:
+${reached.length ? reached.map((line) => `  ${line}`).join("\n") : "  None"}
+
+${OPERATOR_FOOTER}
+`
+
+  const heading = (words: string) => paragraph(`<strong>${escapeHtml(words)}</strong>`, "margin:24px 0 8px")
+  const list = (lines: string[]) =>
+    `<ul style="margin:4px 0 12px;padding-left:20px">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+  const htmlEntries = (entries: Entry[], none: string) =>
+    entries.length
+      ? entries.map(({ heading: title, lines }) => paragraph(escapeHtml(title), "margin:0") + list(lines)).join("\n")
+      : paragraph(escapeHtml(none), `color:${GRAPHITE}`)
+  const html = layout(
+    [
+      paragraph(`<strong>${escapeHtml(day)}</strong> (UTC)`),
+      paragraph(totals.map(escapeHtml).join("<br>"), "margin:0"),
+      heading("New accounts, and the steps each has reached so far"),
+      htmlEntries(newEntries, "Nobody signed up."),
+      heading("Returning accounts, and the steps each reached for the first time that day"),
+      htmlEntries(returningEntries, "Nobody who signed up earlier was active."),
+      heading("Steps reached for the first time that day"),
+      reached.length ? list(reached) : paragraph("None", `color:${GRAPHITE}`),
+    ].join("\n"),
+    escapeHtml(OPERATOR_FOOTER)
+  )
+
+  return {
+    subject: `Subcanvas, ${day}: ${count(activity.new.length, "new account", "new accounts")}, ${activity.returning.length} returning`,
+    text,
+    html,
+  }
+}

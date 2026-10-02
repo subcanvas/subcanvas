@@ -27,3 +27,10 @@ export const LEGAL_EFFECTIVE = "September 29, 2026"
 export function abuseContact(): string | null {
   return process.env.ABUSE_EMAIL || process.env.LEGAL_CONTACT || null
 }
+
+// Where the email about each new account and the daily summary go:
+// OPERATOR_EMAIL, or the legal contact when it is not set. Null on a server
+// that has neither; the steps are then only in the database.
+export function operatorContact(): string | null {
+  return process.env.OPERATOR_EMAIL || process.env.LEGAL_CONTACT || null
+}

@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
+import { recordStep } from "@/lib/activity"
 import { privateDocumentLimitMessage } from "@/lib/billing/limit"
 import * as operations from "@/lib/documents/operations"
 import { readOrgAccess } from "@/lib/org-access"
@@ -225,5 +226,6 @@ export async function writeImportBatch(
       .in("id", batch.documents.map((document) => document.id))
     return { error: written.error }
   }
+  await recordStep(supabase, "imported_files")
   return { ok: true, plainText }
 }
