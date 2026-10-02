@@ -10,9 +10,9 @@ const CONTAINER = process.env.E2E_DB_CONTAINER ?? "supabase_db_subcanvas"
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`
 
 function sql(statement: string) {
-  execFileSync(
+  return execFileSync(
     "docker",
-    ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-c", statement],
+    ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-At", "-c", statement],
     { encoding: "utf8" }
   )
 }
@@ -25,4 +25,14 @@ export function expireInvite(email: string) {
 // What the operator runs to take a project down (docs/OPERATIONS.md).
 export function takeDown(projectId: string) {
   sql(`update public.projects set taken_down_at = now() where id = ${literal(projectId)}`)
+}
+
+// The steps the account with this address has reached, in the order of the
+// list (migration account_steps), as the operator would read them.
+export function stepsOf(email: string): string[] {
+  return sql(
+    `select step from private.account_steps where user_id = (select id from auth.users where email = ${literal(email.toLowerCase())}) order by step`
+  )
+    .split("\n")
+    .filter(Boolean)
 }

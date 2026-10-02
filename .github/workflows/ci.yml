@@ -124,15 +124,19 @@ jobs:
   # and come back. Same stack, same build, same runtime flag as above.
   e2e:
     runs-on: ubuntu-24.04
-    # The server's own mail (invites, abuse reports) goes to the stack's
-    # Mailpit, whose SMTP port config.toml exposes, and the specs read it back
-    # from Mailpit's API as they do sign-in links. Set for the whole job:
-    # the server sends by them and the specs check what it sent.
+    # The server's own mail (invites, abuse reports, the operator's emails)
+    # goes to the stack's Mailpit, whose SMTP port config.toml exposes, and
+    # the specs read it back from Mailpit's API as they do sign-in links. Set
+    # for the whole job: the server sends by them and the specs check what it
+    # sent. CRON_SECRET lets the daily summary's spec call its route; it
+    # guards nothing here.
     env:
       SMTP_HOST: 127.0.0.1
       SMTP_PORT: 54325
       EMAIL_FROM: Subcanvas <hello@subcanvas.test>
       ABUSE_EMAIL: abuse@example.test
+      OPERATOR_EMAIL: operator@example.test
+      CRON_SECRET: ci-cron-secret
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
