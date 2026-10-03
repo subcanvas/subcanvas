@@ -58,8 +58,25 @@ export async function signOut(page: Page) {
   await page.waitForURL("/login")
 }
 
+// The sidebar: a section for each workspace, Personal first and then the
+// team workspaces by name, each headed by a button that opens and closes it.
+// Beside the heading, + is "New project in <heading>", and the menu with the
+// workspace's pages is "<heading> workspace menu".
+export const sidebar = (page: Page) => page.getByRole("navigation", { name: "Workspaces" })
+
+export const workspaceSection = (page: Page, heading: string) =>
+  sidebar(page).getByRole("button", { name: heading, exact: true })
+
+// Opens a workspace's menu in the sidebar and returns it.
+export async function openWorkspaceMenu(page: Page, heading: string) {
+  await sidebar(page).getByRole("button", { name: `${heading} workspace menu`, exact: true }).click()
+  const menu = page.getByRole("menu")
+  await expect(menu).toBeVisible()
+  return menu
+}
+
 // A team workspace, named "E2E <id>", made on the page "New team workspace"
-// in the switcher leads to. Returns its slug, which is the first segment of
+// in the sidebar leads to. Returns its slug, which is the first segment of
 // every link to it. (Not `e2e-<id>`: a personal workspace may have that.)
 export async function createOrg(page: Page, id = freshId()): Promise<string> {
   const slug = `e2e-${id}-team`
@@ -79,13 +96,15 @@ export async function signUpWithOrg(page: Page) {
   return { account, slug }
 }
 
-// Returns the project's id, taken from the address it lands on.
+// Returns the project's id, taken from the address it lands on. Starts from
+// the Projects page's own button; the sidebar's + for each workspace is
+// "New project in <workspace>".
 export async function createProject(
   page: Page,
   name: string,
   visibility: "private" | "public" = "private"
 ): Promise<string> {
-  await page.getByRole("button", { name: "New project" }).click()
+  await page.getByRole("main").getByRole("button", { name: "New project", exact: true }).click()
   await page.getByLabel("Name").fill(name)
   if (visibility === "public")
     await page.getByRole("radio", { name: "Public" }).click()

@@ -51,7 +51,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 | R2.1 | A **breadcrumb** shows the path the user navigated to reach the current document, from the root down. Each crumb is clickable. |
 | R2.2 | When a document is reached through a link, the breadcrumb shows the navigated path, not the canonical one. The canonical location is available from the document's menu ("Show in tree"). |
 | R2.3 | The navigated path is encoded in the URL so breadcrumbs survive reload and links are shareable. Opening a document by its bare URL falls back to the canonical path. |
-| R2.4 | A left sidebar shows the project tree: folders, documents, and nested documents under their parent. |
+| R2.4 | A left sidebar lists every workspace the user is in as a section that can be closed, Personal first and then the team workspaces by name. Each section lists its projects (the first 20 by name, then "Show all", which goes to the workspace's Projects page), with a + for a new project (editors and above) and a menu with the workspace's pages: Projects, Settings, Members, and Connect an agent where agents can sign in. The project being viewed opens in place to show its tree: folders, documents, and nested documents under their parent. Which sections are closed is remembered; the one being viewed opens when the user arrives in it. |
 | R2.5 | Pages show child documents and links to other documents inline, as a card (a custom BlockNote block) that shows the document's title and type and opens it on click. |
 
 ## 3. Whiteboard objects
@@ -123,7 +123,7 @@ An **object** is a node or an arrow. Groups contain nodes.
 | ID | Requirement |
 |---|---|
 | R6.1 | Auth through Supabase: **email and password** (with reset by email), **email magic link**, **Google**, and **GitHub**. Anyone signed in can set a password later, whichever way they signed up. |
-| R6.2 | Every account has a **personal workspace**, made with it and named after its person. It is theirs alone: nobody else joins it or is invited to it, it cannot be left, and it is deleted only with the account. A user can also create **team workspaces**, belong to several, and switch between them; the switcher lists the personal workspace first. Signing in opens the personal workspace. |
+| R6.2 | Every account has a **personal workspace**, made with it and named after its person. It is theirs alone: nobody else joins it or is invited to it, it cannot be left, and it is deleted only with the account. A user can also create **team workspaces** and belong to several; the sidebar shows every one as a section, the personal workspace first (headed "Personal"), and offers "New team workspace" below them. Signing in opens the personal workspace. |
 | R6.3 | Roles per workspace: **Owner** (billing, delete the workspace, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
 | R6.4 | Members are invited to a team workspace by email with a role. |
 | R6.5 | All data access is enforced by Postgres row-level security scoped to workspace membership and role. |

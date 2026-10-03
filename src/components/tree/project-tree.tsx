@@ -64,6 +64,8 @@ import { pickedFromDrop, type PickedFile } from "@/lib/import/picked"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
+import { ProjectLink, type SidebarProject } from "@/components/workspace-sections"
+
 import type { ImportTarget } from "./import-dialog"
 import { DeleteProjectDialog, RenameProjectDialog } from "./project-dialogs"
 
@@ -83,9 +85,13 @@ const FILES_TYPE = "Files"
 const carries = (event: React.DragEvent) =>
   event.dataTransfer.types.includes(DRAG_TYPE) || event.dataTransfer.types.includes(FILES_TYPE)
 
+// A project's whiteboards, pages and folders. In a workspace it is the open
+// project's row in its workspace's section of the sidebar, with the tree
+// under it (`row`); on a public page it stands alone, under the project's name.
 export function ProjectTree({
   project,
   projectName,
+  row,
   nodes,
   canEdit,
   canDelete = false,
@@ -93,6 +99,7 @@ export function ProjectTree({
 }: {
   project: ProjectRef
   projectName: string
+  row?: { href: string } & Pick<SidebarProject, "visibility" | "takenDown">
   // Where this project's trash is. A public visitor has none.
   trashHref?: string
   nodes: TreeNode[]
@@ -372,17 +379,19 @@ export function ProjectTree({
     )
   }
 
-  return (
-    <SidebarGroup
-      className="flex-1"
-      onDragOver={(event) => {
-        if (!canEdit || !carries(event)) return
-        event.preventDefault()
-        setDropTarget("root")
-      }}
-      onDragLeave={() => setDropTarget((current) => (current === "root" ? null : current))}
-      onDrop={(event) => canEdit && drop(event, { kind: "root" }, projectName)}
-    >
+  // The whole project takes a drop, into its top level.
+  const rootDrop = {
+    onDragOver: (event: React.DragEvent) => {
+      if (!canEdit || !carries(event)) return
+      event.preventDefault()
+      setDropTarget("root")
+    },
+    onDragLeave: () => setDropTarget((current) => (current === "root" ? null : current)),
+    onDrop: (event: React.DragEvent) => canEdit && drop(event, { kind: "root" }, projectName),
+  }
+
+  const dialogs = (
+    <>
       {bringingIn?.how === "import" && (
         <ImportDialog
           key={bringingIn.key}
@@ -442,74 +451,116 @@ export function ProjectTree({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )
+
+  // What is rarely needed lives here, not in a row of its own. `Action` is
+  // the button's shape: beside a group's label, or beside the project's row.
+  const Action = row ? SidebarMenuAction : SidebarGroupAction
+  const projectMenu = trashHref && (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Action aria-label="Project menu" className={cn(canEdit && (row ? "right-7" : "right-9"))}>
+            <MoreHorizontal />
+          </Action>
+        }
+      />
+      <DropdownMenuContent align="start" className="min-w-44">
+        <DropdownMenuItem render={<Link href={trashHref} />}>
+          <Trash2 />
+          Trash
+        </DropdownMenuItem>
+        {canEdit && (
+          <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
+            <Pencil />
+            Rename project
+          </DropdownMenuItem>
+        )}
+        {/* Every member, viewers included: what they can read is theirs to take out. */}
+        <DropdownMenuItem onClick={() => setExporting(true)}>
+          <FolderDown />
+          Export project…
+        </DropdownMenuItem>
+        {canDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => setProjectDialog("delete")}>
+              <FolderX />
+              Delete project
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+  const addMenu = canEdit && (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Action aria-label="Add to project">
+            <Plus />
+          </Action>
+        }
+      />
+      <DropdownMenuContent align="start" className="min-w-52">
+        <CreateItems
+          allowFolder
+          onCreate={(type) => create(type, { kind: "root" })}
+          onBringIn={(how) => bringIn(how, { kind: "root" }, projectName)}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+  const empty = canEdit
+    ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here."
+    : "No whiteboards or pages yet."
+
+  if (row)
+    return (
+      // A plain item, not a SidebarMenuItem: that one shows its actions on
+      // hover, and would show every row's in the tree beneath at once.
+      <li
+        data-sidebar="menu-item"
+        {...rootDrop}
+        className={cn("relative rounded-md", dropTarget === "root" && "bg-sidebar-accent/50")}
+      >
+        {dialogs}
+        <div className="group/menu-item relative">
+          <ProjectLink
+            href={row.href}
+            project={{ name: projectName, visibility: row.visibility, takenDown: row.takenDown }}
+            className={cn("font-medium", canEdit && "group-has-data-[sidebar=menu-action]/menu-item:pr-14")}
+          />
+          {projectMenu}
+          {addMenu}
+        </div>
+        {/* Under the project, a guide down from its icon, as a folder has. */}
+        {nodes.length ? (
+          <SidebarMenu className="relative pl-4.5 before:absolute before:top-0 before:bottom-1 before:left-4 before:w-px before:bg-rule">
+            {nodes.map((node) => renderNode(node, 0))}
+          </SidebarMenu>
+        ) : (
+          <p className="py-1 pr-2 pl-8 text-xs leading-relaxed text-graphite">{empty}</p>
+        )}
+      </li>
+    )
+
+  return (
+    <SidebarGroup className="flex-1" {...rootDrop}>
+      {dialogs}
       <SidebarGroupLabel className="h-auto py-1 pr-14 font-heading text-[15px] font-semibold text-ink">
         <span className="truncate">{projectName}</span>
       </SidebarGroupLabel>
-      {/* What is rarely needed lives here, not in a row of its own. */}
-      {trashHref && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarGroupAction aria-label="Project menu" className={cn(canEdit && "right-9")}>
-                <MoreHorizontal />
-              </SidebarGroupAction>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuItem render={<Link href={trashHref} />}>
-              <Trash2 />
-              Trash
-            </DropdownMenuItem>
-            {canEdit && (
-              <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
-                <Pencil />
-                Rename project
-              </DropdownMenuItem>
-            )}
-            {/* Every member, viewers included: what they can read is theirs to take out. */}
-            <DropdownMenuItem onClick={() => setExporting(true)}>
-              <FolderDown />
-              Export project…
-            </DropdownMenuItem>
-            {canDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => setProjectDialog("delete")}>
-                  <FolderX />
-                  Delete project
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      {canEdit && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarGroupAction aria-label="Add to project">
-                <Plus />
-              </SidebarGroupAction>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-52">
-            <CreateItems
-              allowFolder
-              onCreate={(type) => create(type, { kind: "root" })}
-              onBringIn={(how) => bringIn(how, { kind: "root" }, projectName)}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      {projectMenu}
+      {addMenu}
       <SidebarGroupContent
         className={cn("min-h-24 flex-1 rounded-md", dropTarget === "root" && "bg-sidebar-accent/50")}
       >
         {nodes.length ? (
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
-          <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
-            {canEdit ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here." : "No whiteboards or pages yet."}
-          </p>
+          <p className="px-2 py-1 text-sm leading-relaxed text-graphite">{empty}</p>
         )}
       </SidebarGroupContent>
     </SidebarGroup>

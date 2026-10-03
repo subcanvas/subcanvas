@@ -1,94 +1,58 @@
 "use client"
 
-import { Check, ChevronsUpDown, PanelLeftClose, Plus, UserRound, Users } from "lucide-react"
+import { ChevronsUpDown, PanelLeftClose } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 
-import { AccountMenu, isCurrentPage, orgPages, UserAvatar, type SidebarUser } from "@/components/account-menu"
+import { AccountMenu, UserAvatar, type SidebarUser } from "@/components/account-menu"
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { WorkspaceSections, type SidebarWorkspace } from "@/components/workspace-sections"
+import { WORKSPACE_HOME } from "@/lib/home"
 
-type Workspace = { name: string; slug: string; personal: boolean }
-
-// What is in the sidebar on every page of a workspace: which workspace this
-// is at the top, its pages, and your account at the bottom. Inside a
-// project, the project's documents go in the middle.
+// What is in the sidebar on every signed-in page: every workspace the person
+// is in, as a section listing its projects, and their account at the bottom.
+// Inside a project, its tree (`children`) opens under it in its section.
 export function AppSidebar({
   org,
   workspaces,
+  projectId,
   user,
   agents,
   children,
   footer,
 }: {
-  org: Workspace
+  // The workspace being looked at.
+  org: { slug: string }
   // Personal first, then team workspaces.
-  workspaces: Workspace[]
+  workspaces: SidebarWorkspace[]
+  // The project being looked at, if any.
+  projectId?: string
   user: SidebarUser
   agents: boolean
   children?: React.ReactNode
   footer?: React.ReactNode
 }) {
-  const pathname = usePathname()
   const { toggleSidebar } = useSidebar()
-
-  const pages = orgPages(org.slug, agents)
 
   return (
     <>
       <SidebarHeader className="flex-row items-center gap-1">
         <SidebarMenu className="min-w-0 flex-1">
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <SidebarMenuButton className="font-semibold">
-                    <LogoMark />
-                    <span className="truncate">{org.name}</span>
-                    <ChevronsUpDown className="ml-auto text-graphite" />
-                  </SidebarMenuButton>
-                }
-              />
-              <DropdownMenuContent align="start" className="max-w-72 min-w-56">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-                  {workspaces.map((workspace) => {
-                    const Icon = workspace.personal ? UserRound : Users
-                    return (
-                      <DropdownMenuItem key={workspace.slug} render={<Link href={`/${workspace.slug}`} />}>
-                        <Icon className="text-graphite" />
-                        <span className="truncate">{workspace.name}</span>
-                        {workspace.slug === org.slug && <Check className="ml-auto" aria-hidden />}
-                      </DropdownMenuItem>
-                    )
-                  })}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem render={<Link href={`/onboarding?from=${encodeURIComponent(org.slug)}`} />}>
-                  <Plus />
-                  New team workspace
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Home: the personal workspace. */}
+            <SidebarMenuButton render={<Link href={WORKSPACE_HOME} />} className="w-auto font-semibold">
+              <LogoMark />
+              <span>Subcanvas</span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
         {/* The drawer on a narrow screen has its own close button. */}
@@ -105,21 +69,15 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <nav aria-label="Workspace">
-            <SidebarMenu>
-              {pages.map((page) => (
-                <SidebarMenuItem key={page.href}>
-                  <SidebarMenuButton isActive={isCurrentPage(pathname, page)} render={<Link href={page.href} />}>
-                    <page.icon className="text-graphite" />
-                    {page.label}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </nav>
-        </SidebarGroup>
-        {children}
+        <nav aria-label="Workspaces">
+          <WorkspaceSections
+            workspaces={workspaces}
+            currentSlug={org.slug}
+            currentProjectId={projectId}
+            agents={agents}
+            tree={children}
+          />
+        </nav>
       </SidebarContent>
 
       <SidebarFooter className="gap-2 border-t border-rule">

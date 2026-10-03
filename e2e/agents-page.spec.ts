@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { signUpWithOrg } from "./support/app"
+import { openWorkspaceMenu, signUpWithOrg } from "./support/app"
 import { documentedTools, MCP_PATH, OAUTH_SERVER_OFF, oauthServerEnabled, readClipboard } from "./support/mcp"
 
 // The page that gets an agent connected: the address, and the shortest way
@@ -8,8 +8,10 @@ import { documentedTools, MCP_PATH, OAUTH_SERVER_OFF, oauthServerEnabled, readCl
 
 test("shows the server address and a way in for every client", async ({ page, baseURL }) => {
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
-  const { slug } = await signUpWithOrg(page)
-  await page.getByRole("link", { name: "Connect an agent" }).click()
+  const { account, slug } = await signUpWithOrg(page)
+  // From the workspace's menu in the sidebar.
+  const menu = await openWorkspaceMenu(page, `E2E ${account.id}`)
+  await menu.getByRole("menuitem", { name: "Connect an agent" }).click()
   await page.waitForURL(`/${slug}/agents`)
   await expect(page.getByRole("heading", { name: "Connect an agent" })).toBeVisible()
 
@@ -65,8 +67,12 @@ test("lists every documented tool", async ({ page, baseURL }) => {
 // in, so it does not offer to connect one, and a saved link says why.
 test("on a server where agents cannot sign in, nothing offers to connect one", async ({ page, baseURL }) => {
   test.skip(await oauthServerEnabled(baseURL!), "The OAuth server is on here; this is about a server without it.")
-  const { slug } = await signUpWithOrg(page)
+  const { account, slug } = await signUpWithOrg(page)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
+  const menu = await openWorkspaceMenu(page, `E2E ${account.id}`)
+  await expect(menu.getByRole("menuitem", { name: "Members" })).toBeVisible()
+  await expect(menu.getByRole("menuitem", { name: "Connect an agent" })).toHaveCount(0)
+  await page.keyboard.press("Escape")
   await expect(page.getByRole("link", { name: "Connect an agent" })).toHaveCount(0)
 
   await page.goto(`/${slug}/agents`)

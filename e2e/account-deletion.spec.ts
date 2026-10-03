@@ -118,7 +118,9 @@ test("deleting an account deletes its workspaces and files, and a shared workspa
 
     // The shared workspace is its partner's, with what the account made there.
     await member.page.goto(`/${shared}`)
-    await expect(member.page.getByRole("link", { name: new RegExp(`Shared project ${sharedId}`) })).toBeVisible()
+    await expect(
+      member.page.getByRole("main").getByRole("link", { name: new RegExp(`Shared project ${sharedId}`) })
+    ).toBeVisible()
     await member.page.goto(`/${shared}/settings/members`)
     await expect(memberRow(member.page, partner.email)).toBeVisible()
     await expect(memberRow(member.page, account.email)).toHaveCount(0)
