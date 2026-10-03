@@ -137,14 +137,14 @@ test("an import with notes shows them, even in an org that had no projects", asy
   // Closed, the page behind it lists the project.
   await page.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole("link", { name: /^bramble/ })).toBeVisible()
+  await expect(page.getByRole("main").getByRole("link", { name: /^bramble/ })).toBeVisible()
 
   // Opened again, it is the form, not the last import's notes; and the
   // whiteboard the notes pointed to is there.
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   await expect(dialog.getByRole("textbox", { name: "Repository" })).toBeVisible()
   await page.keyboard.press("Escape")
-  await page.getByRole("link", { name: /^bramble/ }).click()
+  await page.getByRole("main").getByRole("link", { name: /^bramble/ }).click()
   await treeLink(page, "System design").click()
   await expect(whiteboardTools(page)).toBeVisible()
   await expect(nodeLabelled(page, "API")).toBeVisible()
