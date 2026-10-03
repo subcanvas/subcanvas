@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { importFromGitHub, type ImportState } from "./actions"
+import { importFromGitHub, openedGitHubImport, type ImportState } from "./actions"
 
 // Draws a public GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md.
@@ -43,6 +43,8 @@ export function ImportProject({
   return (
     <Dialog
       onOpenChange={(open) => {
+        // For the step record. Nothing waits on it.
+        if (open) void openedGitHubImport()
         if (open || !stale.current) return
         stale.current = false
         router.refresh()

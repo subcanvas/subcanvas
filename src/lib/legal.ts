@@ -19,11 +19,18 @@ export function legalDetails(): LegalDetails | null {
 }
 
 // Shown on both documents. Change it whenever their meaning changes.
-export const LEGAL_EFFECTIVE = "September 29, 2026"
+export const LEGAL_EFFECTIVE = "October 4, 2026"
 
 // Where abuse reports go, and whom a workspace whose project was taken down
 // writes to: ABUSE_EMAIL, or the legal contact when it is not set. Null on a
 // server that has neither; reports are then only in the database.
 export function abuseContact(): string | null {
   return process.env.ABUSE_EMAIL || process.env.LEGAL_CONTACT || null
+}
+
+// Where the email about each new account and the daily summary go:
+// OPERATOR_EMAIL, or the legal contact when it is not set. Null on a server
+// that has neither; the steps are then only in the database.
+export function operatorContact(): string | null {
+  return process.env.OPERATOR_EMAIL || process.env.LEGAL_CONTACT || null
 }

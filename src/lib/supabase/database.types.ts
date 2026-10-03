@@ -673,6 +673,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      daily_activity: { Args: { p_day: string }; Returns: Json }
+      daily_errors: { Args: { p_day: string }; Returns: Json }
       delete_account: {
         Args: { p_user_id: string }
         Returns: {
@@ -680,6 +682,7 @@ export type Database = {
           name: string
         }[]
       }
+      delete_old_errors: { Args: never; Returns: number }
       discard_import: { Args: { p_project_id: string }; Returns: undefined }
       document_ancestors: {
         Args: { p_document_id: string }
@@ -785,6 +788,21 @@ export type Database = {
           private_documents: number
         }[]
       }
+      record_error: {
+        Args: {
+          p_daily_new_limit?: number
+          p_fingerprint: string
+          p_message: string
+          p_name: string
+          p_release?: string
+          p_route: string
+          p_source: string
+          p_stack: string
+        }
+        Returns: string
+      }
+      record_step: { Args: { p_step: string }; Returns: undefined }
+      record_visit: { Args: never; Returns: boolean }
       report_abuse: {
         Args: {
           p_document_id: string

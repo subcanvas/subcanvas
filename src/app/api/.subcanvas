@@ -1,5 +1,5 @@
 title: Stripe webhook
-description: Receives subscription events from Stripe and records each workspace's plan. The only code that runs without a signed-in user.
+description: Receives subscription events from Stripe and records each workspace's plan, and emails the operator a summary of each day when the cron asks. The only code that runs without a signed-in user.
 connects:
   - to: src/lib/billing
     label: subscription events

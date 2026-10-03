@@ -29,3 +29,11 @@ export const emailConfigured = Boolean(setting("SMTP_HOST"))
 
 // Where it sends abuse reports, as lib/legal.ts decides.
 export const abuseContact = setting("ABUSE_EMAIL") || setting("LEGAL_CONTACT") || null
+
+// Where it emails the operator about new accounts and each day, as
+// lib/legal.ts decides.
+export const operatorContact = setting("OPERATOR_EMAIL") || setting("LEGAL_CONTACT") || null
+
+// The secret the daily summary's route asks for. Unset, the route refuses
+// everyone, and the spec that sends a summary skips.
+export const cronSecret = setting("CRON_SECRET") || null

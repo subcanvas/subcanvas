@@ -1,9 +1,18 @@
 "use client"
 
+import { useEffect } from "react"
+
 import { AuthShell } from "@/components/auth-shell"
 import { Button } from "@/components/ui/button"
+import { reportError } from "@/lib/errors/report"
 
-export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // An error with a digest happened on the server, which has reported it
+  // already (instrumentation.ts); the browser reports only its own.
+  useEffect(() => {
+    if (!error.digest) reportError(error)
+  }, [error])
+
   return (
     <AuthShell>
       <div className="flex flex-col items-start gap-3 rounded-xl border border-rule bg-sheet p-6">

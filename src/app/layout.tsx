@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { ErrorReporter } from "@/components/error-reporter";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <TooltipProvider>{children}</TooltipProvider>
         </ThemeProvider>
         <Toaster />
+        <ErrorReporter />
       </body>
     </html>
   );

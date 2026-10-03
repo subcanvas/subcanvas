@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/page-header"
+import { recordStep } from "@/lib/activity"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
@@ -21,11 +22,14 @@ export default async function BillingPage({
   const justPaid = (await searchParams).checkout === "success"
   const { supabase, org, role, plan } = await getOrgContext(slug)
 
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("status, current_period_end, cancel_at_period_end")
-    .eq("org_id", org.id)
-    .maybeSingle()
+  const [{ data: subscription }] = await Promise.all([
+    supabase
+      .from("subscriptions")
+      .select("status, current_period_end, cancel_at_period_end")
+      .eq("org_id", org.id)
+      .maybeSingle(),
+    recordStep(supabase, "opened_billing"),
+  ])
 
   const paid = plan?.paid ?? false
   const isOwner = role === "owner"

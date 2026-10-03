@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { limitMessage } from "@/lib/billing/limit"
 import { projectRefusal } from "@/lib/documents/operations"
 import type { Database } from "@/lib/supabase/database.types"
-import { writeNewDocuments } from "@/lib/sync/server-document"
+import { IMPORT_HEADER, writeNewDocuments } from "@/lib/sync/server-document"
 import { uuidV5 } from "@/lib/whiteboard/description-document"
 import { DEFAULT_SIZE, edgesMap, nodesMap, toYMap } from "@/lib/whiteboard/schema"
 
@@ -119,7 +119,8 @@ async function write(
   supabase: SupabaseClient<Database>,
   { rows, contents }: Awaited<ReturnType<typeof draw>>
 ): Promise<{ error: string; limit?: true } | null> {
-  const { error } = await supabase.from("documents").insert(rows)
+  // Drawn by the import, not by the person: no "created a whiteboard" step.
+  const { error } = await supabase.from("documents").insert(rows).setHeader(IMPORT_HEADER, "1")
   if (error) {
     // A private project counts against the free plan like any other.
     const limit = limitMessage(error.code, error.message)

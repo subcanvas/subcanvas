@@ -80,6 +80,23 @@ export async function mailWithSubject(subject: string): Promise<Message> {
   return api<Message>(`/api/v1/message/${found!.ID}`)
 }
 
+// Waits for a message whose subject starts with `subject` and whose text
+// holds `text`: for mail many specs share whose subject also counts things,
+// such as the operator's daily summary.
+export async function mailContaining(subject: string, text: string): Promise<Message> {
+  const query = encodeURIComponent(`subject:"${subject}"`)
+  const find = async () => {
+    const { messages } = await api<{ messages: Summary[] }>(`/api/v1/search?query=${query}&limit=20`)
+    for (const summary of messages.filter((message) => message.Subject.startsWith(subject))) {
+      const message = await api<Message>(`/api/v1/message/${summary.ID}`)
+      if (message.Text.includes(text)) return message
+    }
+    return null
+  }
+  await expect.poll(find, { message: `no mail titled ${subject}… holding ${text}`, timeout: 30_000 }).not.toBeNull()
+  return (await find())!
+}
+
 // The invite link in an invite email: /invite/ and the invite's token.
 export function inviteLinkIn(message: Message): string {
   const match = message.Text.match(/https?:\/\/\S+\/invite\/[0-9a-f-]{36}/)
