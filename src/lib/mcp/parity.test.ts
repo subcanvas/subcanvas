@@ -60,6 +60,9 @@ const NOT_EXPOSED: Record<string, string> = {
   // never be able to answer it.
   "oauth/consent/actions.decideAuthorization": "approving an agent is the one thing an agent must not do",
   "oauth/consent/actions.signOutInstead": "answers the consent screen, and signs a person out",
+  // The step record. The dialog calls it as it opens; an agent opens no
+  // dialog, and its import is recorded when it succeeds, as a person's is.
+  "[org]/(org)/actions.openedGitHubImport": "records that a person opened a dialog; an agent has none",
 }
 
 // Downloads are not server actions: a person's browser reads them as files

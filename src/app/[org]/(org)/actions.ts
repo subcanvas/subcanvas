@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { recordStep } from "@/lib/activity"
 import * as operations from "@/lib/documents/operations"
 import { importFromReference } from "@/lib/github/import-reference"
 import { getOrgContext } from "@/lib/orgs"
@@ -67,4 +68,11 @@ export async function importFromGitHub(
   // lists the new project instead, would close it before they were read.
   // The dialog refreshes the page when it closes.
   return { ok: true, href, folders: outcome.folders, warnings: outcome.warnings }
+}
+
+// The step record (lib/activity.ts): the person opened Import from GitHub.
+// The dialog makes no other trip to the server until something is imported,
+// so it says so itself. Records only their own step, and nothing about them.
+export async function openedGitHubImport() {
+  await recordStep(await createClient(), "opened_github_import")
 }

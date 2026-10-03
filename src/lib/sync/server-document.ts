@@ -16,6 +16,11 @@ import { fromBytea, toBase64, toBytea } from "./encoding"
 
 type Client = SupabaseClient<Database>
 
+// Sent with what an import writes, so that the step record (lib/activity.ts)
+// does not count the whiteboards it draws, or the text it fills documents
+// with, as the person's own (private.writing_an_import).
+export const IMPORT_HEADER = "x-subcanvas-import"
+
 // The document as of its last persisted update. Browsers persist about a
 // second after an edit, so this is at most that far behind what people see.
 // Returns null when the document cannot be read (missing, or not allowed).
@@ -114,7 +119,8 @@ const MAX_BATCH_BYTES = 1_000_000
 
 // The same for many documents that were all just created, in as few
 // requests as their size allows. An import writes dozens at once, and one
-// request each would be most of the time it takes.
+// request each would be most of the time it takes. What it writes is the
+// import's, not an edit of the person's (IMPORT_HEADER).
 export async function writeNewDocuments(
   supabase: Client,
   documents: { documentId: string; change: (doc: Y.Doc) => void }[]
@@ -123,7 +129,7 @@ export async function writeNewDocuments(
   let batchBytes = 0
   const flush = async () => {
     if (!batch.length) return null
-    const { error } = await supabase.from("document_updates").insert(batch)
+    const { error } = await supabase.from("document_updates").insert(batch).setHeader(IMPORT_HEADER, "1")
     batch = []
     batchBytes = 0
     return error

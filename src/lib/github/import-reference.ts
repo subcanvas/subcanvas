@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import { recordStep } from "@/lib/activity"
 import { readOrgAccess } from "@/lib/org-access"
 import { hasRole } from "@/lib/roles"
 import type { Database } from "@/lib/supabase/database.types"
@@ -42,9 +43,11 @@ export async function importFromReference(
       ? createFixtureProvider(fixtures)
       : createGitHubProvider(gitHubAppCredentials())
 
-  return importRepository(supabase, provider, reference, {
+  const outcome = await importRepository(supabase, provider, reference, {
     orgId,
     userId,
     makePublic: makePublic ?? hasRole(access.role, "admin"),
   })
+  if ("ok" in outcome) await recordStep(supabase, "imported_repository")
+  return outcome
 }
