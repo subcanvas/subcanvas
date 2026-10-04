@@ -12,6 +12,7 @@ export const MAX_TITLE = 200 // a node's title, a group's title, a picture's cap
 export const MAX_BODY_TEXT = 2000 // the text under a text node's heading
 export const MAX_LABEL = 120 // an arrow's label
 export const MAX_ALT = 500 // what a picture or a video shows
+export const MAX_CODE_URL = 2000 // a code link, the address of a file or folder
 
 // Canvas units. The embed draws nothing larger than MAX_NODE_SIDE either.
 export const MAX_NODE_SIDE = 4000

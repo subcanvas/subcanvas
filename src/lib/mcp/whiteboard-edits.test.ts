@@ -151,6 +151,51 @@ describe("whiteboard edits", () => {
     expect(nodeOf(doc, b).x).toBeLessThan(nodeOf(doc, c).x)
   })
 
+  it("gives nodes and arrows a code link, and keeps it through changes to anything else", () => {
+    const doc = new Y.Doc()
+    const file = "https://github.com/acme/shop/blob/main/services/payments/charge.ts#L10-L20"
+    const [api, db] = ids(
+      edits.addNodes(doc, [{ kind: "plain", title: "API", codeUrl: file }, { kind: "plain", title: "DB", x: 0, y: 300 }])
+    ).ids
+    expect(nodeOf(doc, api).codeUrl).toBe(file)
+    const [arrow] = ids(edits.connectNodes(doc, [{ source: api, target: db, codeUrl: file }])).ids
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!).codeUrl).toBe(file)
+
+    // A change that does not name the link, or the open mode, leaves them.
+    edits.updateNodes(doc, [{ id: api, title: "Payments API", openMode: undefined, codeUrl: undefined }])
+    nodesMap(doc).get(api)!.set("openMode", "navigate")
+    edits.updateNodes(doc, [{ id: api, title: "Payments", openMode: undefined }])
+    expect(nodeOf(doc, api)).toMatchObject({ title: "Payments", codeUrl: file, openMode: "navigate" })
+    edits.updateEdges(doc, [{ id: arrow, label: "charges", codeUrl: undefined, openMode: undefined }])
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!)).toMatchObject({ label: "charges", codeUrl: file })
+
+    // Null takes it off.
+    edits.updateNodes(doc, [{ id: api, codeUrl: null }])
+    edits.updateEdges(doc, [{ id: arrow, codeUrl: null }])
+    expect(nodeOf(doc, api).codeUrl).toBeNull()
+    expect(nodesMap(doc).get(api)!.has("codeUrl")).toBe(false)
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!).codeUrl).toBeNull()
+  })
+
+  it("takes only an https address as a code link", () => {
+    const tool = (name: string) => whiteboardTools.find((candidate) => candidate.name === name)!.input
+    const whiteboard_id = crypto.randomUUID()
+    const file = "https://gitlab.com/acme/shop/-/blob/main/app.rb#L3"
+    expect(tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a", code_url: ` ${file} ` }] })).toMatchObject({
+      nodes: [{ code_url: file }],
+    })
+    expect(tool("update_nodes").parse({ whiteboard_id, nodes: [{ id: "a", code_url: null }] })).toMatchObject({
+      nodes: [{ code_url: null }],
+    })
+    expect(tool("connect_nodes").parse({ whiteboard_id, edges: [{ source: "a", target: "b", code_url: file }] })).toMatchObject({
+      edges: [{ code_url: file }],
+    })
+    for (const code_url of ["http://github.com/acme/shop", "javascript:alert(1)", "github.com/acme/shop", `https://example.com/${"a".repeat(2000)}`]) {
+      expect(() => tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a", code_url }] }), code_url).toThrow()
+      expect(() => tool("update_edges").parse({ whiteboard_id, edges: [{ id: "a", code_url }] }), code_url).toThrow()
+    }
+  })
+
   it("takes from an agent the words a person could type, and stores an emoji as the app does", () => {
     const tool = (name: string) => whiteboardTools.find((candidate) => candidate.name === name)!.input
     const whiteboard_id = crypto.randomUUID()

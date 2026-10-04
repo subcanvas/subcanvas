@@ -218,6 +218,7 @@ jobs:
           # The billing fixture spawns `stripe listen` itself with these.
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_SANDBOX }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_SANDBOX }}
+          E2E_BILLING: "1"
       - name: The report, when something failed
         if: failure()
         uses: actions/upload-artifact@v7

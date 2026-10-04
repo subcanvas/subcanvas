@@ -19,6 +19,7 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   docType: null,
   openMode: "panel",
   path: null,
+  codeUrl: null,
   shape: "rectangle",
   icon: null,
   emoji: null,
@@ -40,6 +41,7 @@ const edge = (fields: Partial<WbEdge> & { id: string; source: string; target: st
   label: "",
   icon: null,
   emoji: null,
+  codeUrl: null,
   docId: null,
   docType: null,
   openMode: "panel",
@@ -298,6 +300,37 @@ describe("renderWhiteboardSvg", () => {
 
     for (const kind of ["text", "group"] as const)
       expect(parse(render([node({ id: "a", kind, icon: "server", emoji: "🚀" })])).textContent).toContain("🚀")
+  })
+
+  it("draws a code mark for a code link, its own or its imported folder's, and never a link to click", () => {
+    const FILE = "https://github.com/acme/shop/blob/main/src/a.ts#L1-L9"
+    const repository = { provider: "github" as const, repository: "acme/shop", ref: "main", commit: "abc" }
+    const marks = (nodes: WbNode[], edges: WbEdge[] = [], from: typeof repository | null = null) => {
+      const svg = renderWhiteboardSvg({ nodes, edges, theme: "light", title: "Test board", repository: from })
+      const root = parse(svg)
+      expect(svg).not.toMatch(/href=|<a[\s>]/)
+      // The code icon is the only one drawn from two chevrons.
+      return all(root, "path").filter((path) => path.getAttribute("d") === "m16 18 6-6-6-6").length
+    }
+    expect(marks([node({ id: "a" })])).toBe(0)
+    expect(marks([node({ id: "a", codeUrl: FILE })])).toBe(1)
+    // A stored address that is not https is not one.
+    expect(marks([node({ id: "a", codeUrl: "javascript:alert(1)" })])).toBe(0)
+    // A folder's box in an imported project, and only there.
+    expect(marks([node({ id: "a", path: "services/payments" })])).toBe(0)
+    expect(marks([node({ id: "a", path: "services/payments" })], [], repository)).toBe(1)
+    // On an arrow, beside its label and its document mark, none on another.
+    expect(marks(two, [edge({ id: "e", source: "a", target: "b", label: "calls", codeUrl: FILE, docId: "d", docType: "text" })])).toBe(1)
+
+    // Beside the other badges, not on top of them.
+    const root = parse(render([node({ id: "a", icon: "database", codeUrl: FILE, docId: "d", docType: "text" })]))
+    const lefts = all(root, "rect")
+      .filter((rect) => rect.getAttribute("width") === "19" && rect.parentNode?.nodeName === "svg")
+      .map((chip) => Number(chip.getAttribute("x")))
+      .sort((a, b) => a - b)
+    expect(lefts).toHaveLength(3)
+    expect(lefts[1] - lefts[0]).toBeGreaterThanOrEqual(20)
+    expect(lefts[2] - lefts[1]).toBeGreaterThanOrEqual(20)
   })
 
   it("ignores an icon it does not know and an emoji that is not one", () => {

@@ -1,9 +1,10 @@
 "use client"
 
 import { Handle, NodeResizer, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react"
-import { FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
+import { Code, FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
 import { useEffect, useRef } from "react"
 
+import { codeLinkOf, codeLinkText } from "@/lib/whiteboard/code-link"
 import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
 import { MAX_NODE_SIDE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { useMediaUrl } from "@/lib/whiteboard/media-urls"
@@ -71,6 +72,10 @@ function Resizer({
   )
 }
 
+// A small square on an object that does something when clicked.
+const MARK =
+  "nodrag nopan pointer-events-auto flex size-5 items-center justify-center rounded-[5px] border border-rule bg-sheet text-graphite outline-none transition-colors hover:border-cobalt hover:text-cobalt focus-visible:ring-2 focus-visible:ring-ring"
+
 // What an object holds, and the way in (R4.7, R4.9).
 export function DocumentMark({
   objectId,
@@ -97,13 +102,31 @@ export function DocumentMark({
         openObject(objectId)
       }}
       onDoubleClick={(event) => event.stopPropagation()}
-      className={cn(
-        "nodrag nopan pointer-events-auto flex size-5 items-center justify-center rounded-[5px] border border-rule bg-sheet text-graphite outline-none transition-colors hover:border-cobalt hover:text-cobalt focus-visible:ring-2 focus-visible:ring-ring",
-        className
-      )}
+      className={cn(MARK, className)}
     >
       <Icon className="size-3" />
     </button>
+  )
+}
+
+// The code behind an object, and the way to it: a link that opens the
+// address in a new tab, in view mode and on a public page too.
+export function CodeMark({ url, className }: { url: string; className?: string }) {
+  const text = codeLinkText(url)
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Open code: ${text} (opens in a new tab)`}
+      title={text}
+      // Kept from the object under it, which would be selected or opened.
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      className={cn(MARK, className)}
+    >
+      <Code aria-hidden className="size-3" />
+    </a>
   )
 }
 
@@ -130,18 +153,21 @@ export function Badges({ object }: { object: { icon: string | null; emoji: strin
   )
 }
 
-// What hangs on a node's top right corner: its icon, its emoji, and the way
-// into its document, in one row. The row ends centered on `at`, so the
-// document mark is where it has always been and the badges line up to its
-// left, along the top edge.
+// What hangs on a node's top right corner: its icon, its emoji, the way to
+// its code, and the way into its document, in one row. The row ends
+// centered on `at`, so the document mark is where it has always been and
+// the rest line up to its left, along the top edge.
 function Corner({ wb, at }: { wb: WbNode; at: Point }) {
-  if (!iconNode(wb.icon) && !wb.emoji && !wb.docId) return null
+  const { repository } = useWhiteboardActions()
+  const code = codeLinkOf(wb, repository)
+  if (!iconNode(wb.icon) && !wb.emoji && !code && !wb.docId) return null
   return (
     <div
       className="pointer-events-none absolute flex -translate-y-1/2 items-center gap-[3px]"
       style={{ right: `calc(100% - ${at.x}px - 0.625rem)`, top: at.y }}
     >
       <Badges object={wb} />
+      {code && <CodeMark url={code.url} />}
       {wb.docId && <DocumentMark objectId={wb.id} docType={wb.docType} />}
     </div>
   )

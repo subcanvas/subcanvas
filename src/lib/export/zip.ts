@@ -316,6 +316,7 @@ export async function buildProjectZip({
             }
           },
           media: (path) => ({ path: mediaFiles.get(path) ?? null, url: mediaUrls.get(path) ?? `${origin}/api/media/${path}` }),
+          repository: project.repository,
         })
         writer.text(home.files[1], JSON.stringify(contents, null, 2))
       }
