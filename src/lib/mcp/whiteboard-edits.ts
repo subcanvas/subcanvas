@@ -43,6 +43,11 @@ const boxOf = (node: WbNode): Box => ({
   height: node.height ?? DEFAULT_SIZE[node.kind].height ?? TEXT_NODE_HEIGHT,
 })
 
+// A patch with only the fields that were given. patchYMap takes a missing
+// value to mean "remove", and a field an agent left out must stay as it is.
+const given = <T extends object>(patch: T) =>
+  Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)) as Partial<T>
+
 const readNodes = (doc: Y.Doc) => [...nodesMap(doc).entries()].map(([id, map]) => readNode(id, map))
 
 const missing = (what: string, ids: string[]) => ({
@@ -98,6 +103,8 @@ export type NewNode = {
   shape?: NodeShape
   icon?: string
   emoji?: string
+  // A code link, already checked (code-link.ts).
+  codeUrl?: string
   x?: number
   y?: number
   width?: number
@@ -164,6 +171,7 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
         shape: node.shape,
         icon: node.icon,
         emoji: node.emoji,
+        codeUrl: node.codeUrl,
       })
     )
     ids.push(id)
@@ -181,6 +189,8 @@ export type NodePatch = {
   // Null takes the badge off.
   icon?: string | null
   emoji?: string | null
+  // Null takes the code link off.
+  codeUrl?: string | null
   x?: number
   y?: number
   width?: number
@@ -203,7 +213,7 @@ export function updateNodes(doc: Y.Doc, patches: NodePatch[]): EditResult<{ ids:
     patchYMap(map, {
       // A new shape brings its size, as on the canvas, unless a size is given.
       ...(shape !== undefined && (width === undefined && height === undefined ? reshape(node, shape) : { shape })),
-      ...patch,
+      ...given(patch),
       ...resized(node, width, height),
     })
   }
@@ -270,6 +280,8 @@ export type EdgeStyle = {
   // Shown in the label's pill, before the text. Null takes it off.
   icon?: string | null
   emoji?: string | null
+  // A code link, already checked (code-link.ts). Null takes it off.
+  codeUrl?: string | null
 }
 export type NewEdge = EdgeStyle & { source: string; target: string }
 
@@ -300,6 +312,7 @@ export function connectNodes(doc: Y.Doc, edges: NewEdge[]): EditResult<{ ids: st
         label: edge.label || null,
         icon: edge.icon,
         emoji: edge.emoji,
+        codeUrl: edge.codeUrl,
       })
     )
     ids.push(id)
@@ -317,7 +330,7 @@ export function updateEdges(
 
   for (const { id, label, ...patch } of patches) {
     const map = yEdges.get(id)!
-    patchYMap(map, patch)
+    patchYMap(map, given(patch))
     // An empty label is no label.
     if (label !== undefined) patchYMap(map, { label: label || null })
   }
