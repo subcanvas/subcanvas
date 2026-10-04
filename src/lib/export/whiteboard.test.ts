@@ -47,10 +47,34 @@ describe("a whiteboard in an export", () => {
     })
     const payments = file.nodes.find((node) => node.id === "a")!
     expect(Object.keys(payments).sort()).toEqual(
-      ["id", "kind", "title", "description", "x", "y", "width", "height", "group", "color", "shape", "icon", "emoji", "open_mode", "repository_path", "holds", "media"].sort()
+      ["id", "kind", "title", "description", "x", "y", "width", "height", "group", "color", "shape", "icon", "emoji", "open_mode", "repository_path", "code_url", "code_url_from_folder", "holds", "media"].sort()
     )
-    expect(payments).toMatchObject({ color: "default", shape: "rectangle", group: null, holds: null, media: null })
+    expect(payments).toMatchObject({ color: "default", shape: "rectangle", group: null, holds: null, media: null, code_url: null, code_url_from_folder: false })
     expect(file.nodes.find((node) => node.id === "m")!.media).toMatchObject({ type: "image", path: "Architecture/Office.png" })
-    expect(file.edges[0]).toMatchObject({ source: "a", target: "b", direction: "forward", shape: "spline", stroke: "solid", holds: null })
+    expect(file.edges[0]).toMatchObject({ source: "a", target: "b", direction: "forward", shape: "spline", stroke: "solid", holds: null, code_url: null })
+  })
+
+  it("writes each code link, and the folder link of a box from an imported repository", () => {
+    const FILE = "https://github.com/acme/shop/blob/main/src/charge.ts#L4-L8"
+    const doc = board()
+    nodesMap(doc).get("a")!.set("codeUrl", FILE)
+    nodesMap(doc).get("b")!.set("path", "services/ledger")
+    edgesMap(doc).get("ab")!.set("codeUrl", FILE)
+    const file = whiteboardFile({
+      id: "board",
+      title: "Architecture",
+      contents: readWhiteboard(doc),
+      held: () => ({ title: null, path: null, url: null }),
+      media: (path) => ({ path: null, url: path }),
+      repository: { provider: "github", repository: "acme/shop", ref: "main", commit: "abc" },
+    })
+    const byId = new Map(file.nodes.map((node) => [node.id, node]))
+    expect(byId.get("a")).toMatchObject({ code_url: FILE, code_url_from_folder: false })
+    expect(byId.get("b")).toMatchObject({
+      code_url: "https://github.com/acme/shop/tree/main/services/ledger",
+      code_url_from_folder: true,
+    })
+    expect(byId.get("m")).toMatchObject({ code_url: null, code_url_from_folder: false })
+    expect(file.edges[0].code_url).toBe(FILE)
   })
 })

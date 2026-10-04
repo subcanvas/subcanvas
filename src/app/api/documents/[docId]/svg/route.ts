@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server"
 
 import { attachment, notFound, PRIVATE } from "@/lib/export/download"
 import { safeName } from "@/lib/export/layout"
-import { findReadableDocument } from "@/lib/export/read"
+import { findReadableDocument, projectRepository } from "@/lib/export/read"
 import { readWhiteboard, whiteboardSvg } from "@/lib/export/whiteboard"
 import { requestOrigin } from "@/lib/origin"
 import { createClient } from "@/lib/supabase/server"
@@ -19,10 +19,13 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/docu
   const document = await findReadableDocument(supabase, docId)
   if (!document || document.type !== "whiteboard") return notFound()
 
-  const doc = await loadDocument(supabase, document.id)
+  const [doc, repository] = await Promise.all([
+    loadDocument(supabase, document.id),
+    projectRepository(supabase, document.project_id),
+  ])
   if (!doc) return new Response("This whiteboard could not be read.", { status: 500, headers: PRIVATE })
 
-  const svg = whiteboardSvg(readWhiteboard(doc), document.title, new URL(requestOrigin(request)).host)
+  const svg = whiteboardSvg(readWhiteboard(doc), document.title, new URL(requestOrigin(request)).host, repository)
   return new Response(svg, {
     headers: {
       ...PRIVATE,

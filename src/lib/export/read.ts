@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import { readProjectSource, type ProjectSource } from "@/lib/github/source"
 import type { Database } from "@/lib/supabase/database.types"
 import { loadDocument } from "@/lib/sync/server-document"
 import { mediaHref } from "@/lib/whiteboard/media"
@@ -35,14 +36,20 @@ async function everyRow<T>(page: (from: number, to: number) => PromiseLike<{ dat
   }
 }
 
-export type ProjectExport = { project: { id: string; name: string }; layout: ExportLayout }
+// `repository` is where the project was imported from, if it was: the boxes
+// drawn for its folders link to them (lib/whiteboard/code-link.ts).
+export type ProjectExport = {
+  project: { id: string; name: string; repository: ProjectSource | null }
+  layout: ExportLayout
+}
 
 // The project's folders and documents, and where each goes in the zip. Null
 // when the project cannot be read.
 export async function readProjectLayout(supabase: Client, projectId: string): Promise<ProjectExport | null> {
   if (!isUuid(projectId)) return null
-  const { data: project } = await supabase.from("projects").select("id, name").eq("id", projectId).maybeSingle()
-  if (!project) return null
+  const { data: row } = await supabase.from("projects").select("id, name, source").eq("id", projectId).maybeSingle()
+  if (!row) return null
+  const project = { id: row.id, name: row.name, repository: readProjectSource(row.source) }
 
   const [folders, documents] = await Promise.all([
     everyRow<ExportFolderRow & { deleted_at: string | null }>((from, to) =>
@@ -108,10 +115,16 @@ export type ExportedDocument = ExportedText | ExportedWhiteboard | { id: string;
 
 export const UNREADABLE = "This document could not be read."
 
+// The repository a project was imported from, if it was.
+export async function projectRepository(supabase: Client, projectId: string) {
+  const { data } = await supabase.from("projects").select("source").eq("id", projectId).maybeSingle()
+  return readProjectSource(data?.source)
+}
+
 export async function exportDocument(
   supabase: Client,
   document: { id: string; title: string; type: "text" | "whiteboard" },
-  { origin, host }: { origin: string; host: string }
+  { origin, host, repository = null }: { origin: string; host: string; repository?: ProjectSource | null }
 ): Promise<ExportedDocument> {
   const doc = await loadDocument(supabase, document.id)
   if (!doc) return { id: document.id, error: UNREADABLE }
@@ -138,7 +151,7 @@ export async function exportDocument(
     id: document.id,
     type: "whiteboard",
     title: document.title,
-    svg: whiteboardSvg(contents, document.title, host),
+    svg: whiteboardSvg(contents, document.title, host, repository),
     ...contents,
     media: [...media.values()],
     links,
@@ -151,7 +164,7 @@ export async function findReadableDocument(supabase: Client, documentId: string)
   if (!isUuid(documentId)) return null
   const { data: document } = await supabase
     .from("documents")
-    .select("id, title, type")
+    .select("id, title, type, project_id")
     .eq("id", documentId)
     .is("deleted_at", null)
     .maybeSingle()

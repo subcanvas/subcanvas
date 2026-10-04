@@ -80,7 +80,7 @@ function source(): ExportSource {
     ]
   )
   return {
-    project: async () => ({ project: { id: PROJECT, name: "Launch: plan" }, layout }),
+    project: async () => ({ project: { id: PROJECT, name: "Launch: plan", repository: null }, layout }),
     documents: async function* (ids) {
       const all: Record<string, () => Promise<ExportedDocument> | ExportedDocument> = {
         [SETUP]: setupPage,
