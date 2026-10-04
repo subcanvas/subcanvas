@@ -152,7 +152,10 @@ export function layoutDiagram({
   const lane = across
     ? Math.max(0, ...nodes.map((node) => node.height))
     : Math.max(0, ...nodes.map((node) => node.width))
-  edges.forEach((edge, index) => {
+  // Dagre puts the children of a node in the reverse of the order their
+  // edges were added; added last to first, they read in the order the
+  // diagram gives them, left to right or top to bottom, as Mermaid draws.
+  ;[...edges.entries()].reverse().forEach(([index, edge]) => {
     const source = standIn(edge.source)
     const target = standIn(edge.target)
     if (!source || !target || source === target || !graph.hasNode(source) || !graph.hasNode(target)) return

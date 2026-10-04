@@ -86,6 +86,13 @@ describe("drawing a diagram", () => {
     expect(flow("BT").dy).toBeLessThan(0)
   })
 
+  it("keeps the order the diagram gives a node's children in, as Mermaid does", () => {
+    const drawn = drawDiagram(diagramOf("flowchart TD\n  C{Pick} -->|One| D[Laptop]\n  C -->|Two| E[iPhone]\n  C -->|Three| F[Car]"), { newId })
+    const x = (title: string) => drawn.nodes.find((node) => node.title === title)!.x
+    expect(x("Laptop")).toBeLessThan(x("iPhone"))
+    expect(x("iPhone")).toBeLessThan(x("Car"))
+  })
+
   it("keeps the labels of arrows that fan out apart in a diagram that flows down", () => {
     const drawn = drawDiagram(
       diagramOf(`erDiagram
