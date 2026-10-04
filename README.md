@@ -27,11 +27,30 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
 - **Live together.** Your account comes with a personal workspace; make a team workspace and everyone you invite to it edits at once, with cursors. Viewers are free.
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
-- **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them: [docs/MCP.md](docs/MCP.md).
+- **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them, and a Claude Code plugin teaches them to draw: [Agents](#agents) below.
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
 - **Your work, out.** A page downloads as Markdown and a whiteboard as SVG from its menu, and a whole project exports as a zip of those, with a JSON file of each whiteboard and its pictures and videos. Import files brings the zip's pages back: [docs/EXPORTING.md](docs/EXPORTING.md).
 
 Subcanvas is live at subcanvas.app and changing fast. What is being built is in [REQUIREMENTS.md](REQUIREMENTS.md), the data model and build order in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and what comes next in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Agents
+
+An agent connected to Subcanvas reads and edits it as you, with your role in each workspace. For Claude Code, install the Subcanvas plugin: it adds the server at subcanvas.app and a skill for drawing whiteboards people can read, with boxes that open into their own whiteboards and a page behind each arrow.
+
+```sh
+claude plugin marketplace add subcanvas/subcanvas
+claude plugin install subcanvas@subcanvas
+```
+
+Then type `/mcp` in Claude Code and sign in. Every other client, and a server of your own, is in [docs/MCP.md](docs/MCP.md); the plugin is in [plugins/subcanvas](plugins/subcanvas).
+
+### What to ask your agent
+
+- Map this repository's services and how they talk to each other as a Subcanvas whiteboard, then put a page behind each arrow saying what crosses it.
+- Explain this pull request as a Subcanvas whiteboard: a box for each part it changes, arrows for how the changes depend on each other, and a page inside each box saying what changed and why.
+- Turn docs/onboarding.md into a nested Subcanvas whiteboard: a box for each section, with its detail on a page or a whiteboard inside the box.
+- Keep the Subcanvas diagram of this repository up to date with this branch. Add what the branch adds, fix what it changes, and ask me before you remove anything.
+- Review the Architecture whiteboard in Subcanvas against the code and fix what is wrong. List anything you would delete and wait for my answer.
 
 ## Stack
 
