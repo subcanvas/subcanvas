@@ -18,6 +18,7 @@ const wbNode = (id: string, x: number, y: number, parentId: string | null = null
   docType: null,
   openMode: "panel",
   path: null,
+  codeUrl: null,
   shape: "rectangle",
   icon: null,
   emoji: null,
@@ -51,6 +52,7 @@ const wbEdge = (source: string, target: string, label = ""): WbEdge => ({
   openMode: "panel",
   icon: null,
   emoji: null,
+  codeUrl: null,
 })
 
 describe("collectClip", () => {

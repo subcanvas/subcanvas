@@ -1,5 +1,6 @@
 import * as Y from "yjs"
 
+import { parseCodeUrl } from "./code-link"
 import { mediaTypeOf, parseMediaPath, type MediaType } from "./media"
 import { NODE_SHAPES, type NodeShape } from "./shapes"
 
@@ -35,6 +36,10 @@ export type WbNode = {
   // ("services/payments"). It is the node's identity there: the title can be
   // changed freely and the node still follows the folder.
   path: string | null
+  // A code link (code-link.ts): the https address of the code this node
+  // stands for. A node with a `path` in an imported project links to that
+  // folder without one.
+  codeUrl: string | null
   // The outline of a plain node. Text and groups have one look.
   shape: NodeShape
   // A Lucide icon name and an emoji, each shown as a badge on the corner.
@@ -67,6 +72,8 @@ export type WbEdge = {
   // Shown in the label, before the words.
   icon: string | null
   emoji: string | null
+  // A code link (code-link.ts), as a node has.
+  codeUrl: string | null
   docId: string | null
   // Kept beside docId so the canvas knows how to open it without a lookup.
   // A document never changes type.
@@ -164,6 +171,7 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
       : null,
     openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
     path: textOrNull(map, "path"),
+    codeUrl: parseCodeUrl(map.get("codeUrl")),
     shape: pick(map, "shape", NODE_SHAPES, "rectangle"),
     icon: iconName(map.get("icon")),
     emoji: singleEmoji(map.get("emoji")),
@@ -190,6 +198,7 @@ export function newMediaNode(
     docType: null,
     openMode: "panel",
     path: null,
+    codeUrl: null,
     shape: "rectangle",
     icon: null,
     emoji: null,
@@ -213,6 +222,7 @@ export function readEdge(id: string, map: Y.Map<unknown>): WbEdge {
     label: text(map, "label"),
     icon: iconName(map.get("icon")),
     emoji: singleEmoji(map.get("emoji")),
+    codeUrl: parseCodeUrl(map.get("codeUrl")),
     docId: textOrNull(map, "docId"),
     docType: textOrNull(map, "docId")
       ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
