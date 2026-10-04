@@ -4,7 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
 import * as operations from "@/lib/documents/operations"
-import { findFreeSpot } from "@/lib/mcp/placement"
 import type { Database } from "@/lib/supabase/database.types"
 import { changeDocument, IMPORT_HEADER, loadDocument, writeNewDocuments } from "@/lib/sync/server-document"
 import { applyBlockEdit } from "@/lib/text/blocks"
@@ -15,7 +14,7 @@ import { MAX_TITLE } from "@/lib/whiteboard/limits"
 import { DEFAULT_SIZE, edgesMap, nodesMap, readNode, toYMap, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 
 import type { Diagram } from "./diagram"
-import { drawDiagram, type DrawnDiagram, type DrawnPage } from "./draw"
+import { drawDiagram, drawDiagramBeside, type DrawnDiagram, type DrawnPage } from "./draw"
 import { parseMermaid } from "./parse"
 
 // A Mermaid diagram written into a project, on the server: as a new
@@ -156,9 +155,6 @@ export async function createMermaidWhiteboard(
   return { ok: true, ...outcome(whiteboard.id, diagram, drawn) }
 }
 
-// Between what was there and the diagram, on top of the usual gap.
-const GAP = 40
-
 // Adds a diagram to a whiteboard that has things on it already: in free
 // space to the right of them, never on top.
 export async function addMermaidToWhiteboard(
@@ -181,10 +177,7 @@ export async function addMermaidToWhiteboard(
       width: node.width ?? DEFAULT_SIZE[node.kind].width ?? 0,
       height: node.height ?? DEFAULT_SIZE[node.kind].height ?? 40,
     }))
-  // Drawn once to learn its size, then again where it fits.
-  const { width, height } = drawDiagram(diagram, { newId: () => "" })
-  const spot = findFreeSpot(taken, { width: width + GAP, height })
-  const drawn = drawDiagram(diagram, { at: taken.length ? { x: spot.x + GAP, y: spot.y } : spot })
+  const drawn = drawDiagramBeside(diagram, taken)
 
   const pages = await writePages(supabase, { id: whiteboard.id, orgId: whiteboard.org_id, projectId: whiteboard.project_id }, drawn.pages)
   if ("error" in pages) return pages

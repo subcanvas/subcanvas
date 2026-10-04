@@ -1,4 +1,5 @@
 import { edgeSides, layoutDiagram, type Frame } from "@/lib/github/layout"
+import { findFreeSpot, type Box } from "@/lib/mcp/placement"
 import { DEFAULT_SIZE, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 import { linesThatFit, shapeGeometry, SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
 
@@ -213,6 +214,20 @@ export function drawDiagram(
     width: Math.max(0, ...all.map((frame) => frame.x + frame.width)) - at.x,
     height: Math.max(0, ...all.map((frame) => frame.y + frame.height)) - at.y,
   }
+}
+
+// Between what was on the whiteboard and a diagram added to it, on top of
+// the usual gap.
+const BESIDE_GAP = 40
+
+// A diagram added to a whiteboard that has things on it already (`taken`,
+// the top-level nodes): in free space to the right of them, never on top.
+export function drawDiagramBeside(diagram: Diagram, taken: Box[], options: { newId?: () => string } = {}) {
+  if (!taken.length) return drawDiagram(diagram, options)
+  // Drawn once to learn its size, then again where it fits.
+  const { width, height } = drawDiagram(diagram, { newId: () => "" })
+  const spot = findFreeSpot(taken, { width: width + BESIDE_GAP, height })
+  return drawDiagram(diagram, { ...options, at: { x: spot.x + BESIDE_GAP, y: spot.y } })
 }
 
 type Sides = { sourceHandle: string; targetHandle: string; shape: "spline" | "step" }

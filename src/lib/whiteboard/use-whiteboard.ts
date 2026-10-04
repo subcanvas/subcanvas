@@ -416,6 +416,19 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     [transactAsOneStep, yNodes, yEdges]
   )
 
+  // Nodes and arrows made elsewhere (a Mermaid diagram), added as they are,
+  // ids and what they hold included, in one step to undo.
+  const insertDrawn = useCallback(
+    (newNodes: WbNode[], newEdges: WbEdge[]) => {
+      transactAsOneStep(() => {
+        for (const { id, ...fields } of newNodes) yNodes.set(id, toYMap(fields))
+        for (const { id, ...fields } of newEdges) yEdges.set(id, toYMap(fields))
+      })
+      return newNodes.map((node) => node.id)
+    },
+    [transactAsOneStep, yNodes, yEdges]
+  )
+
   // A media node as it looks while its file uploads: on this screen only,
   // and not to be moved, selected or connected until it is real.
   const showUpload = useCallback((wb: WbNode, upload: Upload) => {
@@ -499,6 +512,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     updateEdge,
     removeObjects,
     insertCopies,
+    insertDrawn,
     showUpload,
     updateUpload,
     addMedia,
