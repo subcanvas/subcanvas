@@ -65,7 +65,7 @@ Build a diagram in this order: `add_nodes` with the boxes at once (leave out x a
 
 ## Linking to code
 
-When a box or an arrow stands for code, say where the code is. Name the file or folder in its page, as a link to it on the repository's host when you know the address. A box drawn by the GitHub import already knows its folder: `read_whiteboard` gives its `repository_path`. Keep those boxes and their pages; they are the import's.
+When a box or an arrow stands for code, say where the code is. Set `code_url` on the box or arrow (in `add_nodes`, `update_nodes`, `connect_nodes`, or `update_edges`) to the address of that file or folder, so a click opens the code; a line range like `#L10-L20` works on GitHub, GitLab and Bitbucket. Name the file or folder in its page, as a link to it on the repository's host when you know the address. A box drawn by the GitHub import already links to its folder: `read_whiteboard` gives its `repository_path` and a `code_url` marked `code_url_from_folder`; set your own `code_url` only to point somewhere more specific. Keep those boxes and their pages; they are the import's.
 
 ## Repositories
 
