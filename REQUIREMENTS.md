@@ -26,6 +26,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 | **Object** | A node or an arrow: anything on a whiteboard that can hold a document. Said only where either is meant. | `object_id` |
 | **Description** | The page that belongs to a node or an arrow: it opens in the side panel, is not listed in the project tree, and does not count toward the private-document limit. Not "notes" or "node description". | a document of `kind: description` |
 | **Link** | A way to a document that lives elsewhere: a node or arrow that opens it, or a document link card in a page. What links to a document is listed as **Linked from**. Not "reference" or "Referenced by". | `document_links`, `list_references` |
+| **Code link** | The address of the code behind a node or an arrow (a file, some lines of it, or a folder), which opens in a new tab. The panel's field is **Code**. Not "source link" or "repository link". | `codeUrl`; `code_url` in the tools and the export |
 
 ---
 
@@ -105,6 +106,7 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R4.8 | Each object has an **open mode** setting for a page it holds: *side panel* (default) or *full page*. In full-page mode, double click opens the page on its own. Whiteboards always navigate. |
 | R4.9 | Objects that hold a document show a visual indicator on the canvas. |
 | R4.10 | The side panel lets the user attach a new document, link an existing one (R1.6), change it, or detach it. |
+| R4.11 | Every node and arrow can have one **code link**: an https address, up to 2,000 characters, set in the side panel's Code field or by an agent. A GitHub, GitLab, Bitbucket or Gitea address is shown by its path and lines (`packages/react/src/index.ts:10-20`) and its repository; any other by its host and path. The object wears a small code mark that opens the link in a new tab, in view mode and on a public page too; only editors change it. A box drawn for a repository folder by the GitHub import links to that folder at the imported branch unless it has a link of its own, without storing it, so boxes imported earlier have it too. Copy, paste and undo carry the link; the embed draws the mark, and an export writes the link. |
 
 ## 5. Real-time collaboration
 

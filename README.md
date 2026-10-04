@@ -24,6 +24,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 </p>
 
 - **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. The import is a one-time copy.
+- **Code links.** A box or an arrow can point at the code behind it, a file, some lines or a folder on GitHub or anywhere else, and one click opens it. Imported boxes link to their folders.
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
 - **Live together.** Your account comes with a personal workspace; make a team workspace and everyone you invite to it edits at once, with cursors. Viewers are free.
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
