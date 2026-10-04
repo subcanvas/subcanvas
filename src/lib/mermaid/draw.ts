@@ -70,6 +70,7 @@ const blankNode = (fields: Partial<WbNode> & Pick<WbNode, "id" | "kind" | "x" | 
   docType: null,
   openMode: "panel",
   path: null,
+  codeUrl: null,
   shape: "rectangle",
   icon: null,
   emoji: null,
@@ -200,6 +201,7 @@ export function drawDiagram(
       docId: null,
       docType: null,
       openMode: "panel",
+      codeUrl: null,
     }
     })
 
