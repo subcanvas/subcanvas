@@ -4,7 +4,7 @@ import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb
 import { TextDocument } from "@/components/editor/text-document"
 import { ReferencedBy } from "@/components/referenced-by"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
-import { readDocumentSource } from "@/lib/github/source"
+import { readDocumentSource, readProjectSource } from "@/lib/github/source"
 import { parseVia } from "@/lib/navigation"
 import { PUBLIC_SLUG } from "@/lib/public-route"
 import { createClient } from "@/lib/supabase/server"
@@ -30,7 +30,7 @@ export default async function PublicDocumentPage({
       .maybeSingle(),
     supabase
       .from("projects")
-      .select("name")
+      .select("name, source")
       .eq("id", projectId)
       .eq("visibility", "public")
       .maybeSingle(),
@@ -89,6 +89,7 @@ export default async function PublicDocumentPage({
             via: trailIds,
           }}
           user={guest}
+          repository={readProjectSource(project.source)}
           breadcrumb={breadcrumb}
           title={<h1 className="truncate text-lg font-semibold">{document.title}</h1>}
           actions={linkedFrom}
