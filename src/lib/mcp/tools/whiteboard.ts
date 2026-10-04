@@ -2,9 +2,11 @@ import { z } from "zod"
 
 import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
 import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
+import { readProjectSource } from "@/lib/github/source"
 import { loadDocument } from "@/lib/sync/server-document"
+import { codeLinkOf, parseCodeUrl } from "@/lib/whiteboard/code-link"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
-import { MAX_ALT, MAX_BODY_TEXT, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
+import { MAX_ALT, MAX_BODY_TEXT, MAX_CODE_URL, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { mediaHref } from "@/lib/whiteboard/media"
 import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
@@ -47,6 +49,16 @@ const emoji = z
   // Stored as the app stores it: the emoji alone, without spaces around it.
   .transform((value) => singleEmoji(value)!)
   .describe("One emoji, shown as a badge beside the icon.")
+// A code link: what a person pastes into the panel's Code field.
+const codeUrl = (what: "node" | "arrow") =>
+  z
+    .string()
+    .max(MAX_CODE_URL)
+    .refine((value) => parseCodeUrl(value) !== null, "An https address, such as https://github.com/owner/repo/blob/main/src/file.ts.")
+    .transform((value) => parseCodeUrl(value)!)
+    .describe(
+      `A code link: the https address of the code this ${what} stands for, a file or a folder on GitHub, GitLab, Bitbucket or any other forge. Point at the lines when it is part of a file (on GitHub \`#L10-L20\`). It shows as a small code mark ${what === "node" ? "on the node's corner" : "beside the arrow's label"}, and a click opens the address in a new tab. https only, at most ${MAX_CODE_URL} characters.`
+    )
 const coordinate = (axis: string) =>
   z.number().describe(`The ${axis} of the top-left corner, in canvas units (roughly pixels at 100% zoom). For a node in a group it is relative to the group's top-left corner.`)
 const openMode = z
@@ -60,7 +72,9 @@ const edgeStyle = {
   color: color.optional(),
   icon: icon.nullable().optional().describe("An icon before the arrow's label. Null removes it."),
   emoji: emoji.nullable().optional().describe("One emoji before the arrow's label. Null removes it."),
+  code_url: codeUrl("arrow").nullable().optional(),
 }
+const edgeFields = <T extends { code_url?: string | null }>({ code_url, ...edge }: T) => ({ ...edge, codeUrl: code_url })
 
 // What deleted nodes and arrows held goes to the trash, as it does when a
 // person deletes them on the canvas, and the index of references follows
@@ -102,17 +116,24 @@ export const whiteboardTools = [
     title: "Read a whiteboard",
     group: "Whiteboards",
     description:
-      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
+      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
       const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard", { read: true })
       if ("error" in whiteboard) return whiteboard
-      const doc = await loadDocument(context.supabase, whiteboard.id)
+      const [doc, project] = await Promise.all([
+        loadDocument(context.supabase, whiteboard.id),
+        findProject(context, whiteboard.project_id),
+      ])
       if (!doc) return { error: "This document could not be read." }
+      // A box drawn for a folder of the repository the project was imported
+      // from links to that folder, as it does in the app.
+      const repository = readProjectSource(project?.source ?? null)
 
       const nodes = [...nodesMap(doc).entries()].map(([objectId, map]) => {
         const node = readNode(objectId, map)
+        const code = codeLinkOf(node, repository)
         return {
           id: node.id,
           kind: node.kind,
@@ -131,6 +152,7 @@ export const whiteboardTools = [
           ...(node.emoji ? { emoji: node.emoji } : {}),
           ...(node.docId ? { doc_id: node.docId, doc_type: node.docType, open_mode: node.openMode } : {}),
           ...(node.path ? { repository_path: node.path } : {}),
+          ...(code ? { code_url: code.url, ...(code.derived ? { code_url_from_folder: true } : {}) } : {}),
           ...(node.kind === "media" && node.mediaPath
             ? {
                 media: {
@@ -160,6 +182,7 @@ export const whiteboardTools = [
           ...(edge.color !== "default" ? { color: edge.color } : {}),
           ...(edge.icon ? { icon: edge.icon } : {}),
           ...(edge.emoji ? { emoji: edge.emoji } : {}),
+          ...(edge.codeUrl ? { code_url: edge.codeUrl } : {}),
           ...(edge.docId ? { doc_id: edge.docId, doc_type: edge.docType, open_mode: edge.openMode } : {}),
         }))
 
@@ -180,7 +203,7 @@ export const whiteboardTools = [
     title: "Add nodes to a whiteboard",
     group: "Whiteboards",
     description:
-      "Adds one or more nodes in a single step and returns their ids in the same order, ready for `connect_nodes`. Leave out x and y and each node takes the nearest free spot: beside `near_node_id` when given, otherwise to the right of what is already there, never on top of another node. Sizes default to what the app gives a new node: a box its shape's size (160 by 64 for a rectangle), a group 360 by 240, a text node 240 wide and as tall as its text. To give a box a description, put a page inside it afterwards with `attach_document`. To lay out a whole diagram, add everything, connect it, then call `arrange_nodes`.",
+      "Adds one or more nodes in a single step and returns their ids in the same order, ready for `connect_nodes`. Leave out x and y and each node takes the nearest free spot: beside `near_node_id` when given, otherwise to the right of what is already there, never on top of another node. Sizes default to what the app gives a new node: a box its shape's size (160 by 64 for a rectangle), a group 360 by 240, a text node 240 wide and as tall as its text. To give a box a description, put a page inside it afterwards with `attach_document`. When a node stands for code (a service, a package, a module, a file, a function), give it a `code_url` to that folder or file, with the lines when it is part of a file, so whoever reads the diagram can go straight to the code: link the files you describe. To lay out a whole diagram, add everything, connect it, then call `arrange_nodes`.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
@@ -193,6 +216,7 @@ export const whiteboardTools = [
             shape: shape.optional(),
             icon: icon.optional(),
             emoji: emoji.optional(),
+            code_url: codeUrl("node").optional(),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
             width: side("width").optional(),
@@ -212,7 +236,7 @@ export const whiteboardTools = [
         (doc) =>
           edits.addNodes(
             doc,
-            nodes.map(({ group_id, near_node_id, ...node }) => ({ ...node, groupId: group_id, nearNodeId: near_node_id }))
+            nodes.map(({ group_id, near_node_id, code_url, ...node }) => ({ ...node, codeUrl: code_url, groupId: group_id, nearNodeId: near_node_id }))
           ),
         ({ ids }) => ({
           text: `Added ${ids.length} node${ids.length === 1 ? "" : "s"}: ${ids.map((added, index) => `"${nodes[index].title}" (${added})`).join(", ")}.`,
@@ -226,7 +250,7 @@ export const whiteboardTools = [
     title: "Update nodes",
     group: "Whiteboards",
     description:
-      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape a box, set or remove the icon and emoji badges, change a text node's body text, or change how a click opens what the node holds. A box that changes shape while it is still the size its old shape came in takes the new shape's size, as in the app, unless you give a size. On a picture or video the title is the caption, `alt` says what it shows, and it keeps its file's proportions: give its width or its height and the other follows. Only the fields you give change, so this merges with what people are doing to the same node. A field the node cannot show (body text on a box, a shape on a group) is refused. If any id is unknown or any field refused, nothing changes.",
+      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape a box, set or remove the icon and emoji badges, set or remove the code link, change a text node's body text, or change how a click opens what the node holds. A box that changes shape while it is still the size its old shape came in takes the new shape's size, as in the app, unless you give a size. On a picture or video the title is the caption, `alt` says what it shows, and it keeps its file's proportions: give its width or its height and the other follows. Only the fields you give change, so this merges with what people are doing to the same node. A field the node cannot show (body text on a box, a shape on a group) is refused. If any id is unknown or any field refused, nothing changes.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
@@ -240,6 +264,10 @@ export const whiteboardTools = [
             shape: shape.optional(),
             icon: icon.nullable().optional().describe("Null removes the icon."),
             emoji: emoji.nullable().optional().describe("Null removes the emoji."),
+            code_url: codeUrl("node")
+              .nullable()
+              .optional()
+              .describe("The code link. Null removes it; a box drawn for a repository folder then links to its folder again."),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
             width: side("width").optional(),
@@ -255,7 +283,8 @@ export const whiteboardTools = [
       change(
         context,
         whiteboard_id,
-        (doc) => edits.updateNodes(doc, nodes.map(({ open_mode, ...node }) => ({ ...node, openMode: open_mode }))),
+        (doc) =>
+          edits.updateNodes(doc, nodes.map(({ open_mode, code_url, ...node }) => ({ ...node, codeUrl: code_url, openMode: open_mode }))),
         ({ ids }) => ({ text: `Updated ${ids.length} node${ids.length === 1 ? "" : "s"}.`, data: { node_ids: ids } })
       ),
   }),
@@ -297,7 +326,7 @@ export const whiteboardTools = [
     title: "Connect nodes with arrows",
     group: "Whiteboards",
     description:
-      "Draws one or more arrows between nodes and returns their ids. Each arrow leaves and enters by the sides that make the shortest path; which sides cannot be chosen here. An arrow can carry a label, and like a node it can hold a document (`attach_document`).",
+      "Draws one or more arrows between nodes and returns their ids. Each arrow leaves and enters by the sides that make the shortest path; which sides cannot be chosen here. An arrow can carry a label and a `code_url` (where in the code the call or dependency it draws happens), and like a node it can hold a document (`attach_document`).",
     input: {
       whiteboard_id: whiteboardId,
       edges: z
@@ -310,7 +339,7 @@ export const whiteboardTools = [
       change(
         context,
         whiteboard_id,
-        (doc) => edits.connectNodes(doc, edges),
+        (doc) => edits.connectNodes(doc, edges.map(edgeFields)),
         ({ ids }) => ({ text: `Added ${ids.length} arrow${ids.length === 1 ? "" : "s"} (${ids.join(", ")}).`, data: { edge_ids: ids } })
       ),
   }),
@@ -319,7 +348,7 @@ export const whiteboardTools = [
     name: "update_edges",
     title: "Update arrows",
     group: "Whiteboards",
-    description: "Changes arrows in place: label, its icon and emoji, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
+    description: "Changes arrows in place: label, its icon and emoji, code link, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
     input: {
       whiteboard_id: whiteboardId,
       edges: z.array(z.object({ id: nodeId("The arrow to change."), ...edgeStyle, open_mode: openMode.optional() })).min(1).max(400),
@@ -329,7 +358,7 @@ export const whiteboardTools = [
       change(
         context,
         whiteboard_id,
-        (doc) => edits.updateEdges(doc, edges.map(({ open_mode, ...edge }) => ({ ...edge, openMode: open_mode }))),
+        (doc) => edits.updateEdges(doc, edges.map(({ open_mode, ...edge }) => ({ ...edgeFields(edge), openMode: open_mode }))),
         ({ ids }) => ({ text: `Updated ${ids.length} arrow${ids.length === 1 ? "" : "s"}.`, data: { edge_ids: ids } })
       ),
   }),

@@ -1,3 +1,6 @@
+import type { ProjectSource } from "@/lib/github/source"
+
+import { codeLinkOf, parseCodeUrl } from "./code-link"
 import { COLORS } from "./colors"
 import { iconNode } from "./icons"
 import { MAX_NODE_SIDE } from "./limits"
@@ -355,13 +358,23 @@ function documentMark(at: Point, docType: "text" | "whiteboard", palette: Palett
   return chip(at, palette) + drawIcon(docType === "whiteboard" ? "workflow" : "file-text", at.x - 6, at.y - 6, 12, palette.graphite)
 }
 
+// The small square that says an object links to code. In a picture it
+// cannot be clicked, but it says the whiteboard has a way to the code.
+function codeMark(at: Point, palette: Palette) {
+  return chip(at, palette) + drawIcon("code", at.x - 6, at.y - 6, 12, palette.graphite)
+}
+
 // What hangs on a node's corner, right to left from `at`: the document
-// mark where it has always been, then the emoji, then the icon.
+// mark where it has always been, then the code mark, the emoji, the icon.
 function cornerBadges({ node }: Placed, at: Point, palette: Palette) {
   let drawn = ""
   let x = at.x
   if (node.docId && node.docType) {
     drawn += documentMark({ x, y: at.y }, node.docType, palette)
+    x -= MARK_SIZE + MARK_GAP
+  }
+  if (parseCodeUrl(node.codeUrl)) {
+    drawn += codeMark({ x, y: at.y }, palette)
     x -= MARK_SIZE + MARK_GAP
   }
   const emoji = singleEmoji(node.emoji)
@@ -376,7 +389,10 @@ function cornerBadges({ node }: Placed, at: Point, palette: Palette) {
 
 // How many badges that is, for whoever has to leave them room.
 const badgeCount = (node: WbNode) =>
-  (node.docId && node.docType ? 1 : 0) + (singleEmoji(node.emoji) ? 1 : 0) + (iconNode(node.icon) ? 1 : 0)
+  (node.docId && node.docType ? 1 : 0) +
+  (parseCodeUrl(node.codeUrl) ? 1 : 0) +
+  (singleEmoji(node.emoji) ? 1 : 0) +
+  (iconNode(node.icon) ? 1 : 0)
 
 // A text node and a group wear them on the top right corner of their box.
 const boxCorner = (box: Box): Point => ({ x: box.x + box.width, y: box.y })
@@ -691,8 +707,8 @@ function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): 
     (edge.direction === "forward" || edge.direction === "both" ? arrowhead(to, toSide, color) : "") +
     (edge.direction === "reverse" || edge.direction === "both" ? arrowhead(from, fromSide, color) : "")
 
-  // The label and the document mark share the middle of the line, side by
-  // side, as they do on the canvas. Inside the label: the icon, the emoji,
+  // The label, the code mark and the document mark share the middle of the
+  // line, side by side, as they do on the canvas. Inside the label: the icon, the emoji,
   // then the words, whichever of them there are.
   const text = edge.label ? truncate(edge.label.replace(/\s+/g, " "), 240, PILL.fontSize, true) : ""
   // Whoever calls this read the document defensively (schema.ts); an emoji
@@ -706,7 +722,11 @@ function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): 
   const pillWidth = parts.length
     ? parts.reduce((sum, part) => sum + part, 0) + (parts.length - 1) * PILL.gap + PILL.paddingX * 2
     : 0
-  const markWidth = edge.docId && edge.docType ? MARK_SIZE : 0
+  const marks: ("code" | "text" | "whiteboard")[] = [
+    ...(parseCodeUrl(edge.codeUrl) ? ["code" as const] : []),
+    ...(edge.docId && edge.docType ? [edge.docType] : []),
+  ]
+  const markWidth = marks.length ? marks.length * MARK_SIZE + (marks.length - 1) * 4 : 0
   const total = pillWidth + markWidth + (pillWidth && markWidth ? 4 : 0)
   const left = route.label.x - total / 2
 
@@ -726,8 +746,13 @@ function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): 
     if (text)
       label += `<text x="${n(x)}" y="${n(route.label.y + PILL.fontSize * 0.35)}" font-family="${MONO}" font-size="${PILL.fontSize}" fill="${palette.graphite}">${escapeXml(text)}</text>`
   }
-  if (edge.docId && edge.docType)
-    label += documentMark({ x: left + total - MARK_SIZE / 2, y: route.label.y }, edge.docType, palette)
+  // Right to left from the end, as the canvas lines them up.
+  let markX = left + total - MARK_SIZE / 2
+  for (const mark of [...marks].reverse()) {
+    const at = { x: markX, y: route.label.y }
+    label += mark === "code" ? codeMark(at, palette) : documentMark(at, mark, palette)
+    markX -= MARK_SIZE + 4
+  }
 
   const reach = route.reach.map((point) => ({ x: point.x - 6, y: point.y - 6, width: 12, height: 12 }))
   if (total) reach.push({ x: left, y: route.label.y - PILL.height / 2, width: total, height: PILL.height })
@@ -787,6 +812,7 @@ export function renderWhiteboardSvg({
   theme,
   title,
   host = "subcanvas.app",
+  repository = null,
 }: {
   nodes: WbNode[]
   edges: WbEdge[]
@@ -794,12 +820,16 @@ export function renderWhiteboardSvg({
   title: string
   // Shown in the corner. A self-hosted server passes its own.
   host?: string
+  // The repository the project was imported from: a box drawn for one of
+  // its folders links to it, and wears the code mark.
+  repository?: ProjectSource | null
 }) {
   if (!nodes.length)
     return renderMessageSvg({ message: "Empty whiteboard", theme, host, title: title || "Empty whiteboard" })
 
   const palette = PALETTES[theme]
-  const placed = placeNodes(nodes.slice(0, MAX_OBJECTS))
+  const linked = nodes.slice(0, MAX_OBJECTS).map((node) => ({ ...node, codeUrl: codeLinkOf(node, repository)?.url ?? null }))
+  const placed = placeNodes(linked)
   const all = [...placed.values()]
   const drawn = edges.slice(0, MAX_OBJECTS).flatMap((edge) => drawEdge(edge, placed, palette) ?? [])
 

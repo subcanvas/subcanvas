@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { PRIVATE } from "@/lib/export/download"
-import { exportDocument, isUuid, UNREADABLE, type ExportedDocument } from "@/lib/export/read"
+import { exportDocument, isUuid, projectRepository, UNREADABLE, type ExportedDocument } from "@/lib/export/read"
 import { requestOrigin } from "@/lib/origin"
 import { createClient } from "@/lib/supabase/server"
 
@@ -29,12 +29,10 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
     return Response.json({ error: `Ask for 1 to ${MAX_BATCH} documents by id.` }, { status: 400, headers: PRIVATE })
 
   const supabase = await createClient()
-  const { data: rows } = await supabase
-    .from("documents")
-    .select("id, title, type")
-    .eq("project_id", projectId)
-    .is("deleted_at", null)
-    .in("id", ids)
+  const [{ data: rows }, repository] = await Promise.all([
+    supabase.from("documents").select("id, title, type").eq("project_id", projectId).is("deleted_at", null).in("id", ids),
+    projectRepository(supabase, projectId),
+  ])
   const byId = new Map(rows?.map((row) => [row.id, row]))
   const origin = requestOrigin(request)
   const host = new URL(origin).host
@@ -44,7 +42,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/proj
     for (const id of ids) {
       const row = byId.get(id)
       if (!row) yield { id, error: UNREADABLE }
-      else yield await exportDocument(supabase, row, { origin, host }).catch(() => ({ id, error: UNREADABLE }))
+      else yield await exportDocument(supabase, row, { origin, host, repository }).catch(() => ({ id, error: UNREADABLE }))
     }
   }
 

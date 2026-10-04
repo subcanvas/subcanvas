@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { reconcileLinks } from "@/lib/document-links"
+import type { ProjectSource } from "@/lib/github/source"
 import { documentHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { adoptions } from "@/lib/whiteboard/adopt"
@@ -87,6 +88,9 @@ export type WhiteboardProps = {
   editable: boolean
   context: WhiteboardContext
   user: EditorUser
+  // The repository the project was imported from, if it was: a box drawn
+  // for one of its folders links to that folder.
+  repository: ProjectSource | null
   // The trail of sheets above this one. It belongs on the canvas, in the same
   // space as the tools: laid out against the whole area instead, it slides
   // over the tools whenever the object panel opens.
@@ -101,7 +105,7 @@ export default function Whiteboard(props: WhiteboardProps) {
   )
 }
 
-function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardProps) {
+function Canvas({ provider, editable, context, user, repository, breadcrumb }: WhiteboardProps) {
   // View mode is a choice made by someone who may edit, so that a stray
   // finger changes nothing. Someone who may not edit is always in it.
   const [mode, setMode] = useState<Mode>(storedMode)
@@ -190,7 +194,7 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
     },
     [wb, router, context]
   )
-  const actions = useMemo(() => ({ openObject }), [openObject])
+  const actions = useMemo(() => ({ openObject, repository }), [openObject, repository])
 
   // Keep the index of references in step with the content (R1.7). Debounced,
   // and keyed on the links alone so moving things around does not trigger it.
@@ -832,6 +836,7 @@ function Canvas({ provider, editable, context, user, breadcrumb }: WhiteboardPro
             locked={editable && !canEdit}
             context={context}
             user={user}
+            repository={repository}
             onNodeChange={wb.updateNode}
             onEdgeChange={wb.updateEdge}
             // The same as the Delete key, for a touch screen that has none.

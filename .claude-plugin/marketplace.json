@@ -1,0 +1,17 @@
+{
+  "name": "subcanvas",
+  "description": "Subcanvas for Claude Code: whiteboards and pages that nest inside each other, drawn by your agent.",
+  "owner": {
+    "name": "Subcanvas",
+    "url": "https://subcanvas.app"
+  },
+  "plugins": [
+    {
+      "name": "subcanvas",
+      "source": "./plugins/subcanvas",
+      "description": "Connects the Subcanvas MCP server and teaches Claude Code to draw nested whiteboards that people can read: boxes that open into their own whiteboards, and arrows with a page that says why they exist.",
+      "category": "productivity",
+      "tags": ["diagrams", "whiteboard", "architecture", "documentation", "mcp"]
+    }
+  ]
+}

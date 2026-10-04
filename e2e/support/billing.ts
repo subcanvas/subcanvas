@@ -17,7 +17,11 @@ import { setting } from "./env"
 // secret the server checks against. Without a key the specs skip.
 
 export const stripeSecretKey = setting("STRIPE_SECRET_KEY")
-export const billingConfigured = Boolean(stripeSecretKey)
+// Paying runs the Stripe CLI and opens Stripe's checkout. CI asks for it
+// with E2E_BILLING=1; a local run of the suite (or of a filter that happens
+// to match every spec, such as a worktree's own name) leaves it alone, even
+// though .env.local carries the sandbox keys the app itself needs.
+export const billingConfigured = Boolean(stripeSecretKey) && process.env.E2E_BILLING === "1"
 
 // Starts `stripe listen` relaying the sandbox's events to this server's
 // webhook, and resolves once the CLI says it is ready. The CLI prints the

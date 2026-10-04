@@ -1,0 +1,14 @@
+{
+  "name": "subcanvas",
+  "displayName": "Subcanvas",
+  "version": "0.1.0",
+  "description": "Connects the Subcanvas MCP server and teaches Claude Code to draw nested whiteboards that people can read: boxes that open into their own whiteboards, and arrows with a page that says why they exist.",
+  "author": {
+    "name": "Subcanvas",
+    "url": "https://subcanvas.app"
+  },
+  "homepage": "https://github.com/subcanvas/subcanvas/tree/main/plugins/subcanvas",
+  "repository": "https://github.com/subcanvas/subcanvas",
+  "license": "AGPL-3.0-only",
+  "keywords": ["diagrams", "whiteboard", "architecture", "documentation", "mcp"]
+}

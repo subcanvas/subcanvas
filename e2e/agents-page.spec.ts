@@ -25,6 +25,16 @@ test("shows the server address and a way in for every client", async ({ page, ba
   await expect(page.getByRole("button", { name: "Copy the server address" })).toHaveText(/Copied/)
   expect(await readClipboard(page)).toBe(url)
 
+  // Claude Code: the plugin first, from this repository's marketplace. Its
+  // server is subcanvas.app's, which this server is not, so the page says to
+  // add this one as well.
+  await expect(
+    page.getByText("claude plugin marketplace add subcanvas/subcanvas && claude plugin install subcanvas@subcanvas", {
+      exact: true,
+    })
+  ).toBeVisible()
+  await expect(page.getByText(/The plugin connects to subcanvas\.app\. To connect to this server/)).toBeVisible()
+
   // The two command-line clients: one command each, naming the server.
   await expect(page.getByText(`claude mcp add --transport http subcanvas ${url}`, { exact: true })).toBeVisible()
   await expect(
@@ -49,6 +59,24 @@ test("shows the server address and a way in for every client", async ({ page, ba
   // they paste.
   for (const client of ["Claude (claude.ai and desktop)", "ChatGPT", "Anything else"])
     await expect(page.getByRole("heading", { name: client })).toBeVisible()
+})
+
+test("suggests what to ask, ready to copy", async ({ page, baseURL }) => {
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
+  const { slug } = await signUpWithOrg(page)
+  await page.goto(`/${slug}/agents`)
+  const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "What to ask your agent" }) })
+  await expect(section.getByRole("listitem")).toHaveCount(5)
+
+  // A prompt is copied as it reads, in full.
+  const first = section.getByRole("listitem").first()
+  await expect(first.getByRole("heading", { name: "Map a repository" })).toBeVisible()
+  const prompt = await first.locator("p").textContent()
+  expect(prompt).toMatch(/^Map this repository's services .+ saying what crosses it\.$/)
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: baseURL })
+  await first.getByRole("button", { name: "Copy the prompt: Map a repository" }).click()
+  await expect(first.getByRole("button", { name: "Copy the prompt: Map a repository" })).toHaveText(/Copied/)
+  expect(await readClipboard(page)).toBe(prompt)
 })
 
 test("lists every documented tool", async ({ page, baseURL }) => {

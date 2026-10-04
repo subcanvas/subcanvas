@@ -82,15 +82,20 @@ nodes: Y.Map<nodeId, Y.Map>     kind: plain|text|group|media, position, width, h
                                 shape? (plain nodes: rectangle|rounded|ellipse|diamond|
                                 hexagon|cylinder|parallelogram|document|cloud),
                                 icon? (a Lucide name), emoji? (one emoji),
+                                path? (an imported repository folder),
+                                codeUrl? (a code link: an https address),
                                 media nodes: mediaPath (the file's name in Storage),
                                 mediaWidth, mediaHeight (the file's pixels), alt;
                                 the title is the caption
 edges: Y.Map<edgeId, Y.Map>     source, target, sourceHandle, targetHandle,
                                 shape: spline|step, stroke: solid|dotted,
                                 direction: none|forward|reverse|both,
-                                color, label?, icon?, emoji?, docId?, openMode
+                                color, label?, icon?, emoji?, codeUrl?, docId?,
+                                openMode
 ```
 Maps keyed by id, with a nested map per object, so two users editing different properties of the same node merge cleanly. Boxes are nodes with `kind: plain`, groups with `kind: group`; children point at them through `parentId`, which is how React Flow models sub-flows. A group is a frame with no fill: it takes the pointer on its border and label only, and dropping it over nodes takes in the ones wholly inside it (`lib/whiteboard/adopt.ts`). A shape's geometry (outline, where edges attach, where the title fits) is computed in one place, `lib/whiteboard/shapes.ts`, for both the canvas and the embed renderer; icons are drawn by both from `lib/whiteboard/icon-data.ts`, generated from lucide-react by `scripts/generate-whiteboard-icons.mjs`. How long titles, body text, labels and alt text may be, and how small or large each kind of node, is in `lib/whiteboard/limits.ts`, which the canvas's fields and resize handles and the MCP tools both read, so an agent can write only what a person could. Undo/redo (R3.14) uses `Y.UndoManager`, scoped to the local user.
+
+**Code links (R4.11).** A code link is one more flat field, `codeUrl`, on a node or an arrow: the address as it was written. `lib/whiteboard/code-link.ts` holds all of it: `parseCodeUrl` (https only, no credentials, a host with a dot, at most `MAX_CODE_URL` characters), which `readNode` and `readEdge` apply too, so whatever another client wrote, only an https address is ever made a link; `describeCodeUrl`, which turns a GitHub, GitLab, Bitbucket or Gitea address into its path, lines and repository; and `codeLinkOf`, which gives a box with a `path` the folder's address in the project's repository (`projects.source`, at its `ref`) when the box has no link of its own. That link is worked out wherever a node is read (the canvas, `read_whiteboard`, the embed, the export) and never stored, so boxes imported before code links existed have one, a link of the box's own replaces it, and removing that brings the folder back. The canvas gets the project's source from the page, beside the whiteboard's context. The panel writes the field only when an address is finished (Enter or leaving the field), so collaborators never see half of one and one change is one step to undo.
 
 **Picture and video nodes.** A picture or a video is a node like any other (selection, groups, arrows on four sides, badges, copy and paste, Arrange, undo), whose box keeps the file's proportions when resized. What is stored:
 

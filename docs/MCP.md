@@ -12,7 +12,7 @@ Every workspace has a page with the address and the quickest way into each clien
 
 | Client | How |
 |---|---|
-| Claude Code | `claude mcp add --transport http subcanvas https://<your domain>/mcp`, then `/mcp` to sign in |
+| Claude Code | For subcanvas.app, the plugin: `claude plugin marketplace add subcanvas/subcanvas`, then `claude plugin install subcanvas@subcanvas` (below). For any server, `claude mcp add --transport http subcanvas https://<your domain>/mcp`. Then `/mcp` to sign in |
 | Codex (CLI, IDE extension, ChatGPT desktop) | `codex mcp add subcanvas --url https://<your domain>/mcp`, then `codex mcp login subcanvas` |
 | Cursor | The "Add to Cursor" button, or `{ "mcpServers": { "subcanvas": { "url": "https://<your domain>/mcp" } } }` in `~/.cursor/mcp.json` |
 | VS Code | The "Add to VS Code" button, or `{ "servers": { "subcanvas": { "type": "http", "url": "https://<your domain>/mcp" } } }` in `mcp.json` |
@@ -20,6 +20,24 @@ Every workspace has a page with the address and the quickest way into each clien
 | ChatGPT | Settings → Security and login → Developer mode; then add an app with the address as its public endpoint |
 
 What happens next is the same everywhere. The client asks `/mcp` without a token and gets a `401` whose `WWW-Authenticate` header points at `/.well-known/oauth-protected-resource`. That document names Supabase Auth as the authorization server. The client reads Supabase's metadata, registers itself, and opens a browser. The person signs in to Subcanvas if they are not already, sees "Let *client* use Subcanvas as you?" at `/oauth/consent`, and approves. The client gets an access token and a refresh token, and uses the server.
+
+### The Claude Code plugin
+
+This repository is also a Claude Code plugin marketplace: `.claude-plugin/marketplace.json` lists one plugin, [`plugins/subcanvas`](../plugins/subcanvas). It brings the server at `https://subcanvas.app/mcp` and a skill, `diagrams`, that teaches the agent to draw whiteboards people can read with these tools: a box, a text node, or a group, each for what it is for; detail nested inside a box rather than beside it; arrows with short labels and a page behind each saying why it exists; `arrange_nodes` after adding; titles within the limits below; reading before writing; and asking before deleting what a person made. Two commands come with it, `/subcanvas:map-repo` and `/subcanvas:update-diagram`. `src/lib/mcp/plugin.test.ts` fails when the skill names a tool that does not exist or a limit that has changed.
+
+The plugin's server is subcanvas.app's. On a server of your own, add it with `claude mcp add` as in the table and turn the plugin's server, `plugin:subcanvas:subcanvas`, off in `/mcp`; the skill works the same with either. Raise `version` in `plugins/subcanvas/.claude-plugin/plugin.json` with every change to the plugin, since installed copies update only when it changes, and check it with `claude plugin validate .`.
+
+## What to ask your agent
+
+Once connected, ask in plain words. These show what Subcanvas is for with a coding agent, and each asks only for what the tools below can do:
+
+- Map this repository's services and how they talk to each other as a Subcanvas whiteboard, then put a page behind each arrow saying what crosses it.
+- Explain this pull request as a Subcanvas whiteboard: a box for each part it changes, arrows for how the changes depend on each other, and a page inside each box saying what changed and why.
+- Turn docs/onboarding.md into a nested Subcanvas whiteboard: a box for each section, with its detail on a page or a whiteboard inside the box.
+- Keep the Subcanvas diagram of this repository up to date with this branch. Add what the branch adds, fix what it changes, and ask me before you remove anything.
+- Review the Architecture whiteboard in Subcanvas against the code and fix what is wrong. List anything you would delete and wait for my answer.
+
+The same list is on the Connect an agent page, from `src/lib/mcp/example-prompts.ts`.
 
 ## Tools
 
@@ -83,6 +101,8 @@ Blocks are read and written as Markdown. The blocks Markdown has no syntax for a
 A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
 
 Nodes take what the canvas takes, and no more: the same words (a title up to 200 characters, body text up to 2,000, an arrow's label up to 120, alt text up to 500), the same sizes (a box can be no smaller than 80 by 40, a text node 120 wide, a group 160 by 100, a picture or video 48 on either side, and nothing larger than 4,000; a size outside that is brought within it), a box's shape at that shape's size, and a picture or video at its file's proportions. The limits are defined once, in `src/lib/whiteboard/limits.ts`. A field a node cannot show is refused rather than stored where nobody would see it: body text on a box, a shape on a group, alt text on anything but a picture or video, a color on a picture or video.
+
+A node or an arrow can carry a **code link** (`code_url`): the https address of the code it stands for, a file, some lines of it (`#L10-L20` on GitHub) or a folder, on any forge. `add_nodes`, `update_nodes`, `connect_nodes` and `update_edges` take it, the same as the panel's Code field: https only, at most 2,000 characters, and `null` removes it. The tool descriptions ask agents to link the files they describe, since a diagram whose boxes open the code they stand for is the one people use. `read_whiteboard` returns each one; a box drawn for a repository folder by the import, with no link of its own, returns its folder at the imported branch with `code_url_from_folder: true`. That link is not stored: setting `code_url` replaces it, and removing that brings the folder back. An update that leaves a field out leaves it as it is.
 
 Most agents write Mermaid fluently, so `import_mermaid` is the quickest way to a whole diagram: one call with a flowchart, a sequence diagram or an ER diagram makes a new whiteboard (or adds to one) of real boxes, groups and arrows, laid out in the diagram's direction, which people then click into and edit like any other. It returns the node id each Mermaid id became, for `attach_document` and the rest, and lists whatever the whiteboard does not show (styles, notes, loops). `add_nodes` and `connect_nodes` remain the tools for small changes. What is drawn, and how, is in [IMPORTING.md](IMPORTING.md#mermaid-diagrams).
 
