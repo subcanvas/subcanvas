@@ -27,6 +27,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { prosemirrorToYXmlFragment } from "y-prosemirror"
 
+import { importMermaid } from "@/app/[org]/[project]/import-actions"
 import { DocumentPicker } from "@/components/document-picker"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { limitMessage } from "@/lib/billing/limit"
@@ -42,6 +43,7 @@ import { createCallout } from "./blocks/callout"
 import { createEquation, inlineEquation } from "./blocks/equation"
 import { createTableOfContents } from "./blocks/table-of-contents"
 import { adopt, resolveFileUrl, uploader, useUploadCleanup } from "./media"
+import { SideMenuWithMermaid, type MermaidBlock } from "./mermaid-block-item"
 import {
   createDocumentLink,
   TextDocumentContextProvider,
@@ -264,6 +266,23 @@ export default function TextEditor({
     router.refresh()
   }
 
+  // A Mermaid code block drawn as a whiteboard inside this page. The code
+  // stays, and a link to the whiteboard goes under it.
+  async function drawMermaid(block: MermaidBlock) {
+    const result = await importMermaid(
+      { slug: context.slug, orgId: context.orgId, projectId: context.projectId },
+      { kind: "document", id: context.documentId },
+      block.text
+    )
+    if ("error" in result) return showRefusal(result)
+    if (editor.getBlock(block.id))
+      editor.insertBlocks([{ type: "documentLink", props: { docId: result.id! } }], block.id, "after")
+    router.refresh()
+    toast.success("Drawn as a whiteboard inside this page.", {
+      description: result.notes?.length ? `Not drawn as written: ${result.notes.join(" ")}` : undefined,
+    })
+  }
+
   // Blocks for what Notion pages hold, so an imported page reads the same
   // here and can be written the same way.
   const blockItems = (): DefaultReactSuggestionItem[] => [
@@ -343,7 +362,9 @@ export default function TextEditor({
         editable={editable}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         slashMenu={false}
+        sideMenu={false}
       >
+        <SideMenuWithMermaid onDraw={editable ? (block) => void drawMermaid(block) : undefined} />
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>

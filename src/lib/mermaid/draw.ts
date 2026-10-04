@@ -52,7 +52,7 @@ export function boxSize(shape: NodeShape, title: string) {
     const fits = linesThatFit(text.height, LINE_HEIGHT, 3)
     if (lines <= Math.min(2, fits)) break
     if (width < most) {
-      width += 16
+      width = Math.min(most, width + 16)
       if (grows) height += 6
     } else if (lines <= fits || lines > 3) break
     else height += LINE_HEIGHT

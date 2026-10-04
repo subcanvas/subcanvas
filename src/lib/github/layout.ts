@@ -85,6 +85,9 @@ export type Frame = Position & { width: number; height: number }
 // An empty group still takes room on the board.
 const EMPTY_GROUP = { width: 200, height: 100 }
 const LABEL_HEIGHT = 28
+// A label's pill is wider than its words.
+const LABEL_PADDING = 16
+const MAX_FANNED_GAP = 240
 
 // A diagram drawn from a description of it (a Mermaid import): every node
 // is placed along the arrows, in the direction the description asks for,
@@ -102,8 +105,25 @@ export function layoutDiagram({
   clusters: { id: string; parent: string | null }[]
   rankdir: Rankdir
 }): { nodes: Map<string, Position>; clusters: Map<string, Frame> } {
+  const across = rankdir === "LR" || rankdir === "RL"
+  // An arrow's label is drawn halfway along it. Two arrows that fan out
+  // from one node (or into one) have their middles half as far apart as
+  // their other ends, so in a diagram that flows down, the nodes they reach
+  // stand far enough apart for two labels side by side.
+  const fanned = (end: "source" | "target") => {
+    const counts = new Map<string, number>()
+    for (const edge of edges) if (edge.label) counts.set(edge[end], (counts.get(edge[end]) ?? 0) + 1)
+    return edges.filter((edge) => edge.label && counts.get(edge[end])! > 1)
+  }
+  const widestFanned = Math.max(
+    0,
+    ...[...fanned("source"), ...fanned("target")].map((edge) => edge.label.length * LABEL_CHARACTER_WIDTH + LABEL_PADDING)
+  )
+  const narrowest = Math.min(...nodes.map((node) => node.width))
+  const nodesep = across ? NODE_GAP : Math.min(MAX_FANNED_GAP, Math.max(NODE_GAP, widestFanned * 2 - narrowest))
+
   const graph = new dagre.graphlib.Graph({ multigraph: true, compound: true })
-  graph.setGraph({ rankdir, nodesep: NODE_GAP, ranksep: RANK_GAP, marginx: 0, marginy: 0 })
+  graph.setGraph({ rankdir, nodesep, ranksep: RANK_GAP, marginx: 0, marginy: 0 })
 
   const holds = new Map<string, string[]>()
   const hold = (parent: string | null, child: string) => {
@@ -129,7 +149,6 @@ export function layoutDiagram({
   for (const node of nodes) if (node.parent) graph.setParent(node.id, node.parent)
   for (const cluster of clusters) if (cluster.parent) graph.setParent(cluster.id, cluster.parent)
 
-  const across = rankdir === "LR" || rankdir === "RL"
   const lane = across
     ? Math.max(0, ...nodes.map((node) => node.height))
     : Math.max(0, ...nodes.map((node) => node.width))
