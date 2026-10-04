@@ -51,6 +51,15 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
   await expect(nodeLabelled(page, "Web")).toHaveCount(0)
   await expect(nodeLabelled(page, "Payments")).toHaveCount(0)
 
+  // Each folder's box links to its code: the folder, at the branch that was
+  // imported. Nothing stores it; it comes from the box's folder and the
+  // project's repository, so boxes imported before code links have it too.
+  const servicesCode = canvas(page).getByRole("link", { name: "Open code: services in fixture/orchard (opens in a new tab)" })
+  await expect(servicesCode).toHaveAttribute("href", "https://github.com/fixture/orchard/tree/main/services")
+  await expect(servicesCode).toHaveAttribute("target", "_blank")
+  // The README's box stands for no folder, and has no such link.
+  await expect(canvas(page).getByRole("link", { name: /^Open code/ })).toHaveCount(2)
+
   // The README opens in the panel beside its node, read-only: the
   // repository owns it, and the bar above the text says where it is from.
   await clickNode(page, "README")
@@ -76,6 +85,11 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
   await closePanel(page)
   await clickNode(page, "Services")
   await expect(panel.getByText("A whiteboard. Click to go inside.")).toBeVisible()
+  // The panel shows the folder as that link.
+  await expect(panel.getByRole("link", { name: "Open code: services in fixture/orchard (opens in a new tab)" })).toHaveAttribute(
+    "href",
+    "https://github.com/fixture/orchard/tree/main/services"
+  )
   await panel.getByRole("button", { name: "Services" }).click()
   await expect(breadcrumb(page).getByText("Services", { exact: true })).toBeVisible()
   await expect(whiteboardTools(page)).toBeVisible()
