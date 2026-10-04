@@ -10,12 +10,15 @@ import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
 import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
 
+import { MAX_MERMAID_LENGTH, SUPPORTED } from "@/lib/mermaid/parse"
+import { addMermaidToWhiteboard, createMermaidWhiteboard, type MermaidOutcome } from "@/lib/mermaid/write"
+
 import { editDocument } from "../edit-document"
-import { documentUrl, findDocument, findTypedDocument, IN_TRASH, NO_DOCUMENT, READ_FROM_TRASH } from "../lookup"
+import { documentUrl, findDocument, findProject, findTypedDocument, IN_TRASH, NO_DOCUMENT, NO_PROJECT, READ_FROM_TRASH } from "../lookup"
 import { createInsideObject, reindexLinks } from "../object-documents"
 import { defineTool, id, type ToolContext, type ToolResult } from "../tool"
 import * as edits from "../whiteboard-edits"
-import { writeInitialMarkdown } from "./documents"
+import { container, writeInitialMarkdown } from "./documents"
 
 const whiteboardId = id("The whiteboard document.")
 const nodeId = (what: string) => z.string().min(1).describe(`${what} From \`read_whiteboard\` or the result of \`add_nodes\`.`)
@@ -416,6 +419,72 @@ export const whiteboardTools = [
         (doc) => edits.arrangeNodes(doc, group_id ?? null),
         ({ ids }) => ({ text: `Arranged ${ids.length} node${ids.length === 1 ? "" : "s"}.`, data: { node_ids: ids } })
       ),
+  }),
+
+  defineTool({
+    name: "import_mermaid",
+    title: "Draw a Mermaid diagram on a whiteboard",
+    group: "Whiteboards",
+    description:
+      `Draws a Mermaid diagram as real boxes, groups and arrows that people can click into and edit, laid out in the diagram's direction. With \`project_id\` it makes a new whiteboard (named after the diagram's \`title\` unless you give one); with \`whiteboard_id\` it adds the diagram beside what is already on that whiteboard. Draws ${SUPPORTED}. Flowcharts: every direction, the bracket shapes and \`A@{ shape: ... }\` as the nearest of the whiteboard's shapes (\`[(db)]\` a cylinder, \`{decision}\` a diamond), link labels, dotted links, chains and \`&\`, and subgraphs as groups, which arrows may end on. Sequence diagrams: participants as boxes in a row (actors with a person icon, a \`box\` as a group), and the messages one way between two participants as one arrow, numbered in the order they were sent. ER diagrams: entities as boxes, each entity's attributes as a table on the page inside its box, and relationships as arrows labelled with their words and cardinality, dotted when non-identifying. Styles, classes, click actions, notes, loops and activations are not drawn; the result lists everything left out. Prefer this to \`add_nodes\`, \`connect_nodes\` and \`arrange_nodes\` for drawing a new diagram of more than a few boxes: one call, and Mermaid is easy to get right. Use those tools for small changes to a diagram that is already there, and \`attach_document\` to put a whiteboard or page inside a box. Returns the whiteboard and the node id each Mermaid id became.`,
+    input: {
+      mermaid: z
+        .string()
+        .min(1)
+        .max(MAX_MERMAID_LENGTH)
+        .describe("The diagram, starting with its kind (`flowchart LR`, `sequenceDiagram`, `erDiagram`). A ```mermaid fence around it is fine."),
+      project_id: id("Make a new whiteboard in this project, from `list_projects`.").optional(),
+      place: container.optional().describe("Where in the project's tree the new whiteboard goes. Default the top level. Only with `project_id`."),
+      title: z.string().min(1).max(200).optional().describe("The new whiteboard's name. Only with `project_id`."),
+      whiteboard_id: id("Add the diagram to this whiteboard instead of making a new one.").optional(),
+    },
+    kind: "write",
+    covers: ["[org]/[project]/import-actions.importMermaid", "[org]/[project]/import-actions.writeMermaidPages"],
+    run: async (context, { mermaid, project_id, place: where, title, whiteboard_id }) => {
+      if (!project_id === !whiteboard_id)
+        return { error: "Give either `project_id`, to make a new whiteboard, or `whiteboard_id`, to add to one." }
+
+      let result: MermaidOutcome | { error: string; limit?: true }
+      let whiteboard: { id: string; org_id: string; project_id: string }
+      if (whiteboard_id) {
+        if (where || title) return { error: "`place` and `title` are for a new whiteboard, with `project_id`." }
+        const found = await findTypedDocument(context, whiteboard_id, "whiteboard")
+        if ("error" in found) return found
+        whiteboard = found
+        result = await addMermaidToWhiteboard(context.supabase, found, mermaid)
+      } else {
+        const project = await findProject(context, project_id!)
+        if (!project) return NO_PROJECT
+        result = await createMermaidWhiteboard(
+          context.supabase,
+          { orgId: project.org_id, projectId: project.id },
+          context.userId,
+          where ?? { kind: "root" },
+          mermaid,
+          title
+        )
+        if ("error" in result) return result
+        whiteboard = { id: result.whiteboardId, org_id: project.org_id, project_id: project.id }
+      }
+      if ("error" in result) return result
+
+      const url = await documentUrl(context, whiteboard)
+      const nodeIds = Object.fromEntries(result.keys)
+      const drawn = `${result.boxes} ${result.boxes === 1 ? "box" : "boxes"} and ${result.arrows} ${result.arrows === 1 ? "arrow" : "arrows"}`
+      return {
+        text: [
+          whiteboard_id
+            ? `Added ${drawn} to the whiteboard (${whiteboard.id}).`
+            : `Drew ${drawn} on a new whiteboard (${whiteboard.id}).`,
+          url ? `Open it at ${url}` : "",
+          `Node ids by Mermaid id: ${JSON.stringify(nodeIds)}.`,
+          result.notes.length ? `Not drawn as written: ${result.notes.join(" ")}` : "Everything in the diagram was drawn.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        data: { whiteboard_id: whiteboard.id, url, node_ids: nodeIds, boxes: result.boxes, arrows: result.arrows, notes: result.notes },
+      }
+    },
   }),
 
   defineTool({

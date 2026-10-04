@@ -59,6 +59,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `create_group` | Create a group | writes |
 | `set_group_membership` | Move nodes into or out of a group | writes |
 | `arrange_nodes` | Lay out a whiteboard automatically | destructive |
+| `import_mermaid` | Draw a Mermaid diagram on a whiteboard | writes |
 | `attach_document` | Put a document inside a node or arrow | writes |
 | `detach_document` | Detach the document from a node or arrow | writes |
 | `import_github_repository` | Draw a GitHub repository as a project | writes |
@@ -82,6 +83,8 @@ Blocks are read and written as Markdown. The blocks Markdown has no syntax for a
 A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
 
 Nodes take what the canvas takes, and no more: the same words (a title up to 200 characters, body text up to 2,000, an arrow's label up to 120, alt text up to 500), the same sizes (a box can be no smaller than 80 by 40, a text node 120 wide, a group 160 by 100, a picture or video 48 on either side, and nothing larger than 4,000; a size outside that is brought within it), a box's shape at that shape's size, and a picture or video at its file's proportions. The limits are defined once, in `src/lib/whiteboard/limits.ts`. A field a node cannot show is refused rather than stored where nobody would see it: body text on a box, a shape on a group, alt text on anything but a picture or video, a color on a picture or video.
+
+Most agents write Mermaid fluently, so `import_mermaid` is the quickest way to a whole diagram: one call with a flowchart, a sequence diagram or an ER diagram makes a new whiteboard (or adds to one) of real boxes, groups and arrows, laid out in the diagram's direction, which people then click into and edit like any other. It returns the node id each Mermaid id became, for `attach_document` and the rest, and lists whatever the whiteboard does not show (styles, notes, loops). `add_nodes` and `connect_nodes` remain the tools for small changes. What is drawn, and how, is in [IMPORTING.md](IMPORTING.md#mermaid-diagrams).
 
 Deleting works as it does in the app. A document or folder goes to the project's trash with everything inside it, and `restore_document` brings it back; only something already in the trash can be deleted for good. Deleting a node or arrow (`delete_nodes`, `delete_edges`) sends what it held, its description or the whiteboard inside it, to the trash too, and the result names what went there. A plan limit is refused with what the limit is, and, where the server sells a plan, that an owner can upgrade.
 
