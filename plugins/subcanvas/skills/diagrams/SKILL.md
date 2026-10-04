@@ -50,7 +50,7 @@ Titles are short: a box's title is its name, a few words, about 30 characters or
 
 ## Lay it out
 
-Build a diagram in this order: `add_nodes` with everything at once (leave out x and y), `connect_nodes`, then `arrange_nodes`, which lays the nodes out left to right along the arrows. Arrange each nested whiteboard after drawing it, and the inside of a group with `group_id`.
+Build a diagram in this order: `add_nodes` with the boxes at once (leave out x and y), `connect_nodes`, then `arrange_nodes`, which lays the nodes out left to right along the arrows and puts every node no arrow joins in a grid underneath. So add a title or a legend after arranging, with x and y that place it where it belongs (a title above the diagram has a y less than the top box's). Arrange each nested whiteboard after drawing it, and the inside of a group with `group_id`.
 
 `arrange_nodes` moves every node on the level it lays out and overwrites positions people chose by hand. Use it on a whiteboard you drew, or when asked. When you add a few nodes to a whiteboard someone laid out, pass `near_node_id` to `add_nodes` instead, and leave everything else where it is.
 
