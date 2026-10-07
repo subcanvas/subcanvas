@@ -2,7 +2,8 @@
 // client's own and documented by it:
 //   Cursor:  https://cursor.com/docs/context/mcp/install-links
 //   VS Code: https://code.visualstudio.com/api/extension-guides/ai/mcp
-//   Claude Code: https://code.claude.com/docs/en/mcp
+//   Claude Code: https://code.claude.com/docs/en/mcp, and for its plugins
+//     https://code.claude.com/docs/en/plugin-marketplaces
 //   Codex: https://developers.openai.com/codex/mcp
 
 export const SERVER_NAME = "subcanvas"
@@ -21,6 +22,19 @@ export function vscodeInstallLink(url: string) {
 
 export function claudeCodeCommand(url: string) {
   return `claude mcp add --transport http ${SERVER_NAME} ${url}`
+}
+
+// The Claude Code plugin in this repository, plugins/subcanvas, listed by the
+// marketplace at the repository's root (.claude-plugin/marketplace.json). It
+// brings the server and a skill for drawing. Its server is subcanvas.app's,
+// written in plugins/subcanvas/.mcp.json: a self-hosted server is added
+// beside it with `claudeCodeCommand`.
+export const PLUGIN_MARKETPLACE = "subcanvas/subcanvas"
+export const PLUGIN_ID = "subcanvas@subcanvas"
+export const PLUGIN_SERVER_URL = "https://subcanvas.app/mcp"
+
+export function claudeCodePluginCommand() {
+  return `claude plugin marketplace add ${PLUGIN_MARKETPLACE} && claude plugin install ${PLUGIN_ID}`
 }
 
 // Two commands, not one: Codex adds the server and signs in separately. The

@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test"
 
-import { cardTitled, createProject, freshAccount, freshId, signUp, signUpWithOrg } from "./support/app"
+import {
+  cardTitled,
+  createProject,
+  freshAccount,
+  freshId,
+  personalSlug,
+  signIn,
+  signOut,
+  signUp,
+  signUpWithOrg,
+} from "./support/app"
 import {
   callTool,
   connectThroughOAuth,
@@ -12,6 +22,7 @@ import {
   refusedTool,
   RESOURCE_METADATA_PATH,
 } from "./support/mcp"
+import { takeDown } from "./support/database"
 
 // The MCP server, reached the way an agent reaches it: over HTTP from Node,
 // signed in through the real OAuth flow with the browser as the person.
@@ -75,24 +86,72 @@ test("signs an agent in through the consent page, and it works as that person", 
   const { tools } = await client.listTools()
   expect(tools.map((tool) => tool.name).sort()).toEqual(documentedTools().sort())
 
-  // The token is the person's own, so the agent sees their org with their role.
-  const { orgs } = (await callTool(client, "list_orgs")) as { orgs: { id: string; slug: string; role: string }[] }
-  expect(orgs).toEqual([expect.objectContaining({ slug, role: "owner" })])
+  // The token is the person's own, so the agent sees their workspaces with
+  // their role: the personal one first, then the team one.
+  const { workspaces } = (await callTool(client, "list_workspaces")) as {
+    workspaces: { id: string; slug: string; role: string; personal: boolean }[]
+  }
+  expect(workspaces).toEqual([
+    expect.objectContaining({ personal: true, role: "owner" }),
+    expect.objectContaining({ slug, personal: false, role: "owner" }),
+  ])
 
   const id = freshId()
   const projectName = `Agent project ${id}`
   const boardName = `Agent board ${id}`
-  const { project_id } = (await callTool(client, "create_project", { org_id: orgs[0].id, name: projectName })) as {
+  const { project_id } = (await callTool(client, "create_project", { workspace_id: workspaces[1].id, name: projectName })) as {
     project_id: string
   }
-  await callTool(client, "create_document", { project_id, type: "whiteboard", title: boardName })
+  const { document_id: board } = (await callTool(client, "create_document", {
+    project_id,
+    type: "whiteboard",
+    title: boardName,
+  })) as { document_id: string }
+
+  // A node deleted by an agent takes what it held to the trash, as on the canvas.
+  const inside = `Inside ${id}`
+  const { node_ids } = (await callTool(client, "add_nodes", { whiteboard_id: board, nodes: [{ title: inside }] })) as {
+    node_ids: string[]
+  }
+  const { document_id: held } = (await callTool(client, "attach_document", {
+    whiteboard_id: board,
+    object_id: node_ids[0],
+    type: "whiteboard",
+  })) as { document_id: string }
+  const deleted = (await callTool(client, "delete_nodes", { whiteboard_id: board, node_ids })) as {
+    trashed_document_ids: string[]
+  }
+  expect(deleted.trashed_document_ids).toEqual([held])
+
+  // A project the operator took down reads as taken down, as it does in the
+  // app, and has no embed to hand out.
+  const { project_id: shown } = (await callTool(client, "create_project", {
+    workspace_id: workspaces[1].id,
+    name: `Shown ${id}`,
+    visibility: "public",
+  })) as { project_id: string }
+  const { document_id: shownBoard } = (await callTool(client, "create_document", {
+    project_id: shown,
+    type: "whiteboard",
+    title: `Shown board ${id}`,
+  })) as { document_id: string }
+  takeDown(shown)
+  const listed = (await callTool(client, "list_projects", { workspace_id: workspaces[1].id })) as {
+    projects: { id: string; visibility: string; taken_down: boolean }[]
+  }
+  expect(listed.projects.find((project) => project.id === shown)).toEqual(
+    expect.objectContaining({ visibility: "public", taken_down: true })
+  )
+  expect(await refusedTool(client, "get_embed_snippet", { whiteboard_id: shownBoard })).toMatch(/taken down/)
   await client.close()
 
   // What the agent made is there for the person, in the browser.
   await page.goto(`/${slug}`)
-  await page.getByRole("link", { name: projectName }).click()
+  await page.getByRole("main").getByRole("link", { name: projectName }).click()
   await page.waitForURL(`/${slug}/${project_id}`)
   await expect(page.getByRole("link", { name: boardName, exact: true })).toBeVisible()
+  await page.goto(`/${slug}/${project_id}/trash`)
+  await expect(page.getByRole("main").getByRole("listitem").filter({ hasText: inside })).toContainText("Whiteboard")
 })
 
 test("an approved agent is listed in Profile, and once revoked its token is refused at once", async ({
@@ -105,7 +164,7 @@ test("an approved agent is listed in Profile, and once revoked its token is refu
 
   const { client, provider } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
-  await callTool(client, "list_orgs")
+  await callTool(client, "list_workspaces")
   const token = provider.tokens()?.access_token
   if (!token) throw new Error("The client holds no token")
 
@@ -124,8 +183,39 @@ test("an approved agent is listed in Profile, and once revoked its token is refu
   })
   expect(refused.status()).toBe(401)
   // And its refresh token is gone, so the client cannot get another.
-  await expect(client.callTool({ name: "list_orgs", arguments: {} })).rejects.toThrow()
+  await expect(client.callTool({ name: "list_workspaces", arguments: {} })).rejects.toThrow()
   await client.close().catch(() => {})
+})
+
+test("signed in as the wrong account, the consent page signs out, and connecting again works as the right one", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
+  const right = await signUp(page)
+  await signOut(page)
+  const wrong = await signUp(page)
+
+  // Not you? A request belongs to the account that opened it, so signing
+  // out refuses it, and the app is told no.
+  const refused = await connectThroughOAuth(page, { baseURL: baseURL!, email: wrong.email, decision: "sign-out" })
+  expect(refused.client).toBeNull()
+  expect(refused.params.get("error")).toBe("access_denied")
+  // The browser went back to the app with the refusal, signed out here.
+  await page.waitForURL(/\/callback\?error=access_denied/)
+  await page.goto("/login")
+  await expect(page.getByLabel("Email")).toBeVisible()
+
+  // Connecting again from the app asks again, and the right account says yes.
+  await signIn(page, right)
+  await page.waitForURL(`/${personalSlug(right)}`)
+  const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: right.email, decision: "approve" })
+  if (!client) throw new Error("No client after approval")
+
+  // The agent is the account that approved it.
+  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { slug: string }[] }
+  expect(workspaces.map((workspace) => workspace.slug)).toEqual([personalSlug(right)])
+  await client.close()
 })
 
 test("cancelling on the consent page gives the agent no token", async ({ page, baseURL }) => {
@@ -167,25 +257,29 @@ test("a viewer's agent can read and cannot write", async ({ page, browser, baseU
     })
     if (!client) throw new Error("No client after approval")
 
-    const { orgs } = (await callTool(client, "list_orgs")) as {
-      orgs: { id: string; slug: string; role: string; can_edit: boolean }[]
+    const { workspaces } = (await callTool(client, "list_workspaces")) as {
+      workspaces: { id: string; slug: string; role: string; can_edit: boolean; personal: boolean }[]
     }
-    expect(orgs).toEqual([expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false })])
+    expect(workspaces).toEqual([
+      expect.objectContaining({ personal: true }),
+      expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false }),
+    ])
+    const team = workspaces[1].id
 
     // Reads work: the viewer can look.
-    const { projects } = (await callTool(client, "list_projects", { org_id: orgs[0].id })) as {
+    const { projects } = (await callTool(client, "list_projects", { workspace_id: team })) as {
       projects: { id: string }[]
     }
     expect(projects.map((project) => project.id)).toContain(projectId)
 
     // Writes are refused by the database, in the same words the app uses.
-    expect(await refusedTool(client, "create_project", { org_id: orgs[0].id, name: "Viewer was here" })).toMatch(
+    expect(await refusedTool(client, "create_project", { workspace_id: team, name: "Viewer was here" })).toMatch(
       /permission/i
     )
     expect(await refusedTool(client, "create_document", { project_id: projectId, type: "text" })).toMatch(/permission/i)
 
     // And nothing appeared.
-    const after = (await callTool(client, "list_projects", { org_id: orgs[0].id })) as { projects: { id: string }[] }
+    const after = (await callTool(client, "list_projects", { workspace_id: team })) as { projects: { id: string }[] }
     expect(after.projects.map((project) => project.id)).toEqual([projectId])
     await client.close()
   } finally {

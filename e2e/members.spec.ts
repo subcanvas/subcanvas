@@ -98,7 +98,7 @@ test("a member invited as a viewer can look, can change things once an editor, a
   }
 })
 
-test("an invite is for one address, and someone else signed in cannot take it", async ({
+test("an invite is for one address, and someone else signed in can sign out to take it", async ({
   page,
   browser,
   baseURL,
@@ -118,6 +118,23 @@ test("an invite is for one address, and someone else signed in cannot take it", 
     // Not in: the org is not theirs to see.
     await other.page.goto(`/${slug}`)
     await expect(other.page.getByText("There is nothing here")).toBeVisible()
+
+    // The page that says to sign out has the button for it, and signing in
+    // again, here as a new account for the invited address, comes back to
+    // the invite.
+    await other.page.goto(link)
+    await other.page.getByRole("button", { name: "Sign out" }).click()
+    await other.page.waitForURL(
+      (url) => url.pathname === "/login" && url.searchParams.get("next") === new URL(link).pathname
+    )
+    await other.page.getByRole("button", { name: "Create an account" }).click()
+    await other.page.getByLabel("Email").fill(invited.email)
+    await other.page.getByLabel("Password").fill(invited.password)
+    await other.page.getByRole("button", { name: "Create account", exact: true }).click()
+    await other.page.waitForURL(link)
+    await other.page.getByRole("button", { name: "Accept invite" }).click()
+    await other.page.waitForURL(`/${slug}`)
+    await expect(other.page.getByRole("heading", { name: "Projects" })).toBeVisible()
   } finally {
     await other.context.close()
   }
@@ -130,3 +147,53 @@ async function joinAsNobody(browser: Browser, baseURL: string) {
   await signUp(page)
   return { context, page }
 }
+
+// A workspace must keep an owner. Its only owner is not offered a Leave that
+// would fail, and is told what to do instead; once someone else is an owner,
+// Leave is there, and asks before it does anything.
+test("the only owner is not offered Leave, and Leave asks first once there is another owner", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  const { account, slug } = await signUpWithOrg(page)
+  await page.goto(`/${slug}/settings/members`)
+  const own = memberRow(page, account.email)
+  await expect(own).toBeVisible()
+  await expect(own.getByRole("button", { name: "Leave" })).toHaveCount(0)
+  await expect(page.getByText("You are the only owner, so you cannot leave.")).toBeVisible()
+  await expect(page.getByRole("link", { name: "delete the workspace" })).toHaveAttribute(
+    "href",
+    `/${slug}/settings/general`
+  )
+
+  const guest = freshAccount()
+  const link = await createInviteLink(page, slug, guest.email, "Editor")
+  const member = await joinThroughInvite(browser, baseURL!, link, guest, slug)
+  try {
+    // Still the only owner with someone else in it.
+    await page.goto(`/${slug}/settings/members`)
+    await expect(memberRow(page, guest.email)).toBeVisible()
+    await expect(own.getByRole("button", { name: "Leave" })).toHaveCount(0)
+
+    await setMemberRole(page, slug, guest.email, "Owner")
+    await page.reload()
+    await expect(page.getByText("You are the only owner, so you cannot leave.")).toHaveCount(0)
+
+    // Cancel leaves everything as it was.
+    await own.getByRole("button", { name: "Leave" }).click()
+    const dialog = page.getByRole("dialog")
+    await expect(dialog.getByText("You lose access to its projects right away.")).toBeVisible()
+    await dialog.getByRole("button", { name: "Cancel" }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(own).toBeVisible()
+
+    await own.getByRole("button", { name: "Leave" }).click()
+    await dialog.getByRole("button", { name: "Leave the workspace" }).click()
+    await expect(page).not.toHaveURL(new RegExp(`/${slug}/settings/members`))
+    await page.goto(`/${slug}`)
+    await expect(page.getByText("There is nothing here")).toBeVisible()
+  } finally {
+    await member.context.close()
+  }
+})

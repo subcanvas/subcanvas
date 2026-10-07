@@ -5,7 +5,7 @@ import { AuthShell } from "@/components/auth-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requireUser } from "@/lib/auth"
 
-import { ConsentForm } from "./consent-form"
+import { ConsentForm, SignOutInstead } from "./consent-form"
 
 export const metadata: Metadata = { title: "Connect an app" }
 
@@ -35,12 +35,15 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Let {data.client.name} use Subcanvas as you?</CardTitle>
-          <CardDescription>You are signed in as {user.email}.</CardDescription>
+          <CardDescription>
+            You are signed in as {user.email}. Not you? <SignOutInstead authorizationId={authorizationId} /> and
+            connect again from the app.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <p>
-            It will be able to read and change everything you can, in every org you belong to:
-            projects, whiteboards, and documents. It cannot manage members or billing, and it never
+            It will be able to read and change everything you can, in every workspace you belong to:
+            projects, whiteboards, and pages. It cannot manage members or billing, and it never
             sees your password.
           </p>
           <p className="text-muted-foreground">

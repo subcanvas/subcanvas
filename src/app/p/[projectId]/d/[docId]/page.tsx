@@ -4,7 +4,7 @@ import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb
 import { TextDocument } from "@/components/editor/text-document"
 import { ReferencedBy } from "@/components/referenced-by"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
-import { readDocumentSource } from "@/lib/github/source"
+import { readDocumentSource, readProjectSource } from "@/lib/github/source"
 import { parseVia } from "@/lib/navigation"
 import { PUBLIC_SLUG } from "@/lib/public-route"
 import { createClient } from "@/lib/supabase/server"
@@ -30,17 +30,19 @@ export default async function PublicDocumentPage({
       .maybeSingle(),
     supabase
       .from("projects")
-      .select("name")
+      .select("name, source")
       .eq("id", projectId)
       .eq("visibility", "public")
       .maybeSingle(),
   ])
   if (!document || !project) notFound()
 
-  const { data: ancestors } = await supabase.rpc("document_ancestors", {
-    p_document_id: document.id,
-  })
-  if (ancestors?.some((ancestor) => ancestor.deleted_at !== null)) notFound()
+  // A document inside a trashed document or folder is in the trash too.
+  const [{ data: ancestors }, { data: live }] = await Promise.all([
+    supabase.rpc("document_ancestors", { p_document_id: document.id }),
+    supabase.rpc("document_is_live", { p_document_id: document.id }),
+  ])
+  if (!live) notFound()
 
   let trail: Crumb[]
   if (via.length) {
@@ -87,6 +89,7 @@ export default async function PublicDocumentPage({
             via: trailIds,
           }}
           user={guest}
+          repository={readProjectSource(project.source)}
           breadcrumb={breadcrumb}
           title={<h1 className="truncate text-lg font-semibold">{document.title}</h1>}
           actions={linkedFrom}

@@ -53,7 +53,7 @@ function DocumentLinkCard({ docId }: { docId: string }) {
       <span className="truncate">{meta.title}</span>
       {meta.trashed && <span className="text-xs font-normal text-muted-foreground">In trash</span>}
       <span className="ml-auto text-xs font-normal text-muted-foreground">
-        {meta.type === "whiteboard" ? "Whiteboard" : "Document"}
+        {meta.type === "whiteboard" ? "Whiteboard" : "Page"}
       </span>
     </Link>
   )

@@ -29,7 +29,7 @@ export default async function TermsPage() {
         When we say &quot;we&quot;, &quot;our&quot;, or &quot;us&quot; in this document, we are referring to{" "}
         {legal.operator}, who operates this service. When we say &quot;Services&quot;, we mean this website and
         the Subcanvas application delivered through it. When we say &quot;you&quot; or &quot;your&quot;, we are
-        referring to the people or organizations that own an account or an org on the Services.
+        referring to the people or organizations that own an account or a workspace on the Services.
       </p>
       <p>
         We may update these Terms of Service (&quot;Terms&quot;) in the future. Whenever we make a significant
@@ -65,7 +65,7 @@ export default async function TermsPage() {
         </li>
         <li>
           You are responsible for all content posted to and activity that occurs under your account, including
-          content posted by and activity of any users in your org.
+          content posted by and activity of any users in your workspace.
         </li>
         <li>You must be a human. Accounts registered by &quot;bots&quot; or other automated methods are not permitted.</li>
       </ul>
@@ -136,17 +136,19 @@ export default async function TermsPage() {
         </li>
         <li>
           If you cancel a paid plan before the end of your current paid up month, you will not be charged again.
-          We do not automatically prorate unused time in the last billing cycle. When a paid plan ends and an org
-          has more editors than the free plan includes, the org becomes read-only after the grace period shown in
+          We do not automatically prorate unused time in the last billing cycle. When a paid plan ends and a
+          workspace has more editors than the free plan includes, the workspace becomes read-only after the grace period shown in
           the Services, until it fits the free plan or subscribes again. No content is deleted because of this.
         </li>
         <li>
-          An owner can delete an org from its settings. To delete your account, write to {mail} from the email
-          address on the account. All of your
-          content will be inaccessible from the Services immediately upon deletion. Within 30 days, all content
-          will be permanently deleted from active systems and logs. Within 60 days, all content will be
-          permanently deleted from our backups. We cannot recover this information once it has been permanently
-          deleted.
+          An owner can delete a team workspace from its settings. To delete your account, use Profile in the Services,
+          or write to {mail} from the email address on the account. Deleting your account deletes your personal
+          workspace and every workspace that has no other members, with all of their content. Content in
+          workspaces that other people are still members of stays with those workspaces, since it is theirs too.
+          All of the content deleted with your account will be inaccessible from the Services immediately upon
+          deletion. Within 30 days, it will be permanently deleted from active systems and logs. Within 60 days,
+          it will be permanently deleted from our backups. We cannot recover this information once it has been
+          permanently deleted.
         </li>
         <li>
           We have the right to suspend or terminate your account and refuse any and all current or future use of
@@ -194,7 +196,7 @@ export default async function TermsPage() {
         </li>
         <li>
           We take measures to protect and secure your data, including encryption at rest by our database provider
-          and access rules that limit each account to its own orgs. We enforce encryption for data transmission
+          and access rules that limit each account to its own workspaces. We enforce encryption for data transmission
           from the public Internet. Keep your own copies of anything you cannot afford to lose.
         </li>
         <li>

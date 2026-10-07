@@ -1,6 +1,6 @@
 # The MCP server
 
-Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write text documents, nest a diagram inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
+Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). An agent (Claude, ChatGPT, Cursor, or anything else that speaks MCP) connected to it can read and edit Subcanvas as the person who connected it: list their projects, draw and rearrange whiteboards, write pages, nest a whiteboard inside a box. The reasoning behind it is in [ROADMAP.md](ROADMAP.md#2-full-access-mcp-server).
 
 - **Endpoint:** `https://<your domain>/mcp` (streamable HTTP, stateless). Both the 2025 protocol and 2026-07-28 are served. The tool list never changes while an agent is connected, so there is nothing to listen for: the server says `listChanged: false`, and a client opens no `subscriptions/listen` stream.
 - **Sign-in:** OAuth 2.1, with Supabase Auth as the authorization server. There are no API keys.
@@ -8,11 +8,11 @@ Subcanvas speaks the [Model Context Protocol](https://modelcontextprotocol.io). 
 
 ## Connecting
 
-Every org has a page with the address and the quickest way into each client: `/<org>/agents`. In short:
+Every workspace has a page with the address and the quickest way into each client: `/<workspace>/agents`. In short:
 
 | Client | How |
 |---|---|
-| Claude Code | `claude mcp add --transport http subcanvas https://<your domain>/mcp`, then `/mcp` to sign in |
+| Claude Code | For subcanvas.app, the plugin: `claude plugin marketplace add subcanvas/subcanvas`, then `claude plugin install subcanvas@subcanvas` (below). For any server, `claude mcp add --transport http subcanvas https://<your domain>/mcp`. Then `/mcp` to sign in |
 | Codex (CLI, IDE extension, ChatGPT desktop) | `codex mcp add subcanvas --url https://<your domain>/mcp`, then `codex mcp login subcanvas` |
 | Cursor | The "Add to Cursor" button, or `{ "mcpServers": { "subcanvas": { "url": "https://<your domain>/mcp" } } }` in `~/.cursor/mcp.json` |
 | VS Code | The "Add to VS Code" button, or `{ "servers": { "subcanvas": { "type": "http", "url": "https://<your domain>/mcp" } } }` in `mcp.json` |
@@ -21,13 +21,33 @@ Every org has a page with the address and the quickest way into each client: `/<
 
 What happens next is the same everywhere. The client asks `/mcp` without a token and gets a `401` whose `WWW-Authenticate` header points at `/.well-known/oauth-protected-resource`. That document names Supabase Auth as the authorization server. The client reads Supabase's metadata, registers itself, and opens a browser. The person signs in to Subcanvas if they are not already, sees "Let *client* use Subcanvas as you?" at `/oauth/consent`, and approves. The client gets an access token and a refresh token, and uses the server.
 
+### The Claude Code plugin
+
+This repository is also a Claude Code plugin marketplace: `.claude-plugin/marketplace.json` lists one plugin, [`plugins/subcanvas`](../plugins/subcanvas). It brings the server at `https://subcanvas.app/mcp` and a skill, `diagrams`, that teaches the agent to draw whiteboards people can read with these tools: a box, a text node, or a group, each for what it is for; detail nested inside a box rather than beside it; arrows with short labels and a page behind each saying why it exists; `arrange_nodes` after adding; titles within the limits below; reading before writing; and asking before deleting what a person made. Two commands come with it, `/subcanvas:map-repo` and `/subcanvas:update-diagram`. `src/lib/mcp/plugin.test.ts` fails when the skill names a tool that does not exist or a limit that has changed.
+
+The plugin's server is subcanvas.app's. On a server of your own, add it with `claude mcp add` as in the table and turn the plugin's server, `plugin:subcanvas:subcanvas`, off in `/mcp`; the skill works the same with either. Raise `version` in `plugins/subcanvas/.claude-plugin/plugin.json` with every change to the plugin, since installed copies update only when it changes, and check it with `claude plugin validate .`.
+
+## What to ask your agent
+
+Once connected, ask in plain words. These show what Subcanvas is for with a coding agent, and each asks only for what the tools below can do:
+
+- Map this repository's services and how they talk to each other as a Subcanvas whiteboard, then put a page behind each arrow saying what crosses it.
+- Explain this pull request as a Subcanvas whiteboard: a box for each part it changes, arrows for how the changes depend on each other, and a page inside each box saying what changed and why.
+- Turn docs/onboarding.md into a nested Subcanvas whiteboard: a box for each section, with its detail on a page or a whiteboard inside the box.
+- Keep the Subcanvas diagram of this repository up to date with this branch. Add what the branch adds, fix what it changes, and ask me before you remove anything.
+- Review the Architecture whiteboard in Subcanvas against the code and fix what is wrong. List anything you would delete and wait for my answer.
+
+The same list is on the Connect an agent page, from `src/lib/mcp/example-prompts.ts`.
+
 ## Tools
 
 Everything is addressed by id. Writes are marked in their MCP annotations as plain writes or as destructive, so a client can ask before it deletes something.
 
+The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREMENTS.md#glossary)), with a few older names kept for compatibility: a page is a document of type `text` and its tools say "text document", arrows are `edges`, a box is a node of kind `plain`, and a picture or video is kind `media`. A node's `description` is a text node's body text; the page inside a node or arrow, which the app calls its description, is a document it holds (`attach_document`).
+
 | Tool | What it does | Kind |
 |---|---|---|
-| `list_orgs` | List orgs | reads |
+| `list_workspaces` | List workspaces | reads |
 | `list_projects` | List projects | reads |
 | `get_project` | Get a project and its document tree | reads |
 | `create_project` | Create a project | writes |
@@ -38,13 +58,12 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `create_folder` | Create a folder | writes |
 | `rename_document` | Rename a document or folder | writes |
 | `move_document` | Move a document or folder | writes |
-| `trash_document` | Move a document to the trash | destructive |
-| `restore_document` | Restore a document from the trash | writes |
-| `delete_document_forever` | Delete a trashed document forever | destructive |
-| `delete_folder` | Delete a folder | destructive |
-| `list_references` | List what links to a document | reads |
-| `read_text_document` | Read a text document | reads |
-| `append_markdown` | Append Markdown to a text document | writes |
+| `trash_document` | Move a document or folder to the trash | destructive |
+| `restore_document` | Restore a document or folder from the trash | writes |
+| `delete_document_forever` | Delete a trashed document or folder forever | destructive |
+| `list_references` | List what links to a document, or to anything in a folder | reads |
+| `read_text_document` | Read a page | reads |
+| `append_markdown` | Append Markdown to a page | writes |
 | `insert_after_block` | Insert Markdown after a block | writes |
 | `replace_block` | Replace a block | destructive |
 | `delete_block` | Delete a block | destructive |
@@ -58,10 +77,15 @@ Everything is addressed by id. Writes are marked in their MCP annotations as pla
 | `create_group` | Create a group | writes |
 | `set_group_membership` | Move nodes into or out of a group | writes |
 | `arrange_nodes` | Lay out a whiteboard automatically | destructive |
+| `import_mermaid` | Draw a Mermaid diagram on a whiteboard | writes |
 | `attach_document` | Put a document inside a node or arrow | writes |
 | `detach_document` | Detach the document from a node or arrow | writes |
 | `import_github_repository` | Draw a GitHub repository as a project | writes |
 | `get_embed_snippet` | Get the embed snippet of a public whiteboard | reads |
+
+Something in the trash, or inside a folder or document that is, is in the trash to the tools as it is in the app. `read_text_document` and `read_whiteboard` still read it and say so; every tool that writes to it refuses, and so does creating or moving anything into it, until it is restored. `detach_document` lets go of what a node or arrow held: it becomes a document of its own under the whiteboard, in the project tree, and deleting the node later leaves it alone.
+
+A project the operator took down after a report (docs/OPERATIONS.md) is public to nobody, whatever its visibility says: `list_projects`, `get_project` and `set_project_visibility` say `taken_down: true` and why, as the app does, and `get_embed_snippet` refuses its whiteboards.
 
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.
 
@@ -76,20 +100,37 @@ Blocks are read and written as Markdown. The blocks Markdown has no syntax for a
 
 A bookmark reads as a link on its own line, and a row of columns as its columns' blocks one after the other; neither can be written from Markdown. Blocks inside a column have ids like any other, so they can be edited, and deleting the last block of a column removes the column.
 
-Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports a media node with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
+Nodes take what the canvas takes, and no more: the same words (a title up to 200 characters, body text up to 2,000, an arrow's label up to 120, alt text up to 500), the same sizes (a box can be no smaller than 80 by 40, a text node 120 wide, a group 160 by 100, a picture or video 48 on either side, and nothing larger than 4,000; a size outside that is brought within it), a box's shape at that shape's size, and a picture or video at its file's proportions. The limits are defined once, in `src/lib/whiteboard/limits.ts`. A field a node cannot show is refused rather than stored where nobody would see it: body text on a box, a shape on a group, alt text on anything but a picture or video, a color on a picture or video.
+
+A node or an arrow can carry a **code link** (`code_url`): the https address of the code it stands for, a file, some lines of it (`#L10-L20` on GitHub) or a folder, on any forge. `add_nodes`, `update_nodes`, `connect_nodes` and `update_edges` take it, the same as the panel's Code field: https only, at most 2,000 characters, and `null` removes it. The tool descriptions ask agents to link the files they describe, since a diagram whose boxes open the code they stand for is the one people use. `read_whiteboard` returns each one; a box drawn for a repository folder by the import, with no link of its own, returns its folder at the imported branch with `code_url_from_folder: true`. That link is not stored: setting `code_url` replaces it, and removing that brings the folder back. An update that leaves a field out leaves it as it is.
+
+Most agents write Mermaid fluently, so `import_mermaid` is the quickest way to a whole diagram: one call with a flowchart, a sequence diagram or an ER diagram makes a new whiteboard (or adds to one) of real boxes, groups and arrows, laid out in the diagram's direction, which people then click into and edit like any other. It returns the node id each Mermaid id became, for `attach_document` and the rest, and lists whatever the whiteboard does not show (styles, notes, loops). `add_nodes` and `connect_nodes` remain the tools for small changes. What is drawn, and how, is in [IMPORTING.md](IMPORTING.md#mermaid-diagrams).
+
+Deleting works as it does in the app. A document or folder goes to the project's trash with everything inside it, and `restore_document` brings it back; only something already in the trash can be deleted for good. Deleting a node or arrow (`delete_nodes`, `delete_edges`) sends what it held, its description or the whiteboard inside it, to the trash too, and the result names what went there. A plan limit is refused with what the limit is, and, where the server sells a plan, that an owner can upgrade.
+
+Pictures and videos on a whiteboard are read, not written. `read_whiteboard` reports each with its caption, alt text, the file's size in pixels, and a link that the people who can read the whiteboard can open; `update_nodes` can move it, caption it, and write its `alt` text; `delete_nodes` removes it, and its file with it, since an agent has no undo. There is no upload tool, for two reasons. A file sent through a tool call would pass through the app's server, which is exactly what uploads avoid (hosts such as Vercel cap a request at about 4.5 MB; the browser sends files straight to Storage). And a tool that fetched a picture from an address would make the server fetch whatever a prompt-injected document asked it to. Uploading is not a server action either, so the parity test has nothing to say about it: it is the browser talking to Storage under the same row-level security an agent's token would meet.
 
 `scripts/mcp/client.mjs` calls one tool from the command line, and `scripts/mcp/smoke.mjs` drives every tool as three people and checks the results. Both sign in with a password, against a local stack.
 
 ### Not exposed yet
 
-Members and invites, billing, creating, renaming, leaving, or deleting an org, deleting a project, your own name and picture, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list.
+Members and invites, billing, creating, renaming, leaving, or deleting a workspace, deleting a project, deleting your account, your own name and picture, revoking an agent, and the consent screen itself have no tools. The reasons are beside the list in `src/lib/mcp/parity.test.ts`, which fails when a server action is added without either a tool or an entry in that list. In short: they change who has access, cannot be undone, or are a person's own decision; an agent must never approve or disconnect agents, since that is how a person keeps control of them.
+
+Some things people do in the browser are not server actions, so the parity test cannot see them, and have no tool either:
+
+- **Which side an arrow leaves and enters by.** A person drags from one side of a node to a side of another. `connect_nodes` picks the sides that make the shortest path, `arrange_nodes` picks them again, and `read_whiteboard` does not report them. Choosing sides is layout by hand, which an agent does better by moving nodes.
+- **Document links in a page.** The card that links a page to another document is inserted from the page's `/` menu. Markdown has no syntax for it, so `read_text_document` shows one as `[Subcanvas document <id>]` and none of the tools write one. The Linked from list is kept by the browsers of people editing the page, so a link card an agent deletes with `delete_block` still counts in `list_references` until someone next edits that page.
+- **Uploading pictures and videos to a page**, for the reasons given above for whiteboards. A picture already in Subcanvas can be shown in a page by its `/api/media/…` address in Markdown image syntax; the app copies the file under that page the next time someone who can edit it opens it, so that the page's readers can see it.
+- **Copy, paste, and undo.** These live in a person's browser. An agent's edits are its own, and a person's undo never takes them back.
+
+Downloads and exports ([EXPORTING.md](EXPORTING.md)) have no tools either. A tool's result is text for an agent to read, and a project's zip is a file. What is in it an agent already reads, better suited to editing: `read_text_document` returns the same Markdown as a download, block by block with ids, and `read_whiteboard` the same contents as a whiteboard's JSON file. The reasons are kept in the same test, beside the routes that serve the downloads.
 
 ## Security model
 
 In plain words: **the agent is you, and the database decides what you may do.**
 
 - **The token is the person's own.** Supabase Auth issues an MCP client the same kind of JWT it issues a browser, for the person who approved it. The server checks its signature against the project's published keys, its issuer, its audience, and that it belongs to a signed-in person.
-- **Every tool call uses a Supabase client that carries that token.** Row-level security then decides what can be read and written, exactly as it does for the web app. A viewer's agent can read and cannot write. An agent cannot see an org its person is not in; to it, those things do not exist.
+- **Every tool call uses a Supabase client that carries that token.** Row-level security then decides what can be read and written, exactly as it does for the web app. A viewer's agent can read and cannot write. An agent cannot see a workspace its person is not in; to it, those things do not exist.
 - **An agent can be disconnected.** Settings → Profile → Connected agents lists every agent the person approved, with Revoke. Revoking withdraws the consent, deletes the agent's sessions and refresh tokens, and takes effect at its next request: for a token issued to an agent, the server also asks Supabase Auth whether its session still exists, one extra request per call. To come back, the agent has to be approved again.
 - **There is no secret key behind the server.** The MCP code never imports the admin client, and the endpoint works without `SUPABASE_SECRET_KEY` being set. A bug in a tool can do no more than its caller could do from their browser's console.
 - **The same rules and limits.** Tools call the functions the server actions call (`src/lib/documents/operations.ts`), so role checks, free-plan limits, and their messages are the same. Imported READMEs are read-only for agents as they are for people.

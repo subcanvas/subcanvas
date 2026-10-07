@@ -38,20 +38,34 @@ export async function ensureDescriptionDocument(
   objectId: string,
   title: string
 ): Promise<{ id: string } | { error: string }> {
-  const id = await uuidV5(context.whiteboardId, objectId)
+  const insert = (id: string) =>
+    supabase.from("documents").insert({
+      id,
+      org_id: context.orgId,
+      project_id: context.projectId,
+      type: "text",
+      kind: "description",
+      title: title.trim().slice(0, 200) || "Description",
+      parent_document_id: context.whiteboardId,
+      parent_object_id: objectId,
+    })
 
-  const { error } = await supabase.from("documents").insert({
-    id,
-    org_id: context.orgId,
-    project_id: context.projectId,
-    type: "text",
-    kind: "description",
-    title: title.trim().slice(0, 200) || "Description",
-    parent_document_id: context.whiteboardId,
-    parent_object_id: objectId,
-  })
-
-  // 23505: it already exists, which is the outcome we wanted.
+  let id = await uuidV5(context.whiteboardId, objectId)
+  let { error } = await insert(id)
+  // 23505: it already exists, which is the outcome we wanted, unless the
+  // object let go of it (Detach) and it is a page of its own now. The
+  // object then gets a new description.
+  if (error?.code === "23505") {
+    const { data: existing } = await supabase
+      .from("documents")
+      .select("parent_document_id, parent_object_id")
+      .eq("id", id)
+      .maybeSingle()
+    if (existing && (existing.parent_document_id !== context.whiteboardId || existing.parent_object_id !== objectId)) {
+      id = crypto.randomUUID()
+      ;({ error } = await insert(id))
+    }
+  }
   if (error && error.code !== "23505")
     return {
       error:
@@ -70,7 +84,7 @@ export async function createChildWhiteboard(
   context: WhiteboardContext,
   objectId: string,
   title: string
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string } | { error: string; limit?: true }> {
   const { data, error } = await supabase
     .from("documents")
     .insert({
@@ -85,13 +99,12 @@ export async function createChildWhiteboard(
     .select("id")
     .single()
 
-  if (error)
+  if (error) {
+    const limit = limitMessage(error.code, error.message)
+    if (limit) return { error: limit, limit: true }
     return {
-      error:
-        limitMessage(error.code) ??
-          (error.code === "42501"
-            ? "You do not have permission to create documents."
-            : error.message),
+      error: error.code === "42501" ? "You do not have permission to create documents." : error.message,
     }
+  }
   return { id: data.id }
 }

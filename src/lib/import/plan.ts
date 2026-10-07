@@ -22,6 +22,7 @@ export type SkipReason =
   | "protected"
   | "unsafe-path"
   | "image"
+  | "whiteboard"
 export type Skipped = { path: string; reason: SkipReason }
 
 // Where a planned item goes: the place the person chose, or something else

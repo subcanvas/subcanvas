@@ -1,5 +1,8 @@
+import Link from "next/link"
+
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
+import { ASK_AN_OWNER } from "@/lib/billing/limit"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
@@ -12,7 +15,7 @@ import { StorageMeter } from "./storage-meter"
 export const metadata = { title: "General" }
 
 const ROLE_DETAILS: Record<Role, string> = {
-  owner: "You can do everything, including billing and deleting the org.",
+  owner: "You can do everything, including billing and deleting the workspace.",
   admin: "You can manage members and projects, and create and edit content.",
   editor: "You can create and edit content.",
   viewer: "You can look at everything and change nothing.",
@@ -48,12 +51,12 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       supabase.from("subscriptions").select("cancel_at_period_end").eq("org_id", org.id).maybeSingle(),
       supabase.rpc("org_media_usage", { p_org_id: org.id }).maybeSingle(),
     ])
-  // Shown only when the org's plan has a cap; without one there is nothing to watch.
+  // Shown only when the workspace's plan has a cap; without one there is nothing to watch.
   const storage = media?.limit_bytes != null ? { used: media.used_bytes, limit: media.limit_bytes } : null
 
   const onlyOwner = isOwner && owners === 1
   // Mirrors the database trigger: a subscription that is still renewing
-  // would keep charging a card for an org that no longer exists.
+  // would keep charging a card for a workspace that no longer exists.
   const subscribed = Boolean(plan?.paid && !subscription?.cancel_at_period_end)
 
   return (
@@ -61,13 +64,13 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       <PageHeader
         eyebrow={org.name}
         title="General"
-        description="What the org is called, where it lives, and what you can do in it."
+        description="What the workspace is called, where it lives, and what you can do in it."
       />
 
-      <SettingsSection id="general-org" title="Org">
+      <SettingsSection id="general-org" title="Workspace">
         <div className="flex flex-col gap-6">
           {isAdmin ? (
-            <RenameOrgForm orgId={org.id} initial={org.name} />
+            <RenameOrgForm orgId={org.id} initial={org.name} personal={org.personal} />
           ) : (
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Name</p>
@@ -80,10 +83,21 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
             <p className="text-sm font-medium">Address</p>
             <p className="font-mono text-sm">/{org.slug}</p>
             <p className="max-w-xl text-sm leading-relaxed text-graphite">
-              The address is part of every link to this org: its projects, its documents, and diagrams embedded in
-              other sites. Changing it would break them all, so it is fixed.
+              The address is part of every link to this workspace: its projects, its documents, and diagrams
+              embedded in other sites. Changing it would break them all, so it is fixed.
             </p>
           </div>
+
+          {org.personal && (
+            <p className="max-w-xl text-sm leading-relaxed text-graphite">
+              This is your personal workspace. Nobody else can join it, and it is deleted only with your account,
+              from{" "}
+              <Link href={`/${org.slug}/settings/profile`} className="font-medium text-ink underline underline-offset-4">
+                Profile
+              </Link>
+              .
+            </p>
+          )}
 
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <dt className="text-graphite">Created</dt>
@@ -100,10 +114,26 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
           title="Storage"
           description={
             !billingConfigured()
-              ? "This server limits how much the org keeps in pictures and videos."
+              ? "This server limits how much the workspace keeps in pictures and videos."
               : plan?.paid
-                ? `Your plan includes ${formatBytes(storage.limit)} for pictures and videos.`
-                : `The free plan includes ${formatBytes(storage.limit)} for pictures and videos. Upgrading raises it.`
+                ? `Pro includes ${formatBytes(storage.limit)} for pictures and videos.`
+                : (
+                    // Said as a plan limit is (components/limit-refusal.tsx):
+                    // an owner is offered the upgrade, anyone else asks one.
+                    <>
+                      The free plan includes {formatBytes(storage.limit)} for pictures and videos.{" "}
+                      {isOwner ? (
+                        <>
+                          <Link href={`/${org.slug}/settings/billing`} className="font-medium underline underline-offset-4">
+                            Upgrade to Pro
+                          </Link>{" "}
+                          to raise it.
+                        </>
+                      ) : (
+                        ASK_AN_OWNER
+                      )}
+                    </>
+                  )
           }
         >
           <StorageMeter used={storage.used} limit={storage.limit} />
@@ -113,36 +143,41 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       <SettingsSection id="general-role" title="Your role">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>
-          <p className="text-sm text-graphite">{ROLE_DETAILS[role]}</p>
+          <p className="text-sm text-graphite">
+            {org.personal ? "It is your workspace: you can do everything in it." : ROLE_DETAILS[role]}
+          </p>
         </div>
       </SettingsSection>
 
-      <SettingsSection id="general-danger" title="Danger zone" danger>
-        <div className="divide-y divide-rule">
-          <DangerRow
-            title="Leave this org"
-            detail={
-              onlyOwner
-                ? "You are the only owner. Make someone else an owner in Members first, or delete the org."
-                : "You lose access to its projects. Nothing you made is deleted."
-            }
-          >
-            {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
-          </DangerRow>
-          {isOwner && (
+      {/* A personal workspace is neither left nor deleted on its own. */}
+      {!org.personal && (
+        <SettingsSection id="general-danger" title="Danger zone" danger>
+          <div className="divide-y divide-rule">
             <DangerRow
-              title="Delete this org"
+              title="Leave this workspace"
               detail={
-                subscribed
-                  ? "This org has a subscription. Cancel it in Billing first, so nobody keeps paying for an org that is gone."
-                  : "Deletes every project, whiteboard, and document in it, for every member. It cannot be undone."
+                onlyOwner
+                  ? "You are the only owner. Make someone else an owner in Members first, or delete the workspace."
+                  : "You lose access to its projects. Nothing you made is deleted."
               }
             >
-              {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
+              {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
             </DangerRow>
-          )}
-        </div>
-      </SettingsSection>
+            {isOwner && (
+              <DangerRow
+                title="Delete this workspace"
+                detail={
+                  subscribed
+                    ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
+                    : "Deletes every project, whiteboard, and page in it, for every member. It cannot be undone."
+                }
+              >
+                {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
+              </DangerRow>
+            )}
+          </div>
+        </SettingsSection>
+      )}
     </main>
   )
 }

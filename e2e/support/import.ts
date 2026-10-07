@@ -72,7 +72,7 @@ export async function clickPicture(page: Page, alt: string) {
 // --- The import dialog ------------------------------------------------------
 
 // Opens the project's + menu and picks a way to bring notes in.
-export async function bringIn(page: Page, item: "Import files…" | "Paste Markdown…") {
+export async function bringIn(page: Page, item: "Import files…" | "Paste Markdown…" | "Paste Mermaid…") {
   await page.getByRole("button", { name: "Add to project" }).click()
   await page.getByRole("menuitem", { name: item, exact: true }).click()
   await expect(page.getByRole("dialog")).toBeVisible()

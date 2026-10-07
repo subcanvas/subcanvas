@@ -12,7 +12,7 @@ import type { WhiteboardProps } from "./whiteboard"
 
 const Whiteboard = dynamic(() => import("./whiteboard"), { ssr: false })
 
-type Shared = Pick<WhiteboardProps, "editable" | "context" | "user">
+type Shared = Pick<WhiteboardProps, "editable" | "context" | "user" | "repository">
 
 export function WhiteboardDocument({
   documentId,

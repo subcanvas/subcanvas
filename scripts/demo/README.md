@@ -55,7 +55,7 @@ loudly. On failure, the script saves `out/failure.png` and says which step.
 | `wait_for: <target>`, `wait_url: regex` | Wait for the app, not for a timer |
 | `caption: text` | A caption, shown for the step's `pause` |
 | `clip: name` | Start a new short clip here |
-| `sign_in: { email, password, org }` | Prelude only: sign in, creating the account the first time |
+| `sign_in: { email, password }` | Prelude only: sign in, creating the account the first time, and open its personal workspace |
 
 A `<target>` is `{ role: button, name: Share }`, `{ label: Email }`,
 `{ text: Open a whiteboard or a page }`, `{ placeholder: ... }`, `{ css: ... }` as a last

@@ -14,13 +14,13 @@ import { documentUrl, findDocument, findProject, findTypedDocument, NO_DOCUMENT,
 import { createInsideObject } from "../object-documents"
 import { defineTool, id, type ToolContext } from "../tool"
 
-const container = z
+export const container = z
   .discriminatedUnion("kind", [
     z.object({ kind: z.literal("root") }).describe("The top level of the project."),
     z.object({ kind: z.literal("folder"), id: id("The folder.") }),
     z
       .object({ kind: z.literal("document"), id: id("The parent document.") })
-      .describe("Nested under another document in the tree, without belonging to one of its objects."),
+      .describe("Nested under another document in the tree, without belonging to one of its nodes or arrows."),
   ])
   .describe("Where in the project's tree.")
 
@@ -31,9 +31,9 @@ const place = z
       .object({
         kind: z.literal("object"),
         whiteboard_id: id("The whiteboard the node or arrow is on."),
-        object_id: id("The node, group, or edge that will hold the new document."),
+        object_id: id("The node or arrow that will hold the new document."),
       })
-      .describe("Inside a whiteboard's node, group, or arrow. Same as `attach_document`."),
+      .describe("Inside a whiteboard's node or arrow. Same as `attach_document`: a page made here is that node's or arrow's description."),
   ])
   .describe("Where the new document lives. Every document has exactly one home.")
 
@@ -55,19 +55,19 @@ export const documentTools = [
     title: "Create a document",
     group: "Documents",
     description:
-      "Creates a whiteboard or a text document in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node, group, or arrow (which is how diagrams nest in Subcanvas). Returns the new document's id. A text document can be given its first content as Markdown. On the free plan this fails with an explanation once the org's private-document allowance is used up.",
+      "Creates a whiteboard or a page in a project: at the top level, in a folder, nested under another document, or inside a whiteboard's node or arrow (which is how whiteboards nest in Subcanvas). Returns the new document's id. A page can be given its first content as Markdown. On the free plan this fails with an explanation once the workspace's private-document allowance is used up.",
     input: {
       project_id: id("The project, from `list_projects`."),
-      type: z.enum(["whiteboard", "text"]).describe("A whiteboard is a canvas of nodes and arrows; a text document is a page of rich text."),
-      title: z.string().min(1).max(200).optional().describe("Defaults to \"Untitled\", or inside an object to that object's title."),
+      type: z.enum(["whiteboard", "text"]).describe("`whiteboard`: a canvas of nodes and arrows. `text`: a page of rich text."),
+      title: z.string().min(1).max(200).optional().describe("Defaults to \"Untitled\", or inside a node or arrow to its title."),
       place: place.default({ kind: "root" }),
-      markdown: z.string().optional().describe("For a text document: its first content, as Markdown."),
+      markdown: z.string().optional().describe("For a page: its first content, as Markdown."),
     },
     kind: "write",
     covers: ["[org]/[project]/tree-actions.createDocument"],
     run: async (context, { project_id, type, title, place: where, markdown }) => {
       if (markdown !== undefined && type !== "text")
-        return { error: "Only a text document takes Markdown. Add nodes to a whiteboard with `add_nodes`." }
+        return { error: "Only a page takes Markdown. Add nodes to a whiteboard with `add_nodes`." }
       const project = await findProject(context, project_id)
       if (!project) return NO_PROJECT
 
@@ -94,7 +94,7 @@ export const documentTools = [
       }
       const url = await documentUrl(context, { id: created.id, org_id: project.org_id, project_id: project.id })
       return {
-        text: `Created the ${type === "text" ? "text document" : "whiteboard"} (${created.id}).${url ? ` Open it at ${url}` : ""}`,
+        text: `Created the ${type === "text" ? "page" : "whiteboard"} (${created.id}).${url ? ` Open it at ${url}` : ""}`,
         data: { document_id: created.id, type, url },
       }
     },
@@ -105,7 +105,7 @@ export const documentTools = [
     title: "Import Markdown files as documents",
     group: "Documents",
     description:
-      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as text documents, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a document with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new documents. Local images are not imported; their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the org has no room for it.",
+      "Imports a set of Markdown files (a docs folder, an Obsidian vault, a Notion export) as pages, the way the web app's Import files does. Folders in the paths become folders; a file next to a folder of the same name (`Page.md` and `Page/`) becomes a page with the folder's files nested under it. Titles come from the opening `# heading`, else front matter's `title`, else the file name; Notion's id suffixes are removed. Links between the files (`[text](./other.md)`, `[[Wiki Links]]`) become links between the new pages. Local pictures are not imported (people's own Import files uploads them); their alt text is kept. A `.csv` becomes a table. On the free plan the whole import is refused up front when the workspace has no room for it.",
     input: {
       project_id: id("The project, from `list_projects`."),
       place: container.default({ kind: "root" }),
@@ -159,7 +159,7 @@ export const documentTools = [
         text: [
           `Imported ${imported} document${imported === 1 ? "" : "s"} in ${plan.folders.length} folder${plan.folders.length === 1 ? "" : "s"}.`,
           left ? `${left} file${left === 1 ? " was" : "s were"} left out (not Markdown, text, or CSV; an unsafe path; or too large).` : "",
-          plan.localImages ? `${plan.localImages} local image${plan.localImages === 1 ? " was" : "s were"} not imported; the alt text was kept.` : "",
+          plan.localImages ? `${plan.localImages} local picture${plan.localImages === 1 ? " was" : "s were"} not imported; the alt text was kept.` : "",
           plan.unlinked ? `${plan.unlinked} link${plan.unlinked === 1 ? "" : "s"} to files outside the import became plain text.` : "",
           ...documents.map((document) => `- "${document.title}" (${document.document_id})${document.path ? ` from ${document.path}` : ""}`),
         ]
@@ -220,7 +220,7 @@ export const documentTools = [
     title: "Move a document or folder",
     group: "Documents",
     description:
-      "Moves a document or a folder to another place in the same project's tree; it goes after what is already there. A folder cannot go inside a document. A document that lived inside a whiteboard object stops belonging to that object when moved (the object keeps a link to it).",
+      "Moves a document or a folder to another place in the same project's tree; it goes after what is already there. A folder cannot go inside a document. A document that lived inside a whiteboard's node or arrow stops belonging to it when moved (the node or arrow keeps a link to it).",
     input: {
       kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
       id: id("The document or folder to move."),
@@ -237,65 +237,65 @@ export const documentTools = [
 
   defineTool({
     name: "trash_document",
-    title: "Move a document to the trash",
+    title: "Move a document or folder to the trash",
     group: "Documents",
     description:
-      "Moves a document to its project's trash, along with everything nested inside it. Nothing is destroyed: `restore_document` brings it back. Call `list_references` first when other documents may link to it, since those links will show it as trashed.",
-    input: { document_id: id("The document.") },
+      "Moves a document, or a folder, to its project's trash along with everything inside it. Nothing is destroyed: `restore_document` brings it back. Call `list_references` first when other documents may link to a document, since those links will show it as trashed.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("The document or folder."),
+    },
     kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.trashDocument"],
-    run: async (context, { document_id }) => {
-      const result = await operations.trashDocument(context.supabase, document_id)
+    covers: ["[org]/[project]/tree-actions.trashItem"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.trashItem(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Moved to the trash. `restore_document` brings it back.", data: { document_id } }
+      return { text: "Moved to the trash. `restore_document` brings it back.", data: { id: itemId, kind } }
     },
   }),
 
   defineTool({
     name: "restore_document",
-    title: "Restore a document from the trash",
+    title: "Restore a document or folder from the trash",
     group: "Documents",
     description:
-      "Takes a document out of the trash and puts it back where it was. If its parent document is still in the trash, it is restored to the top level of the project instead. Can fail on the free plan when restoring would exceed the private-document allowance.",
-    input: { document_id: id("A document that is in the trash (see `get_project` with `include_trash`).") },
+      "Takes a document or folder out of the trash, with everything inside it, and puts it back where it was. If what it was in is still in the trash, it goes to the top level of the project instead. A document that a whiteboard node or arrow held, whose node or arrow has since been deleted, stays under that whiteboard as a document of its own; a description becomes a page like any other. Can fail on the free plan when what comes back would exceed the private-document allowance.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("A document or folder that is in the trash (see `get_project` with `include_trash`)."),
+    },
     kind: "idempotent-write",
-    covers: ["[org]/[project]/tree-actions.restoreDocument"],
-    run: async (context, { document_id }) => {
-      const result = await operations.restoreDocument(context.supabase, document_id)
+    covers: ["[org]/[project]/tree-actions.restoreItem"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.restoreItem(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Restored.", data: { document_id } }
+      return {
+        text: {
+          place: "Restored where it was.",
+          top: "Restored to the top level of the project, since what it was in is still in the trash.",
+          whiteboard: "Restored under the whiteboard that held it, since the node or arrow that held it is gone.",
+        }[result.restoredTo],
+        data: { id: itemId, kind, restored_to: result.restoredTo },
+      }
     },
   }),
 
   defineTool({
     name: "delete_document_forever",
-    title: "Delete a trashed document forever",
+    title: "Delete a trashed document or folder forever",
     group: "Documents",
     description:
-      "Permanently deletes a document that is already in the trash, with everything nested inside it. This cannot be undone, so only do it when the person asked for exactly this. A document that is not in the trash is refused: trash it first.",
-    input: { document_id: id("A document that is in the trash.") },
-    kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.deleteDocumentForever"],
-    run: async (context, { document_id }) => {
-      const result = await operations.deleteDocumentForever(context.supabase, document_id)
-      if ("error" in result) return result
-      return { text: "Deleted forever.", data: { document_id } }
+      "Permanently deletes a document or folder that is already in the trash, with everything inside it and the pictures and videos they show. This cannot be undone, so only do it when the person asked for exactly this. Anything not in the trash is refused: trash it first.",
+    input: {
+      kind: z.enum(["document", "folder"]).default("document").describe("What `id` refers to."),
+      id: id("A document or folder that is in the trash."),
     },
-  }),
-
-  defineTool({
-    name: "delete_folder",
-    title: "Delete a folder",
-    group: "Documents",
-    description:
-      "Deletes an empty folder. A folder that still holds folders or documents is refused: move or trash what is in it first. Documents of that folder that are already in the trash move to the top level, so they can still be restored.",
-    input: { folder_id: id("The folder.") },
     kind: "destructive",
-    covers: ["[org]/[project]/tree-actions.deleteFolder"],
-    run: async (context, { folder_id }) => {
-      const result = await operations.deleteFolder(context.supabase, folder_id)
+    covers: ["[org]/[project]/tree-actions.deleteItemForever"],
+    run: async (context, { kind, id: itemId }) => {
+      const result = await operations.deleteItemForever(context.supabase, kind, itemId)
       if ("error" in result) return result
-      return { text: "Deleted the folder.", data: { folder_id } }
+      return { text: "Deleted forever.", data: { id: itemId, kind } }
     },
   }),
 
@@ -304,15 +304,20 @@ export const documentTools = [
     title: "List what links to a document",
     group: "Documents",
     description:
-      "Lists the titles of the documents that link to this one from somewhere else (a whiteboard object that opens it, or a link block in a text document). Check this before trashing or deleting a document.",
-    input: { document_id: id("The document.") },
+      "Lists the titles of the documents that link to this one from somewhere else (a node or arrow on a whiteboard that opens it, or a document link in a page). The app shows the same list as \"Linked from\". Only documents people can see are listed: not one in the trash, nor one inside a folder or document in the trash. For a folder, lists what links from outside it to anything inside it. Check this before trashing or deleting a document or folder.",
+    input: {
+      document_id: id("The document, or the folder when `kind` is `folder`."),
+      kind: z.enum(["document", "folder"]).default("document").describe("What `document_id` refers to."),
+    },
     kind: "read",
     covers: ["[org]/[project]/tree-actions.listReferences"],
-    run: async (context, { document_id }) => {
-      if (!(await findDocument(context, document_id))) return NO_DOCUMENT
-      const titles = await operations.listReferences(context.supabase, document_id)
+    run: async (context, { document_id, kind }) => {
+      if (kind === "document" && !(await findDocument(context, document_id))) return NO_DOCUMENT
+      const titles = await operations.listReferences(context.supabase, document_id, kind)
       return {
-        text: titles.length ? `Linked from: ${titles.map((title) => `"${title}"`).join(", ")}` : "Nothing links to this document.",
+        text: titles.length
+          ? `Linked from: ${titles.map((title) => `"${title}"`).join(", ")}`
+          : `Nothing links to this ${kind === "folder" ? "folder or anything in it" : "document"}.`,
         data: { referenced_by: titles },
       }
     },

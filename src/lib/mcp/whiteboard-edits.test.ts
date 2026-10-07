@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 import * as Y from "yjs"
 
-import { edgesMap, nodesMap, readEdge, readNode } from "@/lib/whiteboard/schema"
+import { edgesMap, newMediaNode, nodesMap, readEdge, readNode, toYMap } from "@/lib/whiteboard/schema"
 
+import { whiteboardTools } from "./tools/whiteboard"
 import * as edits from "./whiteboard-edits"
+
+const MEDIA_PATH = `${crypto.randomUUID()}/${crypto.randomUUID()}/${crypto.randomUUID()}/${crypto.randomUUID()}.png`
 
 const nodeOf = (doc: Y.Doc, id: string) => readNode(id, nodesMap(doc).get(id)!)
 const ids = <T extends object>(result: T | { error: string }) => {
@@ -21,22 +24,77 @@ describe("whiteboard edits", () => {
     expect(nodeOf(doc, heading)).toMatchObject({ width: 240, height: null })
   })
 
-  it("gives a node a shape and badges, keeps shapes to plain nodes, and takes a badge off with null", () => {
+  it("gives a box a shape at that shape's size, and badges, and takes a badge off with null", () => {
     const doc = new Y.Doc()
     const [database, heading] = ids(
       edits.addNodes(doc, [
-        { kind: "plain", title: "Orders", shape: "cylinder", icon: "database", emoji: "🐘" },
-        { kind: "text", title: "Heading", shape: "diamond" },
+        { kind: "plain", title: "Orders", shape: "cylinder", icon: "database", emoji: "🐘", x: 0, y: 0 },
+        { kind: "text", title: "Heading" },
       ])
     ).ids
-    expect(nodeOf(doc, database)).toMatchObject({ shape: "cylinder", icon: "database", emoji: "🐘" })
-    expect(nodeOf(doc, heading).shape).toBe("rectangle")
+    expect(nodeOf(doc, database)).toMatchObject({ shape: "cylinder", icon: "database", emoji: "🐘", width: 144, height: 100 })
 
+    // Still at the size its shape came in, so it takes the new shape's size
+    // around the same center, as the canvas does.
     edits.updateNodes(doc, [{ id: database, shape: "hexagon", emoji: null }])
-    expect(nodeOf(doc, database)).toMatchObject({ shape: "hexagon", icon: "database", emoji: null })
+    expect(nodeOf(doc, database)).toMatchObject({ shape: "hexagon", icon: "database", emoji: null, width: 184, height: 72, x: -20, y: 14 })
+    // Sized by hand, it keeps its size.
+    edits.updateNodes(doc, [{ id: database, width: 300 }])
+    edits.updateNodes(doc, [{ id: database, shape: "diamond" }])
+    expect(nodeOf(doc, database)).toMatchObject({ shape: "diamond", width: 300, height: 72 })
 
     const [arrow] = ids(edits.connectNodes(doc, [{ source: database, target: heading, icon: "lock", label: "TLS" }])).ids
     expect(readEdge(arrow, edgesMap(doc).get(arrow)!)).toMatchObject({ icon: "lock", emoji: null, label: "TLS" })
+  })
+
+  it("refuses what a node of its kind cannot show, and writes nothing", () => {
+    const doc = new Y.Doc()
+    const [box, heading] = ids(edits.addNodes(doc, [{ kind: "plain", title: "API" }, { kind: "text", title: "Heading", description: "Body" }])).ids
+    expect(nodeOf(doc, heading).description).toBe("Body")
+    const picture = crypto.randomUUID()
+    nodesMap(doc).set(
+      picture,
+      toYMap(newMediaNode({ id: picture, x: 0, y: 0, width: 160, height: 90, mediaWidth: 1600, mediaHeight: 900, mediaPath: MEDIA_PATH }))
+    )
+    const before = Y.encodeStateAsUpdate(doc)
+
+    expect(edits.addNodes(doc, [{ kind: "plain", title: "API", description: "Next.js" }])).toEqual({
+      error: '"API" is a box, and only a text node shows body text (`description`). To give it a description, put a page inside it with `attach_document`.',
+    })
+    expect(edits.addNodes(doc, [{ kind: "group", title: "Frame", shape: "diamond" }])).toHaveProperty("error")
+    expect(edits.updateNodes(doc, [{ id: heading, title: "ok" }, { id: box, description: "Next.js" }])).toHaveProperty("error")
+    expect(edits.updateNodes(doc, [{ id: heading, shape: "cloud" }])).toHaveProperty("error")
+    expect(edits.updateNodes(doc, [{ id: box, alt: "A box" }])).toHaveProperty("error")
+    expect(edits.updateNodes(doc, [{ id: picture, color: "red" }])).toHaveProperty("error")
+    expect(Y.encodeStateAsUpdate(doc)).toEqual(before)
+  })
+
+  it("keeps sizes to what the canvas lets a person resize to", () => {
+    const doc = new Y.Doc()
+    const [box, heading, group] = ids(
+      edits.addNodes(doc, [
+        { kind: "plain", title: "tiny", width: 10, height: 10 },
+        { kind: "text", title: "Heading", width: 50 },
+        { kind: "group", title: "Huge", width: 99_999, height: 20 },
+      ])
+    ).ids
+    expect(nodeOf(doc, box)).toMatchObject({ width: 80, height: 40 })
+    expect(nodeOf(doc, heading)).toMatchObject({ width: 120, height: null })
+    expect(nodeOf(doc, group)).toMatchObject({ width: 4000, height: 100 })
+
+    edits.updateNodes(doc, [{ id: heading, width: 300, height: 500 }])
+    expect(nodeOf(doc, heading)).toMatchObject({ width: 300, height: null })
+
+    // A picture keeps its file's proportions, whichever side is given.
+    const picture = crypto.randomUUID()
+    nodesMap(doc).set(
+      picture,
+      toYMap(newMediaNode({ id: picture, x: 0, y: 0, width: 160, height: 90, mediaWidth: 1600, mediaHeight: 900, mediaPath: MEDIA_PATH }))
+    )
+    edits.updateNodes(doc, [{ id: picture, width: 320, height: 10 }])
+    expect(nodeOf(doc, picture)).toMatchObject({ width: 320, height: 180 })
+    edits.updateNodes(doc, [{ id: picture, height: 45 }])
+    expect(nodeOf(doc, picture)).toMatchObject({ width: 80, height: 48 })
   })
 
   it("places a batch without overlaps, beside the node it is near", () => {
@@ -65,7 +123,7 @@ describe("whiteboard edits", () => {
     expect(readEdge(edge, edgesMap(doc).get(edge)!)).toMatchObject({
       sourceHandle: "bottom", targetHandle: "top", direction: "forward", shape: "spline", stroke: "solid", label: "calls",
     })
-    expect(ids(edits.deleteNodes(doc, [b]))).toEqual({ nodes: [b], edges: [edge] })
+    expect(ids(edits.deleteNodes(doc, [b]))).toEqual({ nodes: [b], edges: [edge], media: [] })
     expect(edgesMap(doc).size).toBe(0)
   })
 
@@ -91,5 +149,61 @@ describe("whiteboard edits", () => {
     ids(edits.arrangeNodes(doc, null))
     expect(nodeOf(doc, a).x).toBeLessThan(nodeOf(doc, b).x)
     expect(nodeOf(doc, b).x).toBeLessThan(nodeOf(doc, c).x)
+  })
+
+  it("gives nodes and arrows a code link, and keeps it through changes to anything else", () => {
+    const doc = new Y.Doc()
+    const file = "https://github.com/acme/shop/blob/main/services/payments/charge.ts#L10-L20"
+    const [api, db] = ids(
+      edits.addNodes(doc, [{ kind: "plain", title: "API", codeUrl: file }, { kind: "plain", title: "DB", x: 0, y: 300 }])
+    ).ids
+    expect(nodeOf(doc, api).codeUrl).toBe(file)
+    const [arrow] = ids(edits.connectNodes(doc, [{ source: api, target: db, codeUrl: file }])).ids
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!).codeUrl).toBe(file)
+
+    // A change that does not name the link, or the open mode, leaves them.
+    edits.updateNodes(doc, [{ id: api, title: "Payments API", openMode: undefined, codeUrl: undefined }])
+    nodesMap(doc).get(api)!.set("openMode", "navigate")
+    edits.updateNodes(doc, [{ id: api, title: "Payments", openMode: undefined }])
+    expect(nodeOf(doc, api)).toMatchObject({ title: "Payments", codeUrl: file, openMode: "navigate" })
+    edits.updateEdges(doc, [{ id: arrow, label: "charges", codeUrl: undefined, openMode: undefined }])
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!)).toMatchObject({ label: "charges", codeUrl: file })
+
+    // Null takes it off.
+    edits.updateNodes(doc, [{ id: api, codeUrl: null }])
+    edits.updateEdges(doc, [{ id: arrow, codeUrl: null }])
+    expect(nodeOf(doc, api).codeUrl).toBeNull()
+    expect(nodesMap(doc).get(api)!.has("codeUrl")).toBe(false)
+    expect(readEdge(arrow, edgesMap(doc).get(arrow)!).codeUrl).toBeNull()
+  })
+
+  it("takes only an https address as a code link", () => {
+    const tool = (name: string) => whiteboardTools.find((candidate) => candidate.name === name)!.input
+    const whiteboard_id = crypto.randomUUID()
+    const file = "https://gitlab.com/acme/shop/-/blob/main/app.rb#L3"
+    expect(tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a", code_url: ` ${file} ` }] })).toMatchObject({
+      nodes: [{ code_url: file }],
+    })
+    expect(tool("update_nodes").parse({ whiteboard_id, nodes: [{ id: "a", code_url: null }] })).toMatchObject({
+      nodes: [{ code_url: null }],
+    })
+    expect(tool("connect_nodes").parse({ whiteboard_id, edges: [{ source: "a", target: "b", code_url: file }] })).toMatchObject({
+      edges: [{ code_url: file }],
+    })
+    for (const code_url of ["http://github.com/acme/shop", "javascript:alert(1)", "github.com/acme/shop", `https://example.com/${"a".repeat(2000)}`]) {
+      expect(() => tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a", code_url }] }), code_url).toThrow()
+      expect(() => tool("update_edges").parse({ whiteboard_id, edges: [{ id: "a", code_url }] }), code_url).toThrow()
+    }
+  })
+
+  it("takes from an agent the words a person could type, and stores an emoji as the app does", () => {
+    const tool = (name: string) => whiteboardTools.find((candidate) => candidate.name === name)!.input
+    const whiteboard_id = crypto.randomUUID()
+    const parsed = tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a".repeat(200), emoji: " 🐘 " }] })
+    expect(parsed).toMatchObject({ nodes: [{ emoji: "🐘" }] })
+    expect(() => tool("add_nodes").parse({ whiteboard_id, nodes: [{ title: "a".repeat(201) }] })).toThrow()
+    expect(() => tool("add_nodes").parse({ whiteboard_id, nodes: [{ kind: "text", title: "t", description: "a".repeat(2001) }] })).toThrow()
+    expect(() => tool("connect_nodes").parse({ whiteboard_id, edges: [{ source: "a", target: "b", label: "a".repeat(121) }] })).toThrow()
+    expect(() => tool("update_nodes").parse({ whiteboard_id, nodes: [{ id: "a", alt: "a".repeat(501) }] })).toThrow()
   })
 })

@@ -27,7 +27,9 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { prosemirrorToYXmlFragment } from "y-prosemirror"
 
+import { importMermaid } from "@/app/[org]/[project]/import-actions"
 import { DocumentPicker } from "@/components/document-picker"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { limitMessage } from "@/lib/billing/limit"
 import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
 import { createClient } from "@/lib/supabase/client"
@@ -41,13 +43,48 @@ import { createCallout } from "./blocks/callout"
 import { createEquation, inlineEquation } from "./blocks/equation"
 import { createTableOfContents } from "./blocks/table-of-contents"
 import { adopt, resolveFileUrl, uploader, useUploadCleanup } from "./media"
+import { SideMenuWithMermaid, type MermaidBlock } from "./mermaid-block-item"
 import {
   createDocumentLink,
   TextDocumentContextProvider,
   type TextDocumentContext,
 } from "./document-link-block"
 
-export type EditorUser = { id: string; name: string; color: string }
+// `avatarUrl` is the profile picture others see beside this person's name
+// in the document (PresenceAvatars); carets and cursors show the name.
+export type EditorUser = { id: string; name: string; color: string; avatarUrl?: string | null }
+
+// The app says picture, not image (REQUIREMENTS.md, glossary), so BlockNote's
+// own words for its image block say so too. Search aliases are left alone.
+function picturesNotImages<T>(value: T): T {
+  if (typeof value === "string") return value.replace(/\bimage\b/g, "picture").replace(/\bImage\b/g, "Picture") as T
+  if (Array.isArray(value) || value === null || typeof value !== "object") return value
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, picturesNotImages(inner)])) as T
+}
+
+// BlockNote files pictures, videos, audio and files under "Media"; the app
+// keeps that word for the whiteboard's Media button, so the page's menu
+// names the group for what it holds.
+const EMBEDS_GROUP = "Pictures and more"
+
+function dictionary() {
+  const words = picturesNotImages(en)
+  const slashMenu = Object.fromEntries(
+    Object.entries(words.slash_menu).map(([key, item]) => [
+      key,
+      item.group === "Media" ? { ...item, group: EMBEDS_GROUP } : item,
+    ])
+  ) as typeof words.slash_menu
+  return { ...words, slash_menu: slashMenu, multi_column: multiColumnLocales.en }
+}
+
+// Audio and other files are always refused on upload (./media.ts), so the
+// menu does not offer blocks for them. The items carry BlockNote's key at
+// runtime even though the React type leaves it out.
+const REFUSED_BLOCKS = new Set(["audio", "file"])
+function offered(item: DefaultReactSuggestionItem) {
+  return !REFUSED_BLOCKS.has((item as { key?: string }).key ?? "")
+}
 
 // The slash menu draws a heading wherever the group changes, so items of
 // one group must be next to each other: ours join BlockNote's groups at
@@ -87,6 +124,7 @@ export default function TextEditor({
   autoFocus?: boolean
 }) {
   const router = useRouter()
+  const showRefusal = useShowRefusal()
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
@@ -96,9 +134,9 @@ export default function TextEditor({
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
-      uploadFile: uploader(home),
+      uploadFile: uploader(home, showRefusal),
       resolveFileUrl,
-      dictionary: { ...en, multi_column: multiColumnLocales.en },
+      dictionary: dictionary(),
       dropCursor: multiColumnDropCursor,
       collaboration: {
         provider,
@@ -216,15 +254,33 @@ export default function TextEditor({
       })
       .select("id")
       .single()
-    if (error)
-      return void toast.error(
-        limitMessage(error.code) ??
-          (error.code === "42501"
-            ? "You do not have permission to create documents."
-            : error.message)
+    if (error) {
+      const limit = limitMessage(error.code, error.message)
+      return showRefusal(
+        limit
+          ? { error: limit, limit: true }
+          : { error: error.code === "42501" ? "You do not have permission to create documents." : error.message }
       )
+    }
     insertLink(data.id)
     router.refresh()
+  }
+
+  // A Mermaid code block drawn as a whiteboard inside this page. The code
+  // stays, and a link to the whiteboard goes under it.
+  async function drawMermaid(block: MermaidBlock) {
+    const result = await importMermaid(
+      { slug: context.slug, orgId: context.orgId, projectId: context.projectId },
+      { kind: "document", id: context.documentId },
+      block.text
+    )
+    if ("error" in result) return showRefusal(result)
+    if (editor.getBlock(block.id))
+      editor.insertBlocks([{ type: "documentLink", props: { docId: result.id! } }], block.id, "after")
+    router.refresh()
+    toast.success("Drawn as a whiteboard inside this page.", {
+      description: result.notes?.length ? `Not drawn as written: ${result.notes.join(" ")}` : undefined,
+    })
   }
 
   // Blocks for what Notion pages hold, so an imported page reads the same
@@ -232,7 +288,7 @@ export default function TextEditor({
   const blockItems = (): DefaultReactSuggestionItem[] => [
     {
       title: "Callout",
-      subtext: "A box with an emoji, to make a note stand out",
+      subtext: "A shaded block with an emoji, to make a point stand out",
       aliases: ["callout", "note", "tip", "warning", "aside", "admonition"],
       group: "Basic blocks",
       icon: <Lightbulb size={18} />,
@@ -258,7 +314,7 @@ export default function TextEditor({
       title: "Bookmark",
       subtext: "A link shown as a card",
       aliases: ["bookmark", "link", "url", "web", "embed"],
-      group: "Media",
+      group: EMBEDS_GROUP,
       icon: <Bookmark size={18} />,
       onItemClick: () => void insertOrUpdateBlockForSlashMenu(editor, { type: "bookmark" }),
     },
@@ -274,9 +330,9 @@ export default function TextEditor({
 
   const documentItems = (): DefaultReactSuggestionItem[] => [
     {
-      title: "Text document",
-      subtext: "Create a text document inside this one",
-      aliases: ["page", "doc", "nested", "subpage"],
+      title: "Page",
+      subtext: "Create a page inside this one",
+      aliases: ["page", "text", "document", "doc", "nested", "subpage"],
       group: "Documents",
       icon: <FileText size={18} />,
       onItemClick: () => void createInside("text"),
@@ -306,13 +362,15 @@ export default function TextEditor({
         editable={editable}
         theme={resolvedTheme === "dark" ? "dark" : "light"}
         slashMenu={false}
+        sideMenu={false}
       >
+        <SideMenuWithMermaid onDraw={editable ? (block) => void drawMermaid(block) : undefined} />
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>
             filterSuggestionItems(
               groupTogether([
-                ...getDefaultReactSlashMenuItems(editor),
+                ...getDefaultReactSlashMenuItems(editor).filter(offered),
                 ...blockItems(),
                 ...getMultiColumnSlashMenuItems(editor),
                 ...documentItems(),

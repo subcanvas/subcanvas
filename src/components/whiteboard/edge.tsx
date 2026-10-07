@@ -14,7 +14,7 @@ import type { FlowEdge } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
 import { WhiteboardIcon } from "./icon"
-import { DocumentMark } from "./nodes"
+import { CodeMark, DocumentMark } from "./nodes"
 
 export function WhiteboardEdge({
   sourceX,
@@ -57,7 +57,7 @@ export function WhiteboardEdge({
           strokeLinecap: wb?.stroke === "dotted" ? "round" : undefined,
         }}
       />
-      {wb && (labelled || wb.docId) && (
+      {wb && (labelled || wb.codeUrl || wb.docId) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan pointer-events-none absolute flex items-center gap-1"
@@ -84,6 +84,7 @@ export function WhiteboardEdge({
                 {wb.label}
               </span>
             )}
+            {wb.codeUrl && <CodeMark url={wb.codeUrl} className="static" />}
             {wb.docId && (
               <DocumentMark objectId={wb.id} docType={wb.docType} className="static" />
             )}

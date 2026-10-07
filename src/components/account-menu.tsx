@@ -18,20 +18,22 @@ import {
 import { THEME_OPTIONS } from "@/components/theme-options"
 import { createClient } from "@/lib/supabase/client"
 
-// What the open sidebar and its collapsed rail both show: the org's pages
-// and the account menu. One definition, so the two cannot drift apart.
+// The account menu, which the open sidebar and its collapsed rail both show,
+// and the workspace's pages the rail shows as icons. (The open sidebar has
+// them in each workspace's menu, in workspace-sections.)
 
 export type SidebarUser = { email: string; name: string | null; avatarUrl: string | null }
 
 // Members, billing, and the rest are sections of Settings, so this list does
 // not grow with them. `nested` marks a page that is current on every page
-// below it too.
-export function orgPages(slug: string) {
+// below it too. `agents` says whether agents can sign in to this server
+// (lib/mcp/sign-in).
+export function orgPages(slug: string, agents: boolean) {
   return [
     { href: `/${slug}`, label: "Projects", icon: LayoutGrid, nested: false },
     // Connecting an AI agent over MCP: one click from anywhere, because the
     // fewer steps it takes, the more people do it.
-    { href: `/${slug}/agents`, label: "Connect an agent", icon: Bot, nested: false },
+    ...(agents ? [{ href: `/${slug}/agents`, label: "Connect an agent", icon: Bot, nested: false }] : []),
     { href: `/${slug}/settings`, label: "Settings", icon: Settings, nested: true },
   ]
 }

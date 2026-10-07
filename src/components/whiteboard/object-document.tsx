@@ -6,11 +6,13 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
 import { DocumentPicker } from "@/components/document-picker"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { TextDocument } from "@/components/editor/text-document"
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { releasedWords, releaseHeldDocument } from "@/lib/documents/held"
 import { documentHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useDocumentMeta } from "@/lib/use-document-meta"
@@ -58,6 +60,7 @@ export function ObjectDocument({
   const router = useRouter()
   const meta = useDocumentMeta(docId)
   const [pending, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
   const [picking, setPicking] = useState(false)
   // Focus the editor only when this person just created the document.
   const [justCreated, setJustCreated] = useState(false)
@@ -68,12 +71,27 @@ export function ObjectDocument({
         type === "text"
           ? await ensureDescriptionDocument(createClient(), context, objectId, objectTitle)
           : await createChildWhiteboard(createClient(), context, objectId, objectTitle)
-      if ("error" in result) return void toast.error(result.error)
+      if ("error" in result) return showRefusal(result)
 
       setJustCreated(type === "text")
       onChange({ docId: result.id, docType: type })
       // A new whiteboard appears in the sidebar tree.
       if (type === "whiteboard") router.refresh()
+    })
+  }
+
+  // The object lets go of what it holds, which stays under this whiteboard
+  // as a document of its own; a document it only linked to stays where it is.
+  function detach() {
+    if (!docId) return
+    startTransition(async () => {
+      const result = await releaseHeldDocument(createClient(), context.whiteboardId, objectId, docId)
+      if ("error" in result) return showRefusal(result)
+      onChange({ docId: null, docType: null })
+      if (result.released) {
+        toast(releasedWords(result.released))
+        router.refresh()
+      }
     })
   }
 
@@ -112,11 +130,7 @@ export function ObjectDocument({
           </Button>
         )}
         {docId && editable && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange({ docId: null, docType: null })}
-          >
+          <Button variant="ghost" size="sm" disabled={pending} onClick={detach}>
             <Unlink />
             Detach
           </Button>
@@ -154,7 +168,7 @@ export function ObjectDocument({
         </p>
       ) : meta.trashed ? (
         <p className="px-4 text-sm text-muted-foreground">
-          “{meta.title}” is in the trash. Restore it to see it here.
+          “{meta.title}” is in the trash, or inside something that is. Restore it to see it here.
         </p>
       ) : meta.type === "whiteboard" ? (
         <button
@@ -174,7 +188,7 @@ export function ObjectDocument({
         <>
           {editable && (
             <div className="flex flex-col gap-2 px-4">
-              <Label className="text-xs text-graphite">Double-clicking the object opens this</Label>
+              <Label className="text-xs text-graphite">Double-click opens this page</Label>
               <ToggleGroup
                 aria-label="Double-click opens it"
                 variant="outline"

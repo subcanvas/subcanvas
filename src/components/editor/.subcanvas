@@ -1,5 +1,5 @@
 title: Text editor
-description: Pages of text (BlockNote). Headings, lists, code, images, and a block that embeds another document. Carets and selections of other people show live.
+description: Pages (BlockNote). Headings, lists, code, pictures and videos, and a card that links another document. Carets and selections of other people show live.
 connects:
   - to: src/lib/sync
     label: Yjs collaboration

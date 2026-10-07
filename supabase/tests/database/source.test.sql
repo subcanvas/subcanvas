@@ -34,7 +34,7 @@ select pg_temp.as_user('e5000000-0000-0000-0000-000000000001');
 
 select lives_ok(
   $$ insert into public.projects (id, org_id, name, visibility, created_by, source) values
-       ('00000000-0000-0000-0000-0000000005b1', '00000000-0000-0000-0000-0000000005a1', 'shop', 'public',
+       ('00000000-0000-0000-0000-0000000005b1', '00000000-0000-0000-0000-0000000005a1', 'shop', 'private',
         'e5000000-0000-0000-0000-000000000001',
         '{"provider": "github", "repository": "acme/shop", "ref": "main", "commit": "abc"}'),
        ('00000000-0000-0000-0000-0000000005b2', '00000000-0000-0000-0000-0000000005a1', 'Drawn by hand', 'private',
@@ -55,6 +55,10 @@ select throws_ok(
   $$ update public.projects set source = null where id = '00000000-0000-0000-0000-0000000005b1' $$,
   '42501', null, 'nor can a project''s');
 
+-- Making it public takes an admin; here, the operator.
+select set_config('request.jwt.claims', '', true);
+select set_config('role', 'postgres', true);
+update public.projects set visibility = 'public' where id = :imported;
 set local role anon;
 select is((select source ->> 'repository' from public.documents where id = :readme), 'acme/shop',
   'anonymous readers of a public project see where a document came from');

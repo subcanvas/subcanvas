@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 
-import { classifyMedia, fitMedia, layoutMedia, mediaPath, type MediaHome } from "@/lib/whiteboard/media"
+import { useShowRefusal } from "@/components/limit-refusal"
+import { classifyMedia, fitMedia, isFreePlanStorageLimit, layoutMedia, mediaPath, type MediaHome } from "@/lib/whiteboard/media"
 import { measureImage, measureVideo, uploadMedia } from "@/lib/whiteboard/media-upload"
 import { rememberLocalMedia } from "@/lib/whiteboard/media-urls"
 import { newMediaNode, type WbNode } from "@/lib/whiteboard/schema"
@@ -32,6 +33,7 @@ export function useMediaUploads({
   onAdded: (ids: string[]) => void
 }) {
   const { showUpload, updateUpload, addMedia, dropUpload } = wb
+  const showRefusal = useShowRefusal()
 
   // Leaving the whiteboard stops what is still uploading: there would be no
   // canvas left to put it on.
@@ -102,13 +104,17 @@ export function useMediaUploads({
         } catch (error) {
           dropUpload(item.node.id)
           if (item.preview) URL.revokeObjectURL(item.preview)
+          const message = error instanceof Error ? error.message : ""
           if (!signal.aborted)
-            toast.error(`${item.file.name} was not added. ${error instanceof Error ? error.message : ""}`.trim())
+            showRefusal({
+              error: `${item.file.name} was not added. ${message}`.trim(),
+              ...(isFreePlanStorageLimit(message) ? { limit: true as const } : {}),
+            })
         }
         return next()
       }
       await Promise.all(Array.from({ length: AT_ONCE }, next))
     },
-    [showUpload, updateUpload, addMedia, dropUpload, home, settle, onAdded]
+    [showUpload, updateUpload, addMedia, dropUpload, home, settle, onAdded, showRefusal]
   )
 }

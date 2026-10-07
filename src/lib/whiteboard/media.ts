@@ -63,6 +63,13 @@ export function storageFullMessage(message: unknown) {
   return `${message} Settings, under General, shows how much it keeps.`
 }
 
+// Whether a message is the free plan's storage cap, which upgrading raises,
+// so it is said like any other plan limit (components/limit-refusal.tsx).
+// A paid plan's cap, or one agreed with the org, is not.
+export function isFreePlanStorageLimit(message: string) {
+  return message.includes(STORAGE_FULL) && message.includes("The free plan includes")
+}
+
 // A size in words, in the same units as the per-file limits above
 // (1 MB = 1024 × 1024 bytes).
 export function formatBytes(bytes: number) {

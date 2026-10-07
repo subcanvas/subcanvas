@@ -24,7 +24,7 @@ import { createInviteLink, joinThroughInvite } from "./support/members"
 // installed on the runner (stripe/stripe-cli-action, or the apt package).
 // STRIPE_WEBHOOK_SECRET must be the secret `stripe listen --print-secret`
 // prints for that key: the CLI's secret is fixed per account and key.
-test.skip(!billingConfigured, "STRIPE_SECRET_KEY is not set, so this server sells no plan")
+test.skip(!billingConfigured, "Set STRIPE_SECRET_KEY and E2E_BILLING=1 to pay through Stripe's sandbox")
 
 // Stripe's hosted page is not ours: it loads slowly, and the webhook that
 // flips the org comes back on its own time.
@@ -32,7 +32,7 @@ test.setTimeout(180_000)
 
 const billing = (slug: string) => `/${slug}/settings/billing`
 
-test("an owner upgrades at checkout and comes back on the Team plan, limits lifted", async ({
+test("an owner upgrades at checkout and comes back on the Pro plan, limits lifted", async ({
   page,
 }) => {
   const { account, slug } = await signUpWithOrg(page)

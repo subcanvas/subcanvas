@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/page-header"
+import { recordStep } from "@/lib/activity"
 import { billingConfigured } from "@/lib/billing/stripe"
 import { getOrgContext } from "@/lib/orgs"
 
@@ -21,11 +22,14 @@ export default async function BillingPage({
   const justPaid = (await searchParams).checkout === "success"
   const { supabase, org, role, plan } = await getOrgContext(slug)
 
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("status, current_period_end, cancel_at_period_end")
-    .eq("org_id", org.id)
-    .maybeSingle()
+  const [{ data: subscription }] = await Promise.all([
+    supabase
+      .from("subscriptions")
+      .select("status, current_period_end, cancel_at_period_end")
+      .eq("org_id", org.id)
+      .maybeSingle(),
+    recordStep(supabase, "opened_billing"),
+  ])
 
   const paid = plan?.paid ?? false
   const isOwner = role === "owner"
@@ -46,7 +50,7 @@ export default async function BillingPage({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {paid ? "Team plan" : "Free plan"}
+            {paid ? "Pro plan" : "Free plan"}
             {subscription?.status === "past_due" && <Badge variant="destructive">Payment failed</Badge>}
             {paid && subscription?.cancel_at_period_end && <Badge variant="outline">Cancels soon</Badge>}
           </CardTitle>
@@ -82,7 +86,7 @@ export default async function BillingPage({
           </dl>
 
           {!configured ? (
-            <p className="text-muted-foreground">Paid plans are not set up on this server.</p>
+            <p className="text-muted-foreground">Pro is not set up on this server.</p>
           ) : !isOwner ? (
             <p className="text-muted-foreground">Only an owner can change the plan.</p>
           ) : paid || subscription?.status === "past_due" ? (

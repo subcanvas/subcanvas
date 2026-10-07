@@ -8,7 +8,7 @@ env:
   DEMO_PROJECT: Moving to Lisbon
 
 prelude:
-  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}", org: Demo }
+  - sign_in: { email: "${DEMO_EMAIL}", password: "${DEMO_PASSWORD}" }
 
 steps:
   - clip: new-project

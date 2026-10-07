@@ -2,6 +2,8 @@ import "server-only"
 
 import { McpServer } from "@modelcontextprotocol/server"
 
+import { billingConfigured } from "@/lib/billing/stripe"
+
 import { createUserClient, type Caller } from "./auth"
 import type { ToolContext } from "./tool"
 import { tools } from "./tools"
@@ -9,11 +11,20 @@ import { tools } from "./tools"
 export const SERVER_INFO = { name: "subcanvas", title: "Subcanvas", version: "0.1.0" }
 
 const INSTRUCTIONS = [
-  "Subcanvas is a whiteboard where every box opens: any node, group, or arrow can hold a text document or a whole nested whiteboard.",
-  "You act as the signed-in person, with their role in each org. Start with list_orgs, then list_projects and get_project to find documents. Everything is addressed by id.",
+  "Subcanvas is a whiteboard where any node or arrow can hold a page or a whole nested whiteboard.",
+  "Words, as the app uses them: a document is a whiteboard or a page (a page is what the tools call a text document, type `text`). On a whiteboard, a node is a box (kind `plain`), a text node (a heading with body text, no box), a group, or a picture or video (kind `media`); arrows (`edges`) join nodes. A page that belongs to a node or arrow is its description. Links to a document from elsewhere are listed by list_references, which the app shows as Linked from.",
+  "You act as the signed-in person, with their role in each workspace. Start with list_workspaces, then list_projects and get_project to find documents. Everything is addressed by id.",
   "People may be editing the same documents while you work. Your edits merge with theirs, so change only what you mean to: update fields in place, and address text by block id.",
-  "To draw a diagram: add_nodes, then connect_nodes with the returned ids, then arrange_nodes. To go deeper, attach_document with type whiteboard puts a new diagram inside a node.",
+  "To draw a diagram, write it as Mermaid and call import_mermaid: one call for the whole diagram. For small changes, add_nodes, then connect_nodes with the returned ids, then arrange_nodes. To go deeper, attach_document with type whiteboard puts a new whiteboard inside a node.",
 ].join("\n")
+
+// A plan limit says what can be done about it, as the web app does: here,
+// who can upgrade, since an agent cannot. A server that sells no plan has
+// nothing to add.
+function refusal(result: { error: string; limit?: true }) {
+  if (!result.limit || !billingConfigured()) return result.error
+  return `${result.error} An owner of the workspace can upgrade it to Pro in the web app, under Settings, Billing.`
+}
 
 // One server per request, for one caller. Nothing is kept between requests,
 // so it runs on serverless functions, and a tool can only ever reach the
@@ -43,7 +54,7 @@ export function createServer(caller: Pick<Caller, "userId" | "token">, origin: s
       async (args) => {
         const result = await tool.run(context, args)
         return "error" in result
-          ? { isError: true, content: [{ type: "text", text: result.error }] }
+          ? { isError: true, content: [{ type: "text", text: refusal(result) }] }
           : { content: [{ type: "text", text: result.text }], structuredContent: result.data }
       }
     )

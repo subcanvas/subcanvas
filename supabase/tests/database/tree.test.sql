@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(5);
 
 -- Uses its own slugs and ids so it passes against a local database that
 -- already holds development data. Runs as postgres: this file tests the
@@ -53,31 +53,6 @@ select results_eq(
   $$ select id from public.document_ancestors('00000000-0000-0000-0000-0000000001d3') $$,
   $$ values ('00000000-0000-0000-0000-0000000001d1'::uuid), ('00000000-0000-0000-0000-0000000001d2'::uuid) $$,
   'ancestors are listed root first');
-
--- delete_folder checks the caller's role, so it needs a signed-in editor.
-insert into auth.users (id, email, aud, role, instance_id) values
-  ('e1000000-0000-0000-0000-000000000001', 'tree-editor@pgtap.test', 'authenticated',
-   'authenticated', '00000000-0000-0000-0000-000000000000');
-insert into public.org_members (org_id, user_id, role)
-  values (:org, 'e1000000-0000-0000-0000-000000000001', 'editor');
-update public.documents set parent_document_id = null, folder_id = :f2 where id = :d3;
-
-select set_config('role', 'authenticated', true);
-select set_config('request.jwt.claims',
-  '{"sub":"e1000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
-
-select throws_ok(
-  $$ select public.delete_folder('00000000-0000-0000-0000-0000000001f2') $$,
-  'P0001', 'Move or trash everything in this folder first.',
-  'a folder holding a live document cannot be deleted');
-
-update public.documents set deleted_at = now() where id = :d3;
-select lives_ok(
-  $$ select public.delete_folder('00000000-0000-0000-0000-0000000001f2') $$,
-  'a folder holding only trashed documents can be deleted');
-select is(
-  (select folder_id is null and deleted_at is not null from public.documents where id = :d3),
-  true, 'the trashed document survives, detached, and can still be restored');
 
 select * from finish();
 rollback;

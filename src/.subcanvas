@@ -3,6 +3,6 @@ description: The Next.js app. Routes render the interface; the libraries under i
 connects:
   - to: supabase
     label: Auth, data, Realtime
-    description: Every request a person or an agent makes goes to Supabase as the signed-in user, so row-level security decides what can be read and written. Only billing, and removing a deleted org's files, use a secret key. Documents sync over Supabase Realtime and are stored as Yjs updates in Postgres.
+    description: Every request a person or an agent makes goes to Supabase as the signed-in user, so row-level security decides what can be read and written. Only billing, deleting an account, and removing a deleted workspace's files use a secret key. Documents sync over Supabase Realtime and are stored as Yjs updates in Postgres.
 ignore:
   - hooks

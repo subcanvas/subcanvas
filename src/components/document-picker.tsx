@@ -38,12 +38,12 @@ export function DocumentPicker({
     if (!open) return
     let cancelled = false
     const timer = setTimeout(async () => {
+      // Only what is in view: nothing in the trash, nor inside something that
+      // is. What a function returns is ordered only by a column it selects.
       let request = createClient()
-        .from("documents")
-        .select("id, title, type")
-        .eq("project_id", projectId)
+        .rpc("documents_in_view", { p_project_id: projectId })
+        .select("id, title, type, updated_at")
         .eq("kind", "standard")
-        .is("deleted_at", null)
         .neq("id", excludeId)
         .order("updated_at", { ascending: false })
         .limit(20)

@@ -53,6 +53,15 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
   await expect(nodeLabelled(page, "Web")).toHaveCount(0)
   await expect(nodeLabelled(page, "Payments")).toHaveCount(0)
 
+  // Each folder's box links to its code: the folder, at the branch that was
+  // imported. Nothing stores it; it comes from the box's folder and the
+  // project's repository, so boxes imported before code links have it too.
+  const servicesCode = canvas(page).getByRole("link", { name: "Open code: services in fixture/orchard (opens in a new tab)" })
+  await expect(servicesCode).toHaveAttribute("href", "https://github.com/fixture/orchard/tree/main/services")
+  await expect(servicesCode).toHaveAttribute("target", "_blank")
+  // The README's box stands for no folder, and has no such link.
+  await expect(canvas(page).getByRole("link", { name: /^Open code/ })).toHaveCount(2)
+
   // The README opens in the panel beside its node, read-only: the
   // repository owns it, and the bar above the text says where it is from.
   await clickNode(page, "README")
@@ -78,6 +87,11 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
   await closePanel(page)
   await clickNode(page, "Services")
   await expect(panel.getByText("A whiteboard. Click to go inside.")).toBeVisible()
+  // The panel shows the folder as that link.
+  await expect(panel.getByRole("link", { name: "Open code: services in fixture/orchard (opens in a new tab)" })).toHaveAttribute(
+    "href",
+    "https://github.com/fixture/orchard/tree/main/services"
+  )
   await panel.getByRole("button", { name: "Services" }).click()
   await expect(breadcrumb(page).getByText("Services", { exact: true })).toBeVisible()
   await expect(whiteboardTools(page)).toBeVisible()
@@ -139,14 +153,14 @@ test("an import with notes shows them, even in an org that had no projects", asy
   // Closed, the page behind it lists the project.
   await page.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole("link", { name: /^bramble/ })).toBeVisible()
+  await expect(page.getByRole("main").getByRole("link", { name: /^bramble/ })).toBeVisible()
 
   // Opened again, it is the form, not the last import's notes; and the
   // whiteboard the notes pointed to is there.
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   await expect(dialog.getByRole("textbox", { name: "Repository" })).toBeVisible()
   await page.keyboard.press("Escape")
-  await page.getByRole("link", { name: /^bramble/ }).click()
+  await page.getByRole("main").getByRole("link", { name: /^bramble/ }).click()
   await treeLink(page, "System design").click()
   await expect(whiteboardTools(page)).toBeVisible()
   await expect(nodeLabelled(page, "API")).toBeVisible()

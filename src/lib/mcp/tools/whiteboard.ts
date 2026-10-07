@@ -1,24 +1,44 @@
 import { z } from "zod"
 
+import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
+import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
+import { readProjectSource } from "@/lib/github/source"
 import { loadDocument } from "@/lib/sync/server-document"
+import { codeLinkOf, parseCodeUrl } from "@/lib/whiteboard/code-link"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
+import { MAX_ALT, MAX_BODY_TEXT, MAX_CODE_URL, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { mediaHref } from "@/lib/whiteboard/media"
+import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
-import { NODE_SHAPES } from "@/lib/whiteboard/shapes"
+import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
+
+import { MAX_MERMAID_LENGTH, SUPPORTED } from "@/lib/mermaid/parse"
+import { addMermaidToWhiteboard, createMermaidWhiteboard, type MermaidOutcome } from "@/lib/mermaid/write"
 
 import { editDocument } from "../edit-document"
-import { documentUrl, findDocument, findTypedDocument, NO_DOCUMENT } from "../lookup"
+import { documentUrl, findDocument, findProject, findTypedDocument, IN_TRASH, NO_DOCUMENT, NO_PROJECT, READ_FROM_TRASH } from "../lookup"
 import { createInsideObject, reindexLinks } from "../object-documents"
 import { defineTool, id, type ToolContext, type ToolResult } from "../tool"
 import * as edits from "../whiteboard-edits"
-import { writeInitialMarkdown } from "./documents"
+import { container, writeInitialMarkdown } from "./documents"
 
 const whiteboardId = id("The whiteboard document.")
 const nodeId = (what: string) => z.string().min(1).describe(`${what} From \`read_whiteboard\` or the result of \`add_nodes\`.`)
-const color = z.enum(COLOR_KEYS).describe("A named color. Themes decide the exact shade.")
+const color = z.enum(COLOR_KEYS).describe("A named color. Themes decide the exact shade. Not for a picture or video.")
 const shape = z
   .enum(NODE_SHAPES)
-  .describe("The outline of a plain node. By convention: cylinder for a database, diamond for a decision, cloud for something hosted elsewhere, document for a file, hexagon or parallelogram for a process or its input. Default rectangle.")
+  .describe(
+    `The outline of a box (boxes only). By convention: cylinder for a database, diamond for a decision, cloud for something hosted elsewhere, document for a file, hexagon or parallelogram for a process or its input. Default rectangle. Each shape has the size the app gives it: ${NODE_SHAPES.map((name) => `${name} ${SHAPE_SIZE[name].width} by ${SHAPE_SIZE[name].height}`).join(", ")}.`
+  )
+const title = z.string().max(MAX_TITLE)
+// What the app lets a person resize a node to.
+const MIN = MIN_NODE_SIZE
+const SIZES = `At least ${MIN.plain.width} by ${MIN.plain.height} for a box, ${MIN.text.width} wide for a text node, ${MIN.group.width} by ${MIN.group.height} for a group, and ${MIN.media.width} on either side for a picture or video; at most ${MAX_NODE_SIDE}. A size outside that is brought within it, as the app's resize handles do.`
+const side = (axis: "width" | "height") => z.number().positive().max(MAX_NODE_SIDE).describe(`The ${axis}, in canvas units. ${SIZES}`)
+const bodyText = z
+  .string()
+  .max(MAX_BODY_TEXT)
+  .describe("Text nodes only: the plain text shown under the heading (the app calls it body text). Other nodes do not show it and refuse it; to give a box or an arrow a description, put a page inside it with `attach_document`.")
 // The names the app can draw: a curated part of Lucide, not all of it.
 const icon = z
   .enum(ICON_CHOICES.map((choice) => choice.name) as [string, ...string[]])
@@ -26,20 +46,53 @@ const icon = z
 const emoji = z
   .string()
   .refine((value) => singleEmoji(value) !== null, "Exactly one emoji.")
+  // Stored as the app stores it: the emoji alone, without spaces around it.
+  .transform((value) => singleEmoji(value)!)
   .describe("One emoji, shown as a badge beside the icon.")
+// A code link: what a person pastes into the panel's Code field.
+const codeUrl = (what: "node" | "arrow") =>
+  z
+    .string()
+    .max(MAX_CODE_URL)
+    .refine((value) => parseCodeUrl(value) !== null, "An https address, such as https://github.com/owner/repo/blob/main/src/file.ts.")
+    .transform((value) => parseCodeUrl(value)!)
+    .describe(
+      `A code link: the https address of the code this ${what} stands for, a file or a folder on GitHub, GitLab, Bitbucket or any other forge. Point at the lines when it is part of a file (on GitHub \`#L10-L20\`). It shows as a small code mark ${what === "node" ? "on the node's corner" : "beside the arrow's label"}, and a click opens the address in a new tab. https only, at most ${MAX_CODE_URL} characters.`
+    )
 const coordinate = (axis: string) =>
   z.number().describe(`The ${axis} of the top-left corner, in canvas units (roughly pixels at 100% zoom). For a node in a group it is relative to the group's top-left corner.`)
 const openMode = z
   .enum(["panel", "navigate"])
-  .describe("How a click opens what the object holds: in a side panel, or by going to it.")
+  .describe("How a click opens a page the node or arrow holds: in the side panel, or by going to it as a full page. A whiteboard it holds is always opened by going to it.")
 const edgeStyle = {
-  label: z.string().max(200).optional().describe("Text shown on the arrow. An empty string removes it."),
+  label: z.string().max(MAX_LABEL).optional().describe("Text shown on the arrow. An empty string removes it."),
   direction: z.enum(["none", "forward", "reverse", "both"]).optional().describe("Where the arrowheads are. Default forward: from source to target."),
   shape: z.enum(["spline", "step"]).optional().describe("A curve, or right-angled steps. Default spline."),
   stroke: z.enum(["solid", "dotted"]).optional().describe("Default solid."),
   color: color.optional(),
   icon: icon.nullable().optional().describe("An icon before the arrow's label. Null removes it."),
   emoji: emoji.nullable().optional().describe("One emoji before the arrow's label. Null removes it."),
+  code_url: codeUrl("arrow").nullable().optional(),
+}
+const edgeFields = <T extends { code_url?: string | null }>({ code_url, ...edge }: T) => ({ ...edge, codeUrl: code_url })
+
+// What deleted nodes and arrows held goes to the trash, as it does when a
+// person deletes them on the canvas, and the index of references follows
+// the content.
+async function afterObjectsDeleted(
+  context: ToolContext,
+  whiteboard: { id: string; org_id: string; project_id: string },
+  objectIds: string[]
+): Promise<{ text: string; ids: string[] }> {
+  const trashed = await trashHeldDocuments(context.supabase, whiteboard.id, objectIds)
+  await reindexLinks(context, whiteboard)
+  if ("error" in trashed) return { text: `What they held could not be moved to the trash: ${trashed.error}`, ids: [] }
+  const { documents } = trashed
+  if (!documents.length) return { text: "", ids: [] }
+  return {
+    text: `What they held is in the trash, and \`restore_document\` brings it back: ${documents.map((document) => `"${document.title}" (${document.id})`).join(", ")}.`,
+    ids: documents.map((document) => document.id),
+  }
 }
 
 // Runs one edit on a whiteboard the caller names, and words the result.
@@ -63,22 +116,31 @@ export const whiteboardTools = [
     title: "Read a whiteboard",
     group: "Whiteboards",
     description:
-      "Returns everything on a whiteboard as compact JSON: nodes (kind `plain` is a box, `text` is a heading with no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), edges (arrows between nodes), and for each the document it holds, if any (`doc_id`, `doc_type`). A node's `group_id` is the group it is in, and its x and y are then relative to that group. A media node's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures in the app. A held whiteboard can be read with this tool again, and a held text document with `read_text_document`: that is how diagrams nest. What you read is at most about a second behind what people see.",
+      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
-      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard", { read: true })
       if ("error" in whiteboard) return whiteboard
-      const doc = await loadDocument(context.supabase, whiteboard.id)
+      const [doc, project] = await Promise.all([
+        loadDocument(context.supabase, whiteboard.id),
+        findProject(context, whiteboard.project_id),
+      ])
       if (!doc) return { error: "This document could not be read." }
+      // A box drawn for a folder of the repository the project was imported
+      // from links to that folder, as it does in the app.
+      const repository = readProjectSource(project?.source ?? null)
 
       const nodes = [...nodesMap(doc).entries()].map(([objectId, map]) => {
         const node = readNode(objectId, map)
+        const code = codeLinkOf(node, repository)
         return {
           id: node.id,
           kind: node.kind,
           title: node.title,
-          ...(node.description ? { description: node.description } : {}),
+          // What the app shows: a text node's body text, and a folder's
+          // summary in its box's panel. Nothing else it holds is drawn.
+          ...(node.description && (node.kind === "text" || node.path) ? { description: node.description } : {}),
           x: node.x,
           y: node.y,
           width: node.width,
@@ -90,6 +152,7 @@ export const whiteboardTools = [
           ...(node.emoji ? { emoji: node.emoji } : {}),
           ...(node.docId ? { doc_id: node.docId, doc_type: node.docType, open_mode: node.openMode } : {}),
           ...(node.path ? { repository_path: node.path } : {}),
+          ...(code ? { code_url: code.url, ...(code.derived ? { code_url_from_folder: true } : {}) } : {}),
           ...(node.kind === "media" && node.mediaPath
             ? {
                 media: {
@@ -119,6 +182,7 @@ export const whiteboardTools = [
           ...(edge.color !== "default" ? { color: edge.color } : {}),
           ...(edge.icon ? { icon: edge.icon } : {}),
           ...(edge.emoji ? { emoji: edge.emoji } : {}),
+          ...(edge.codeUrl ? { code_url: edge.codeUrl } : {}),
           ...(edge.docId ? { doc_id: edge.docId, doc_type: edge.docType, open_mode: edge.openMode } : {}),
         }))
 
@@ -126,6 +190,7 @@ export const whiteboardTools = [
         whiteboard_id: whiteboard.id,
         title: whiteboard.title,
         url: await documentUrl(context, whiteboard),
+        ...(whiteboard.in_trash ? { in_trash: true, note: READ_FROM_TRASH } : {}),
         nodes,
         edges,
       }
@@ -138,23 +203,24 @@ export const whiteboardTools = [
     title: "Add nodes to a whiteboard",
     group: "Whiteboards",
     description:
-      "Adds one or more nodes in a single step and returns their ids in the same order, ready for `connect_nodes`. Leave out x and y and each node takes the nearest free spot: beside `near_node_id` when given, otherwise to the right of what is already there, never on top of another node. Sizes default to what the app uses (a box is 160 by 64, a group 360 by 240, a text heading 240 wide). To lay out a whole diagram, add everything, connect it, then call `arrange_nodes`.",
+      "Adds one or more nodes in a single step and returns their ids in the same order, ready for `connect_nodes`. Leave out x and y and each node takes the nearest free spot: beside `near_node_id` when given, otherwise to the right of what is already there, never on top of another node. Sizes default to what the app gives a new node: a box its shape's size (160 by 64 for a rectangle), a group 360 by 240, a text node 240 wide and as tall as its text. To give a box a description, put a page inside it afterwards with `attach_document`. When a node stands for code (a service, a package, a module, a file, a function), give it a `code_url` to that folder or file, with the lines when it is part of a file, so whoever reads the diagram can go straight to the code: link the files you describe. To lay out a whole diagram, add everything, connect it, then call `arrange_nodes`.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
         .array(
           z.object({
-            kind: z.enum(["plain", "text", "group"]).default("plain").describe("`plain`: a box. `text`: a heading with no box. `group`: a frame other nodes can be put in."),
-            title: z.string().max(500).describe("The text shown on the node."),
-            description: z.string().max(2000).optional().describe("A short plain-text note shown under the title. For anything longer, attach a text document with `attach_document`."),
+            kind: z.enum(["plain", "text", "group"]).default("plain").describe("`plain`: a box. `text`: a heading with body text under it and no box. `group`: a frame other nodes can be put in."),
+            title: title.describe("The text shown on the node: a box's title, a text node's heading, a group's title."),
+            description: bodyText.optional(),
             color: color.optional(),
             shape: shape.optional(),
             icon: icon.optional(),
             emoji: emoji.optional(),
+            code_url: codeUrl("node").optional(),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
-            width: z.number().min(40).max(4000).optional(),
-            height: z.number().min(24).max(4000).optional().describe("Ignored for a text node, which is as tall as its text."),
+            width: side("width").optional(),
+            height: side("height").optional().describe("Ignored for a text node, which is as tall as its text."),
             group_id: nodeId("The group to put the node in.").optional(),
             near_node_id: nodeId("Place the node in free space next to this one.").optional(),
           })
@@ -170,7 +236,7 @@ export const whiteboardTools = [
         (doc) =>
           edits.addNodes(
             doc,
-            nodes.map(({ group_id, near_node_id, ...node }) => ({ ...node, groupId: group_id, nearNodeId: near_node_id }))
+            nodes.map(({ group_id, near_node_id, code_url, ...node }) => ({ ...node, codeUrl: code_url, groupId: group_id, nearNodeId: near_node_id }))
           ),
         ({ ids }) => ({
           text: `Added ${ids.length} node${ids.length === 1 ? "" : "s"}: ${ids.map((added, index) => `"${nodes[index].title}" (${added})`).join(", ")}.`,
@@ -184,24 +250,28 @@ export const whiteboardTools = [
     title: "Update nodes",
     group: "Whiteboards",
     description:
-      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape, set or remove the icon and emoji badges, change the description, or change how a click opens what the node holds. On a media node the title is the caption, `alt` says what the picture shows, and a resize should keep the proportions of `media.width` to `media.height`. Only the fields you give change, so this merges with what people are doing to the same node. If any id is unknown, nothing changes.",
+      "Changes nodes in place: move (x, y), resize (width, height), retitle, recolor, reshape a box, set or remove the icon and emoji badges, set or remove the code link, change a text node's body text, or change how a click opens what the node holds. A box that changes shape while it is still the size its old shape came in takes the new shape's size, as in the app, unless you give a size. On a picture or video the title is the caption, `alt` says what it shows, and it keeps its file's proportions: give its width or its height and the other follows. Only the fields you give change, so this merges with what people are doing to the same node. A field the node cannot show (body text on a box, a shape on a group) is refused. If any id is unknown or any field refused, nothing changes.",
     input: {
       whiteboard_id: whiteboardId,
       nodes: z
         .array(
           z.object({
             id: nodeId("The node to change."),
-            title: z.string().max(500).optional(),
-            description: z.string().max(2000).optional(),
-            alt: z.string().max(500).optional().describe("Media nodes only: what the picture or video shows, for someone who cannot see it."),
+            title: title.optional().describe("A box's title, a text node's heading, a group's title, or a picture or video's caption."),
+            description: bodyText.optional(),
+            alt: z.string().max(MAX_ALT).optional().describe("Pictures and videos only: what it shows, for someone who cannot see it."),
             color: color.optional(),
             shape: shape.optional(),
             icon: icon.nullable().optional().describe("Null removes the icon."),
             emoji: emoji.nullable().optional().describe("Null removes the emoji."),
+            code_url: codeUrl("node")
+              .nullable()
+              .optional()
+              .describe("The code link. Null removes it; a box drawn for a repository folder then links to its folder again."),
             x: coordinate("x").optional(),
             y: coordinate("y").optional(),
-            width: z.number().min(40).max(4000).optional(),
-            height: z.number().min(24).max(4000).optional(),
+            width: side("width").optional(),
+            height: side("height").optional(),
             open_mode: openMode.optional(),
           })
         )
@@ -213,7 +283,8 @@ export const whiteboardTools = [
       change(
         context,
         whiteboard_id,
-        (doc) => edits.updateNodes(doc, nodes.map(({ open_mode, ...node }) => ({ ...node, openMode: open_mode }))),
+        (doc) =>
+          edits.updateNodes(doc, nodes.map(({ open_mode, code_url, ...node }) => ({ ...node, codeUrl: code_url, openMode: open_mode }))),
         ({ ids }) => ({ text: `Updated ${ids.length} node${ids.length === 1 ? "" : "s"}.`, data: { node_ids: ids } })
       ),
   }),
@@ -223,19 +294,31 @@ export const whiteboardTools = [
     title: "Delete nodes",
     group: "Whiteboards",
     description:
-      "Deletes nodes, along with every arrow attached to them and, for a group, everything inside it. Documents the nodes held are not deleted; they stay in the project. There is no trash for nodes, so this is only undone by adding them again.",
+      "Deletes nodes, along with every arrow attached to them and, for a group, everything inside it. What they held (a description, or a whiteboard inside a node, with everything nested in it) goes to the project's trash, where `restore_document` brings it back; documents they only linked to stay where they are. The files of deleted pictures and videos are deleted. The nodes themselves are not kept anywhere, and a person's undo does not reach an agent's edits, so this is only undone by adding them again.",
     input: { whiteboard_id: whiteboardId, node_ids: z.array(nodeId("A node to delete.")).min(1).max(200) },
     kind: "destructive",
-    run: (context, { whiteboard_id, node_ids }) =>
-      change(
-        context,
-        whiteboard_id,
-        (doc) => edits.deleteNodes(doc, node_ids),
-        ({ nodes, edges }) => ({
-          text: `Deleted ${nodes.length} node${nodes.length === 1 ? "" : "s"} and ${edges.length} attached arrow${edges.length === 1 ? "" : "s"}.`,
-          data: { deleted_node_ids: nodes, deleted_edge_ids: edges },
-        })
-      ),
+    run: async (context, { whiteboard_id, node_ids }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const deleted = await editDocument(context, whiteboard.id, (doc) => {
+        const result = edits.deleteNodes(doc, node_ids)
+        // An agent has no undo, so a file no node shows any more goes now.
+        return "error" in result ? result : { ...result, media: unshownMedia(doc, whiteboard.id, result.media) }
+      })
+      if ("error" in deleted) return deleted
+      const { nodes, edges, media } = deleted
+      await removeMedia(context.supabase, mediaObjectsOf(media)).catch(logMediaFailure)
+      const held = await afterObjectsDeleted(context, whiteboard, [...nodes, ...edges])
+      return {
+        text: [
+          `Deleted ${nodes.length} node${nodes.length === 1 ? "" : "s"} and ${edges.length} attached arrow${edges.length === 1 ? "" : "s"}.`,
+          held.text,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        data: { whiteboard_id: whiteboard.id, deleted_node_ids: nodes, deleted_edge_ids: edges, trashed_document_ids: held.ids },
+      }
+    },
   }),
 
   defineTool({
@@ -243,7 +326,7 @@ export const whiteboardTools = [
     title: "Connect nodes with arrows",
     group: "Whiteboards",
     description:
-      "Draws one or more arrows between nodes and returns their ids. Each arrow leaves and enters by the sides that make the shortest path. An arrow can carry a label, and like a node it can hold a document (`attach_document`).",
+      "Draws one or more arrows between nodes and returns their ids. Each arrow leaves and enters by the sides that make the shortest path; which sides cannot be chosen here. An arrow can carry a label and a `code_url` (where in the code the call or dependency it draws happens), and like a node it can hold a document (`attach_document`).",
     input: {
       whiteboard_id: whiteboardId,
       edges: z
@@ -256,7 +339,7 @@ export const whiteboardTools = [
       change(
         context,
         whiteboard_id,
-        (doc) => edits.connectNodes(doc, edges),
+        (doc) => edits.connectNodes(doc, edges.map(edgeFields)),
         ({ ids }) => ({ text: `Added ${ids.length} arrow${ids.length === 1 ? "" : "s"} (${ids.join(", ")}).`, data: { edge_ids: ids } })
       ),
   }),
@@ -265,17 +348,17 @@ export const whiteboardTools = [
     name: "update_edges",
     title: "Update arrows",
     group: "Whiteboards",
-    description: "Changes arrows in place: label, its icon and emoji, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
+    description: "Changes arrows in place: label, its icon and emoji, code link, direction, shape, stroke, color, or how a click opens what the arrow holds. Only the fields you give change. To connect different nodes, delete the arrow and add a new one.",
     input: {
       whiteboard_id: whiteboardId,
-      edges: z.array(z.object({ id: nodeId("The edge to change."), ...edgeStyle, open_mode: openMode.optional() })).min(1).max(400),
+      edges: z.array(z.object({ id: nodeId("The arrow to change."), ...edgeStyle, open_mode: openMode.optional() })).min(1).max(400),
     },
     kind: "idempotent-write",
     run: (context, { whiteboard_id, edges }) =>
       change(
         context,
         whiteboard_id,
-        (doc) => edits.updateEdges(doc, edges.map(({ open_mode, ...edge }) => ({ ...edge, openMode: open_mode }))),
+        (doc) => edits.updateEdges(doc, edges.map(({ open_mode, ...edge }) => ({ ...edgeFields(edge), openMode: open_mode }))),
         ({ ids }) => ({ text: `Updated ${ids.length} arrow${ids.length === 1 ? "" : "s"}.`, data: { edge_ids: ids } })
       ),
   }),
@@ -284,16 +367,21 @@ export const whiteboardTools = [
     name: "delete_edges",
     title: "Delete arrows",
     group: "Whiteboards",
-    description: "Deletes arrows. The nodes they joined stay, and so does any document an arrow held.",
-    input: { whiteboard_id: whiteboardId, edge_ids: z.array(nodeId("An edge to delete.")).min(1).max(400) },
+    description:
+      "Deletes arrows. The nodes they joined stay. A document an arrow held goes to the project's trash, where `restore_document` brings it back; a document it only linked to stays where it is.",
+    input: { whiteboard_id: whiteboardId, edge_ids: z.array(nodeId("An arrow to delete.")).min(1).max(400) },
     kind: "destructive",
-    run: (context, { whiteboard_id, edge_ids }) =>
-      change(
-        context,
-        whiteboard_id,
-        (doc) => edits.deleteEdges(doc, edge_ids),
-        ({ ids }) => ({ text: `Deleted ${ids.length} arrow${ids.length === 1 ? "" : "s"}.`, data: { deleted_edge_ids: ids } })
-      ),
+    run: async (context, { whiteboard_id, edge_ids }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const deleted = await editDocument(context, whiteboard.id, (doc) => edits.deleteEdges(doc, edge_ids))
+      if ("error" in deleted) return deleted
+      const held = await afterObjectsDeleted(context, whiteboard, deleted.ids)
+      return {
+        text: [`Deleted ${deleted.ids.length} arrow${deleted.ids.length === 1 ? "" : "s"}.`, held.text].filter(Boolean).join(" "),
+        data: { whiteboard_id: whiteboard.id, deleted_edge_ids: deleted.ids, trashed_document_ids: held.ids },
+      }
+    },
   }),
 
   defineTool({
@@ -304,13 +392,13 @@ export const whiteboardTools = [
       "Creates a group: a titled frame that contains nodes and moves with them. Give `node_ids` and the group is drawn around those nodes and they become its members (they must currently share a parent). Without them it is an empty frame, placed at x and y or in free space.",
     input: {
       whiteboard_id: whiteboardId,
-      title: z.string().max(500).describe("The group's title."),
+      title: title.describe("The group's title."),
       color: color.optional(),
       node_ids: z.array(nodeId("A node to put in the group.")).max(200).optional(),
       x: coordinate("x").optional(),
       y: coordinate("y").optional(),
-      width: z.number().min(80).max(8000).optional(),
-      height: z.number().min(80).max(8000).optional(),
+      width: side("width").optional().describe(`Without \`node_ids\` only. Default 360. ${SIZES}`),
+      height: side("height").optional().describe(`Without \`node_ids\` only. Default 240. ${SIZES}`),
     },
     kind: "write",
     run: (context, { whiteboard_id, node_ids, ...group }) =>
@@ -363,17 +451,83 @@ export const whiteboardTools = [
   }),
 
   defineTool({
+    name: "import_mermaid",
+    title: "Draw a Mermaid diagram on a whiteboard",
+    group: "Whiteboards",
+    description:
+      `Draws a Mermaid diagram as real boxes, groups and arrows that people can click into and edit, laid out in the diagram's direction. With \`project_id\` it makes a new whiteboard (named after the diagram's \`title\` unless you give one); with \`whiteboard_id\` it adds the diagram beside what is already on that whiteboard. Draws ${SUPPORTED}. Flowcharts: every direction, the bracket shapes and \`A@{ shape: ... }\` as the nearest of the whiteboard's shapes (\`[(db)]\` a cylinder, \`{decision}\` a diamond), link labels, dotted links, chains and \`&\`, and subgraphs as groups, which arrows may end on. Sequence diagrams: participants as boxes in a row (actors with a person icon, a \`box\` as a group), and the messages one way between two participants as one arrow, numbered in the order they were sent. ER diagrams: entities as boxes, each entity's attributes as a table on the page inside its box, and relationships as arrows labelled with their words and cardinality, dotted when non-identifying. Styles, classes, click actions, notes, loops and activations are not drawn; the result lists everything left out. Prefer this to \`add_nodes\`, \`connect_nodes\` and \`arrange_nodes\` for drawing a new diagram of more than a few boxes: one call, and Mermaid is easy to get right. Use those tools for small changes to a diagram that is already there, and \`attach_document\` to put a whiteboard or page inside a box. Returns the whiteboard and the node id each Mermaid id became.`,
+    input: {
+      mermaid: z
+        .string()
+        .min(1)
+        .max(MAX_MERMAID_LENGTH)
+        .describe("The diagram, starting with its kind (`flowchart LR`, `sequenceDiagram`, `erDiagram`). A ```mermaid fence around it is fine."),
+      project_id: id("Make a new whiteboard in this project, from `list_projects`.").optional(),
+      place: container.optional().describe("Where in the project's tree the new whiteboard goes. Default the top level. Only with `project_id`."),
+      title: z.string().min(1).max(200).optional().describe("The new whiteboard's name. Only with `project_id`."),
+      whiteboard_id: id("Add the diagram to this whiteboard instead of making a new one.").optional(),
+    },
+    kind: "write",
+    covers: ["[org]/[project]/import-actions.importMermaid", "[org]/[project]/import-actions.writeMermaidPages"],
+    run: async (context, { mermaid, project_id, place: where, title, whiteboard_id }) => {
+      if (!project_id === !whiteboard_id)
+        return { error: "Give either `project_id`, to make a new whiteboard, or `whiteboard_id`, to add to one." }
+
+      let result: MermaidOutcome | { error: string; limit?: true }
+      let whiteboard: { id: string; org_id: string; project_id: string }
+      if (whiteboard_id) {
+        if (where || title) return { error: "`place` and `title` are for a new whiteboard, with `project_id`." }
+        const found = await findTypedDocument(context, whiteboard_id, "whiteboard")
+        if ("error" in found) return found
+        whiteboard = found
+        result = await addMermaidToWhiteboard(context.supabase, found, mermaid)
+      } else {
+        const project = await findProject(context, project_id!)
+        if (!project) return NO_PROJECT
+        result = await createMermaidWhiteboard(
+          context.supabase,
+          { orgId: project.org_id, projectId: project.id },
+          context.userId,
+          where ?? { kind: "root" },
+          mermaid,
+          title
+        )
+        if ("error" in result) return result
+        whiteboard = { id: result.whiteboardId, org_id: project.org_id, project_id: project.id }
+      }
+      if ("error" in result) return result
+
+      const url = await documentUrl(context, whiteboard)
+      const nodeIds = Object.fromEntries(result.keys)
+      const drawn = `${result.boxes} ${result.boxes === 1 ? "box" : "boxes"} and ${result.arrows} ${result.arrows === 1 ? "arrow" : "arrows"}`
+      return {
+        text: [
+          whiteboard_id
+            ? `Added ${drawn} to the whiteboard (${whiteboard.id}).`
+            : `Drew ${drawn} on a new whiteboard (${whiteboard.id}).`,
+          url ? `Open it at ${url}` : "",
+          `Node ids by Mermaid id: ${JSON.stringify(nodeIds)}.`,
+          result.notes.length ? `Not drawn as written: ${result.notes.join(" ")}` : "Everything in the diagram was drawn.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        data: { whiteboard_id: whiteboard.id, url, node_ids: nodeIds, boxes: result.boxes, arrows: result.arrows, notes: result.notes },
+      }
+    },
+  }),
+
+  defineTool({
     name: "attach_document",
     title: "Put a document inside a node or arrow",
     group: "Whiteboards",
     description:
-      "Gives a node, group, or arrow a document that opens from it. `text` creates its description: a text document that belongs to the object and opens in a side panel (optionally with first content as Markdown). `whiteboard` creates a nested whiteboard inside the object, which also appears in the project tree under this whiteboard: this is how a box becomes a whole diagram. `existing_document_id` instead links a document that lives elsewhere. An object holds one document; detach the current one first with `detach_document`.",
+      "Gives a node or an arrow a document that opens from it. `text` creates its description: a page that belongs to the node or arrow, opens in the side panel beside the whiteboard, and is not listed in the project tree (optionally with first content as Markdown). `whiteboard` creates a nested whiteboard inside it, which also appears in the project tree under this whiteboard: this is how a box becomes a whole diagram of its own. `existing_document_id` instead links a document that lives elsewhere in the tree. A node or arrow holds one document; detach the current one first with `detach_document`.",
     input: {
       whiteboard_id: whiteboardId,
-      object_id: nodeId("The node, group, or edge."),
-      type: z.enum(["text", "whiteboard"]).optional().describe("What to create. Leave out when linking an existing document."),
+      object_id: nodeId("The node or arrow."),
+      type: z.enum(["text", "whiteboard"]).optional().describe("What to create: `text` for a page, `whiteboard` for a whiteboard. Leave out when linking an existing document."),
       title: z.string().min(1).max(200).optional().describe("Defaults to the object's title."),
-      markdown: z.string().optional().describe("First content, for a new text document."),
+      markdown: z.string().optional().describe("First content, for a new page."),
       existing_document_id: id("Link this existing document instead of creating one.").optional(),
     },
     kind: "write",
@@ -388,8 +542,9 @@ export const whiteboardTools = [
         if (!target || target.project_id !== whiteboard.project_id)
           return target ? { error: "Only a document of the same project can be linked." } : NO_DOCUMENT
         // What the app's own picker offers: documents of the tree, not
-        // descriptions, and nothing from the trash.
-        if (target.kind !== "standard" || target.deleted_at)
+        // descriptions, and nothing in the trash or inside something that is.
+        if (target.in_trash) return IN_TRASH
+        if (target.kind !== "standard")
           return { error: "Only a document that is in the project's tree can be linked." }
         if (target.id === whiteboard.id) return { error: "A whiteboard cannot hold itself." }
         const linked = await editDocument(context, whiteboard.id, (doc) =>
@@ -402,7 +557,7 @@ export const whiteboardTools = [
 
       const kind = type!
       if (markdown !== undefined && kind !== "text")
-        return { error: "Only a text document takes Markdown. Add nodes to the new whiteboard with `add_nodes`." }
+        return { error: "Only a page takes Markdown. Add nodes to the new whiteboard with `add_nodes`." }
       const created = await createInsideObject(context, whiteboard, object_id, kind, title)
       if ("error" in created) return created
       if (markdown) {
@@ -420,20 +575,35 @@ export const whiteboardTools = [
     name: "detach_document",
     title: "Detach the document from a node or arrow",
     group: "Whiteboards",
-    description: "Makes a node, group, or arrow hold nothing again. The document itself is not deleted or moved; trash it separately if it is no longer wanted.",
-    input: { whiteboard_id: whiteboardId, object_id: nodeId("The node, group, or edge.") },
+    description:
+      "Makes a node or an arrow hold nothing again. The document itself is not deleted: a document the node or arrow held stays under this whiteboard as one of its own, in the project tree (a description becomes a page), and deleting the node later leaves it alone; a document it only linked to stays where it is. Trash it separately if it is no longer wanted.",
+    input: { whiteboard_id: whiteboardId, object_id: nodeId("The node or arrow.") },
     kind: "idempotent-write",
     run: async (context, { whiteboard_id, object_id }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const doc = await loadDocument(context.supabase, whiteboard.id)
+      if (!doc) return { error: "This document could not be read." }
+      const held = (nodesMap(doc).get(object_id) ?? edgesMap(doc).get(object_id))?.get("docId")
+
+      // Let go of it first: at the free plan's limit a description cannot
+      // become a page, and the node or arrow then keeps it.
+      let released: { id: string; title: string; type: "text" | "whiteboard" } | null = null
+      if (typeof held === "string") {
+        const result = await releaseHeldDocument(context.supabase, whiteboard.id, object_id, held)
+        if ("error" in result) return result
+        released = result.released
+      }
       const result = await change(
         context,
-        whiteboard_id,
-        (doc) => edits.setObjectDocument(doc, object_id, null),
-        () => ({ text: "Detached.", data: { object_id } })
+        whiteboard.id,
+        (board) => edits.setObjectDocument(board, object_id, null),
+        () => ({
+          text: released ? `Detached. ${releasedWords(released)}` : "Detached.",
+          data: { object_id, ...(released ? { released_document_id: released.id } : {}) },
+        })
       )
-      if (!("error" in result)) {
-        const whiteboard = await findDocument(context, whiteboard_id)
-        if (whiteboard) await reindexLinks(context, whiteboard)
-      }
+      if (!("error" in result)) await reindexLinks(context, whiteboard)
       return result
     },
   }),

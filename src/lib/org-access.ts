@@ -27,3 +27,10 @@ export async function readOrgAccess(
 
   return { role, plan, canEdit }
 }
+
+// How many private documents may be kept, or null when nothing limits them:
+// this server sets no limit (the default), or the plan is paid. What the app
+// says about the limit is shown only when there is one.
+export function privateDocumentLimit(plan: { paid: boolean; private_document_limit: number | null } | null) {
+  return plan && !plan.paid ? plan.private_document_limit : null
+}

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 
+import { listMedia, removeMedia } from "@/lib/documents/media-cleanup"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 import { PICTURE_PROVIDERS, providerPicture, type PictureProvider } from "./identities"
@@ -82,3 +84,55 @@ export async function revokeAgent(clientId: string): Promise<ActionResult> {
   return { ok: true }
 }
 
+// Deletes the signed-in person's account, what Terms and Privacy promise:
+// their personal workspace and every team workspace nobody else is in, with
+// everything in them, then the account itself. Team workspaces other people
+// are in stay, with what the person made there.
+//
+// The database does it in one transaction (public.delete_account), which
+// only the server's secret key may call, so that a leaked token is not
+// enough; this action is what checks that the person asking is the account
+// and meant it. It refuses, with nothing changed, when the person is the
+// only owner of a workspace that has other members, or a workspace it would
+// delete has a running subscription. `confirmation` is the account's email
+// as the person typed it.
+//
+// Storage keeps its files apart from the rows, so the pictures and videos of
+// the deleted workspaces are removed afterwards: if that fails, what is left
+// is files nobody can reach (docs/DEPLOYMENT.md lists them), not an account
+// that is half there.
+export async function deleteAccount(confirmation: string): Promise<ActionResult> {
+  const current = await session()
+  if (!current) return NOT_SIGNED_IN
+  const email = current.user.email ?? ""
+  if (!email || confirmation.trim().toLowerCase() !== email.toLowerCase())
+    return { error: "That is not your account's email." }
+  if (!process.env.SUPABASE_SECRET_KEY) return { error: "This server cannot delete accounts. Ask whoever runs it." }
+
+  // The files of the workspaces this deletes, listed a page at a time while
+  // the person is still an owner of them. What delete_account returns is
+  // cut off at PostgREST's max_rows, and cannot be asked for again once the
+  // account is gone; it is added in case anything came in between.
+  const { data: plan } = await current.supabase.rpc("account_deletion_plan")
+  const doomed = (plan ?? []).filter((workspace) => workspace.outcome === "delete")
+  const listed = (await Promise.all(doomed.map((workspace) => listMedia(current.supabase, workspace.org_id)))).flat()
+
+  const admin = createAdminClient()
+  const { data: files, error } = await admin.rpc("delete_account", { p_user_id: current.user.id })
+  if (error) {
+    // The refusals are written for the person reading them.
+    if (error.code === "P0001") return { error: error.message }
+    console.error("Deleting an account failed", error)
+    return { error: "Your account could not be deleted. Nothing was changed. Try again in a moment." }
+  }
+
+  try {
+    await removeMedia(admin, [...listed, ...(files ?? [])])
+  } catch (failure) {
+    console.error("Removing a deleted account's files failed", failure)
+  }
+  // The account is gone, so Auth has no session to end: this clears the
+  // cookies that held it.
+  await current.supabase.auth.signOut({ scope: "local" })
+  return { ok: true }
+}

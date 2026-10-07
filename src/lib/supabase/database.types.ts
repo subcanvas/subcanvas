@@ -309,6 +309,7 @@ export type Database = {
       folders: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
           name: string
           org_id: string
@@ -318,6 +319,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name: string
           org_id: string
@@ -327,6 +329,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name?: string
           org_id?: string
@@ -451,6 +454,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         Insert: {
@@ -458,6 +462,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          personal_owner?: string | null
           slug: string
         }
         Update: {
@@ -465,6 +470,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          personal_owner?: string | null
           slug?: string
         }
         Relationships: [
@@ -472,6 +478,13 @@ export type Database = {
             foreignKeyName: "orgs_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orgs_personal_owner_fkey"
+            columns: ["personal_owner"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -605,6 +618,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         SetofOptions: {
@@ -614,9 +628,33 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      account_deletion_plan: {
+        Args: never
+        Returns: {
+          org_id: string
+          org_name: string
+          org_slug: string
+          outcome: string
+          personal: boolean
+        }[]
+      }
       compact_document: {
         Args: { p_document_id: string; p_state: string; p_up_to_id: number }
         Returns: undefined
+      }
+      create_invite: {
+        Args: {
+          p_email: string
+          p_org_id: string
+          p_role: Database["public"]["Enums"]["org_role"]
+        }
+        Returns: {
+          expires_at: string
+          id: string
+          may_email: boolean
+          renewed: boolean
+          token: string
+        }[]
       }
       create_org: {
         Args: { p_name: string; p_slug: string }
@@ -625,6 +663,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          personal_owner: string | null
           slug: string
         }
         SetofOptions: {
@@ -634,7 +673,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      delete_folder: { Args: { p_folder_id: string }; Returns: undefined }
+      daily_activity: { Args: { p_day: string }; Returns: Json }
+      daily_errors: { Args: { p_day: string }; Returns: Json }
+      delete_account: {
+        Args: { p_user_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
+      }
+      delete_old_errors: { Args: never; Returns: number }
       discard_import: { Args: { p_project_id: string }; Returns: undefined }
       document_ancestors: {
         Args: { p_document_id: string }
@@ -646,8 +694,55 @@ export type Database = {
           type: Database["public"]["Enums"]["document_type"]
         }[]
       }
+      document_count: {
+        Args: { p_project: Database["public"]["Tables"]["projects"]["Row"] }
+        Returns: number
+      }
+      document_is_live: { Args: { p_document_id: string }; Returns: boolean }
       document_references: {
         Args: { p_document_id: string }
+        Returns: {
+          project_id: string
+          source_document_id: string
+          source_title: string
+          source_type: Database["public"]["Enums"]["document_type"]
+        }[]
+      }
+      documents_in_view: {
+        Args: { p_project_id: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          folder_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["document_kind"]
+          org_id: string
+          parent_document_id: string | null
+          parent_object_id: string | null
+          position: number
+          project_id: string
+          source: Json | null
+          title: string
+          type: Database["public"]["Enums"]["document_type"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "documents"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      folder_media_objects: {
+        Args: { p_folder_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
+      }
+      folder_references: {
+        Args: { p_folder_id: string }
         Returns: {
           project_id: string
           source_document_id: string
@@ -659,6 +754,8 @@ export type Database = {
         Args: { p_token: string }
         Returns: {
           email: string
+          expires_at: string
+          inviter: string
           org_name: string
           org_slug: string
           role: Database["public"]["Enums"]["org_role"]
@@ -691,6 +788,21 @@ export type Database = {
           private_documents: number
         }[]
       }
+      record_error: {
+        Args: {
+          p_daily_new_limit?: number
+          p_fingerprint: string
+          p_message: string
+          p_name: string
+          p_release?: string
+          p_route: string
+          p_source: string
+          p_stack: string
+        }
+        Returns: string
+      }
+      record_step: { Args: { p_step: string }; Returns: undefined }
+      record_visit: { Args: never; Returns: boolean }
       report_abuse: {
         Args: {
           p_document_id: string
@@ -698,7 +810,20 @@ export type Database = {
           p_reason: string
           p_reporter_email?: string
         }
-        Returns: undefined
+        Returns: string
+      }
+      restore_document: {
+        Args: { p_document_id: string; p_object_gone?: boolean }
+        Returns: {
+          folder_id: string
+          parent_document_id: string
+        }[]
+      }
+      restore_folder: {
+        Args: { p_folder_id: string }
+        Returns: {
+          parent_folder_id: string
+        }[]
       }
       viewer_count: { Args: { p_document_id: string }; Returns: number }
       viewer_heartbeat: {

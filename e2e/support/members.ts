@@ -2,20 +2,21 @@ import { type Browser, type BrowserContext, expect, type Locator, type Page } fr
 
 import { type Account, signUp } from "./app"
 
-// Getting a second person into an org. Invites are links, not emails: an
-// admin makes one for an address, copies the link, and passes it on. The
-// invited person signs up with that address and follows the link.
+// Getting a second person into an org. An admin makes an invite for an
+// address; the server emails it when it sends email, and the Members page
+// always has its link to copy. The invited person signs up with that address
+// and follows the link. Most specs copy the link; invites.spec.ts follows
+// the email.
 
 export type RoleLabel = "Viewer" | "Editor" | "Admin" | "Owner"
 
-// Makes an invite for `email` on Settings → Members and returns the link
-// the page offers for it.
-export async function createInviteLink(
+// Invites `email` from Settings → Members and returns the invite's row.
+export async function invite(
   page: Page,
   slug: string,
   email: string,
   role: Exclude<RoleLabel, "Owner">
-): Promise<string> {
+): Promise<Locator> {
   await page.goto(`/${slug}/settings/members`)
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible()
 
@@ -31,8 +32,20 @@ export async function createInviteLink(
 
   // The invite's row is rendered on the server, so its arrival is proof the
   // invite was written, not just submitted.
-  const row = page.getByRole("row").filter({ hasText: email })
+  const row = inviteRow(page, email)
   await expect(row).toBeVisible()
+  return row
+}
+
+// Makes an invite for `email` on Settings → Members and returns the link
+// the page offers for it.
+export async function createInviteLink(
+  page: Page,
+  slug: string,
+  email: string,
+  role: Exclude<RoleLabel, "Owner">
+): Promise<string> {
+  const row = await invite(page, slug, email, role)
 
   // The only way the page gives out the link is the clipboard. Chromium
   // refuses to read it without the permission, and grants nothing on its own
@@ -81,6 +94,14 @@ export async function joinThroughInvite(
 export const memberRow = (page: Page, email: string) =>
   page.getByRole("row").filter({ hasText: email })
 
+// The row of an invite, which is in the invite section's own table.
+export const inviteRow = (page: Page, email: string) =>
+  page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Invite someone" }) })
+    .getByRole("row")
+    .filter({ hasText: email })
+
 // Changes someone's role from Settings → Members. The role shown in the row
 // comes back from the server after the change, so its new value is proof
 // the change was written.
@@ -98,6 +119,10 @@ export async function removeMember(page: Page, slug: string, email: string) {
   await page.goto(`/${slug}/settings/members`)
   const row = memberRow(page, email)
   await row.getByRole("button", { name: "Remove" }).click()
+  // It asks first, as every destructive action does.
+  const dialog = page.getByRole("dialog")
+  await expect(dialog.getByText("They lose access to its projects right away.")).toBeVisible()
+  await dialog.getByRole("button", { name: "Remove", exact: true }).click()
   await expect(row).toHaveCount(0)
 }
 

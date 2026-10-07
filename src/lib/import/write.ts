@@ -3,13 +3,15 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
+import { recordStep } from "@/lib/activity"
+import { privateDocumentLimitMessage } from "@/lib/billing/limit"
 import * as operations from "@/lib/documents/operations"
 import { readOrgAccess } from "@/lib/org-access"
 import type { Database } from "@/lib/supabase/database.types"
 import { writeNewDocuments } from "@/lib/sync/server-document"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
 import { serverEditor, type ServerBlocks } from "@/lib/text/server-editor"
-import { mediaDocumentId, parseMediaPath } from "@/lib/whiteboard/media"
+import { mediaDocumentId, mediaTypeOf, parseMediaPath } from "@/lib/whiteboard/media"
 import type { Container } from "@/lib/tree"
 
 import type { ImportBatch } from "./batches"
@@ -49,7 +51,7 @@ export const batchSchema = z.object({
 
 // Whether this many documents can be added, asked before the first one is,
 // so that an org near the free plan's limit is told at the start and is not
-// left with half of its notes.
+// left with half of its pages.
 export async function checkImportAllowance(
   supabase: Client,
   userId: string,
@@ -66,8 +68,10 @@ export async function checkImportAllowance(
   if (row.visibility !== "private" || !plan || plan.paid || plan.private_document_limit === null) return { ok: true }
   const room = Math.max(0, plan.private_document_limit - plan.private_documents)
   if (documents <= room) return { ok: true }
+  // The limit said as every other refusal says it (lib/billing/limit.ts),
+  // then what is particular to an import.
   return {
-    error: `This import is ${documents} ${documents === 1 ? "document" : "documents"}, and the free plan has room for ${room} more private ${room === 1 ? "one" : "ones"}. Upgrade, make the project public, or import fewer files.`,
+    error: `${privateDocumentLimitMessage(plan.private_document_limit)} This import is ${documents} ${documents === 1 ? "document" : "documents"}, and there is ${room === 0 ? "no room for more" : `room for ${room} more`}. Import fewer files, or into a public project.`,
     limit: true,
   }
 }
@@ -97,7 +101,7 @@ function tidy(blocks: Rewritable[]) {
 
 export async function toBlocks(markdown: string, documentId?: string): Promise<{ blocks: ServerBlocks; plain: boolean }> {
   try {
-    const blocks = keepAllowedMedia((await parseMarkdown(markdown)) as Media[], documentId) as ServerBlocks
+    const blocks = videosAsVideos(keepAllowedMedia((await parseMarkdown(markdown)) as Media[], documentId)) as ServerBlocks
     tidy(blocks as Rewritable[])
     return { blocks, plain: false }
   } catch {
@@ -129,6 +133,23 @@ export function keepAllowedMedia<T extends Media>(blocks: T[], documentId?: stri
   return blocks
     .filter((block) => !MEDIA.has(block.type) || allowedMedia(block.props?.url, documentId))
     .map((block) => (block.children?.length ? { ...block, children: keepAllowedMedia(block.children, documentId) } : block))
+}
+
+// Markdown shows a picture and a video the same way, `![caption](file)`, and
+// the converter makes a picture of both. A file of this app's that is a
+// video is shown as one. That is how an export writes videos
+// (lib/export/markdown.ts), and how other apps' Markdown embeds them.
+export function videosAsVideos<T extends Media>(blocks: T[]): T[] {
+  return blocks.map((block) => {
+    const address = String(block.props?.url ?? "")
+    const path = address.startsWith("/api/media/") ? parseMediaPath(address.slice("/api/media/".length)) : null
+    const video = block.type === "image" && path !== null && mediaTypeOf(path) === "video"
+    return {
+      ...block,
+      ...(video ? { type: "video" } : {}),
+      ...(block.children?.length ? { children: videosAsVideos(block.children) } : {}),
+    }
+  })
 }
 
 // A page read from HTML. What the browser sent is the page cut down to what
@@ -185,9 +206,13 @@ export async function writeImportBatch(
     batch.documents.map((document) => ({ id: document.id, title: document.title, container: place(document.parent) }))
   )
   if ("error" in created) {
-    // The folders were made for these documents. Innermost first: only an
-    // empty folder can be deleted.
-    for (const folder of [...batch.folders].reverse()) await operations.deleteFolder(supabase, folder.id)
+    // The folders were made for these documents a moment ago, and none of
+    // them was: they hold nothing, and go.
+    if (batch.folders.length)
+      await supabase
+        .from("folders")
+        .delete()
+        .in("id", batch.folders.map((folder) => folder.id))
     return created
   }
 
@@ -201,5 +226,6 @@ export async function writeImportBatch(
       .in("id", batch.documents.map((document) => document.id))
     return { error: written.error }
   }
+  await recordStep(supabase, "imported_files")
   return { ok: true, plainText }
 }

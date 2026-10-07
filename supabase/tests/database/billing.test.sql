@@ -76,14 +76,16 @@ select lives_ok(
      values ('00000000-0000-0000-0000-0000000003a1', 'e3000000-0000-0000-0000-000000000004', 'viewer') $$,
   'viewers are unlimited');
 select throws_ok(
-  $$ update public.org_members set role = 'editor' where user_id = 'e3000000-0000-0000-0000-000000000004' $$,
+  $$ update public.org_members set role = 'editor'
+     where org_id = '00000000-0000-0000-0000-0000000003a1' and user_id = 'e3000000-0000-0000-0000-000000000004' $$,
   'GN002', null, 'promoting a viewer counts as adding an editor');
 
 -- Paid, then lapsed --------------------------------------------------------------------
 
 insert into public.subscriptions (org_id, stripe_customer_id, status) values (:org, 'cus_pgtap', 'active');
 select lives_ok(
-  $$ update public.org_members set role = 'editor' where user_id = 'e3000000-0000-0000-0000-000000000004';
+  $$ update public.org_members set role = 'editor'
+     where org_id = '00000000-0000-0000-0000-0000000003a1' and user_id = 'e3000000-0000-0000-0000-000000000004';
      insert into public.org_members (org_id, user_id, role)
      values ('00000000-0000-0000-0000-0000000003a1', 'e3000000-0000-0000-0000-000000000005', 'editor') $$,
   'a paid org has no editor limit');

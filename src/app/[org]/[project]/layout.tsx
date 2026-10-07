@@ -17,7 +17,7 @@ export default async function ProjectLayout({
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name, visibility")
+    .select("id, name, visibility, taken_down_at")
     .eq("id", projectId)
     .eq("org_id", org.id)
     .maybeSingle()
@@ -27,7 +27,8 @@ export default async function ProjectLayout({
     supabase
       .from("folders")
       .select("id, name, parent_folder_id, position")
-      .eq("project_id", project.id),
+      .eq("project_id", project.id)
+      .is("deleted_at", null),
     supabase
       .from("documents")
       .select("id, title, type, folder_id, parent_document_id, position")
@@ -37,6 +38,12 @@ export default async function ProjectLayout({
   ])
 
   const projectRef = { slug: org.slug, orgId: org.id, projectId: project.id }
+  const sidebarProject = {
+    id: project.id,
+    name: project.name,
+    visibility: project.visibility,
+    takenDown: project.taken_down_at !== null,
+  }
   const showUsage =
     project.visibility === "private" &&
     plan &&
@@ -48,10 +55,10 @@ export default async function ProjectLayout({
     <ProjectTree
       project={projectRef}
       projectName={project.name}
+      row={{ href: `/${org.slug}/${project.id}`, ...sidebarProject }}
       nodes={buildTree(folders ?? [], documents ?? [])}
       canEdit={canEdit}
       canDelete={hasRole(role, "admin")}
-      canUpgrade={billingConfigured()}
       trashHref={`/${org.slug}/${project.id}/trash`}
     />
   )
@@ -78,7 +85,7 @@ export default async function ProjectLayout({
   )
 
   return (
-    <AppShell slug={slug} title={project.name} tree={tree} footer={footer}>
+    <AppShell slug={slug} title={project.name} project={sidebarProject} tree={tree} footer={footer}>
       {children}
     </AppShell>
   )

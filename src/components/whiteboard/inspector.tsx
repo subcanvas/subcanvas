@@ -1,6 +1,7 @@
 "use client"
 
-import { ExternalLink, X } from "lucide-react"
+import { Code, ExternalLink, Trash2, X } from "lucide-react"
+import { useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { ProjectSource } from "@/lib/github/source"
+import { codeLinkOf, codeUrlFromInput, describeCodeUrl, type CodeLink } from "@/lib/whiteboard/code-link"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import { mediaHref } from "@/lib/whiteboard/media"
 import {
@@ -17,10 +21,12 @@ import {
   type WbEdge,
   type WbNode,
 } from "@/lib/whiteboard/schema"
-import { SHAPE_SIZE, type NodeShape } from "@/lib/whiteboard/shapes"
+import { MAX_ALT, MAX_BODY_TEXT, MAX_LABEL, MAX_TITLE, reshape } from "@/lib/whiteboard/limits"
+import type { NodeShape } from "@/lib/whiteboard/shapes"
 import { nodeLabel } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
+import { KEYS } from "./hint-bar"
 import { ObjectDocument } from "./object-document"
 import { EmojiField, IconField, ShapeField } from "./pickers"
 
@@ -34,8 +40,10 @@ export function Inspector({
   locked,
   context,
   user,
+  repository,
   onNodeChange,
   onEdgeChange,
+  onDelete,
   onClose,
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
@@ -44,12 +52,16 @@ export function Inspector({
   locked: boolean
   context: WhiteboardContext
   user: EditorUser
+  repository: ProjectSource | null
   onNodeChange: (id: string, patch: Partial<Omit<WbNode, "id">>) => void
   onEdgeChange: (id: string, patch: Partial<Omit<WbEdge, "id">>) => void
+  // Deletes the object, as the Delete key does. Absent when it cannot be.
+  onDelete?: () => void
   onClose: () => void
 }) {
   const isNode = "node" in selection
   const name = isNode ? selection.node.title : selection.edge.label
+  const what = isNode ? nodeLabel(selection.node) : "Arrow"
 
   return (
     <aside
@@ -64,11 +76,29 @@ export function Inspector({
     >
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
         <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
-          {isNode ? nodeLabel(selection.node) : "Arrow"}
+          {what}
         </span>
         <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
           {name || (isNode ? "Untitled" : "No label")}
         </h2>
+        {onDelete && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Delete ${what.toLowerCase()}`}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 />
+                </Button>
+              }
+            />
+            <TooltipContent>{`Delete ${KEYS.remove}`}</TooltipContent>
+          </Tooltip>
+        )}
         <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>
           <X />
         </Button>
@@ -76,9 +106,18 @@ export function Inspector({
 
       <fieldset disabled={!editable} className="flex flex-col gap-5 p-4">
         {isNode ? (
-          <NodeFields node={selection.node} onChange={(patch) => onNodeChange(selection.node.id, patch)} />
+          <NodeFields
+            node={selection.node}
+            link={codeLinkOf(selection.node, repository)}
+            editable={editable}
+            onChange={(patch) => onNodeChange(selection.node.id, patch)}
+          />
         ) : (
-          <EdgeFields edge={selection.edge} onChange={(patch) => onEdgeChange(selection.edge.id, patch)} />
+          <EdgeFields
+            edge={selection.edge}
+            editable={editable}
+            onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
+          />
         )}
       </fieldset>
 
@@ -119,26 +158,28 @@ export function Inspector({
 
 function NodeFields({
   node,
+  link,
+  editable,
   onChange,
 }: {
   node: WbNode
+  link: CodeLink | null
+  editable: boolean
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
-  // A node still at the size its shape came in takes the new shape's size,
-  // around the same center: a diamond needs more room than a rectangle for
-  // the same words. A node somebody has sized keeps its size.
-  function changeShape(shape: NodeShape) {
-    const from = SHAPE_SIZE[node.shape]
-    const to = SHAPE_SIZE[shape]
-    const untouched = node.width === from.width && node.height === from.height
-    onChange(
-      untouched
-        ? { shape, ...to, x: node.x + (from.width - to.width) / 2, y: node.y + (from.height - to.height) / 2 }
-        : { shape }
-    )
-  }
+  // A box still at the size its shape came in takes the new shape's size.
+  const changeShape = (shape: NodeShape) => onChange(reshape(node, shape))
+  const code = (
+    <CodeField
+      key={node.id}
+      codeUrl={node.codeUrl}
+      link={link}
+      editable={editable}
+      onChange={(codeUrl) => onChange({ codeUrl })}
+    />
+  )
 
-  if (node.kind === "media") return <MediaFields node={node} onChange={onChange} />
+  if (node.kind === "media") return <MediaFields node={node} code={code} onChange={onChange} />
 
   return (
     <>
@@ -146,7 +187,7 @@ function NodeFields({
         <Input
           id="wb-title"
           value={node.title}
-          maxLength={200}
+          maxLength={MAX_TITLE}
           onChange={(event) => onChange({ title: event.target.value })}
         />
       </Field>
@@ -156,23 +197,30 @@ function NodeFields({
             id="wb-description"
             value={node.description}
             rows={4}
-            maxLength={2000}
+            maxLength={MAX_BODY_TEXT}
             onChange={(event) => onChange({ description: event.target.value })}
           />
         </Field>
       )}
       {node.path && (
-        // Set by the import and owned by the repository, so it is shown, not edited.
+        // Set by the import and owned by the repository, so it is shown, not
+        // edited. Its code link, unless the box has one of its own, is the
+        // folder: the folder is then shown as that link, not twice.
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-graphite">Folder</span>
-          <p className="rounded-lg border border-rule bg-paper px-2.5 py-1.5 font-mono text-xs break-all text-ink">
-            {node.path}
-          </p>
+          {link?.derived ? (
+            <CodeCard url={link.url} label={node.path} />
+          ) : (
+            <p className="rounded-lg border border-rule bg-paper px-2.5 py-1.5 font-mono text-xs break-all text-ink">
+              {node.path}
+            </p>
+          )}
           {node.kind === "plain" && node.description && (
             <p className="text-xs leading-relaxed text-graphite">{node.description}</p>
           )}
         </div>
       )}
+      {code}
       {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
       <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
@@ -184,9 +232,11 @@ function NodeFields({
 // A picture or a video: its title is the caption under it.
 function MediaFields({
   node,
+  code,
   onChange,
 }: {
   node: WbNode
+  code: React.ReactNode
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
   return (
@@ -195,7 +245,7 @@ function MediaFields({
         <Input
           id="wb-title"
           value={node.title}
-          maxLength={200}
+          maxLength={MAX_TITLE}
           onChange={(event) => onChange({ title: event.target.value })}
         />
       </Field>
@@ -208,7 +258,7 @@ function MediaFields({
           id="wb-alt"
           value={node.alt}
           rows={3}
-          maxLength={500}
+          maxLength={MAX_ALT}
           onChange={(event) => onChange({ alt: event.target.value })}
         />
       </Field>
@@ -229,6 +279,7 @@ function MediaFields({
           </a>
         </div>
       )}
+      {code}
       <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
       <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
@@ -237,9 +288,11 @@ function MediaFields({
 
 function EdgeFields({
   edge,
+  editable,
   onChange,
 }: {
   edge: WbEdge
+  editable: boolean
   onChange: (patch: Partial<Omit<WbEdge, "id">>) => void
 }) {
   return (
@@ -248,11 +301,18 @@ function EdgeFields({
         <Input
           id="wb-label"
           value={edge.label}
-          maxLength={120}
+          maxLength={MAX_LABEL}
           placeholder="What this arrow means"
           onChange={(event) => onChange({ label: event.target.value })}
         />
       </Field>
+      <CodeField
+        key={edge.id}
+        codeUrl={edge.codeUrl}
+        link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null}
+        editable={editable}
+        onChange={(codeUrl) => onChange({ codeUrl })}
+      />
       <div className="grid grid-cols-2 gap-4">
         <Choice
           label="Line"
@@ -288,6 +348,142 @@ function EdgeFields({
       <IconField value={edge.icon} onChange={(icon) => onChange({ icon })} />
       <EmojiField value={edge.emoji} onChange={(emoji) => onChange({ emoji })} />
     </>
+  )
+}
+
+// A code link: the address of the code behind the object, opened in a new
+// tab. Typing does not change the whiteboard until the address is done (on
+// Enter, or on leaving the field), so nobody else sees half an address and
+// one change is one step to undo. Escape puts back what was there.
+function CodeField({
+  codeUrl,
+  link,
+  editable,
+  onChange,
+}: {
+  codeUrl: string | null
+  // What the object opens: its own link, or the folder it was imported from.
+  link: CodeLink | null
+  editable: boolean
+  onChange: (codeUrl: string | null) => void
+}) {
+  const [draft, setDraft] = useState(codeUrl ?? "")
+  const [problem, setProblem] = useState<string | null>(null)
+  // Someone else (or undo) changed it: show what is there now.
+  const [shown, setShown] = useState(codeUrl)
+  if (shown !== codeUrl) {
+    setShown(codeUrl)
+    setDraft(codeUrl ?? "")
+    setProblem(null)
+  }
+
+  // Shown here unless the folder it was imported from shows it already.
+  const own = link && !link.derived ? link : null
+  if (!editable && !own) return null
+
+  function commit() {
+    const result = codeUrlFromInput(draft)
+    if ("problem" in result) return setProblem(result.problem)
+    setProblem(null)
+    setDraft(result.url ?? "")
+    if (result.url !== codeUrl) onChange(result.url)
+  }
+
+  const hint = link?.derived
+    ? "Opens the folder above. A link here opens that instead."
+    : "The https link to a file or a folder. Lines too, like #L10-L20."
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {editable ? (
+        <Label htmlFor="wb-code" className="text-xs text-graphite">
+          Code
+        </Label>
+      ) : (
+        <span className="text-xs text-graphite">Code</span>
+      )}
+      {own && <CodeCard url={own.url} />}
+      {editable && (
+        <>
+          <div className="flex items-center gap-1">
+            <Input
+              id="wb-code"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              value={draft}
+              placeholder="https://github.com/owner/repo/blob/main/src/file.ts"
+              aria-invalid={problem ? true : undefined}
+              aria-describedby="wb-code-hint"
+              className="font-mono text-xs md:text-xs"
+              onChange={(event) => {
+                setDraft(event.target.value)
+                setProblem(null)
+              }}
+              onBlur={commit}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  commit()
+                } else if (event.key === "Escape") {
+                  setDraft(codeUrl ?? "")
+                  setProblem(null)
+                }
+              }}
+            />
+            {codeUrl && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Remove the code link"
+                title="Remove the code link"
+                onClick={() => {
+                  setDraft("")
+                  setProblem(null)
+                  onChange(null)
+                }}
+              >
+                <X />
+              </Button>
+            )}
+          </div>
+          <p
+            id="wb-code-hint"
+            role={problem ? "alert" : undefined}
+            className={cn("text-xs", problem ? "text-destructive" : "text-graphite/80")}
+          >
+            {problem ?? hint}
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+// A code link as a card: what it points at, whose it is, and the way there.
+function CodeCard({ url, label }: { url: string; label?: string }) {
+  const described = describeCodeUrl(url)
+  const name = label ?? described.label
+  const repository = described.repository && described.repository !== name ? described.repository : null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      title={url}
+      aria-label={`Open code: ${repository ? `${name} in ${repository}` : name} (opens in a new tab)`}
+      className="group/code flex items-start gap-2 rounded-lg border border-rule bg-paper px-2.5 py-1.5 outline-none transition-colors hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Code aria-hidden className="mt-0.5 size-3.5 shrink-0 text-graphite group-hover/code:text-cobalt" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="font-mono text-xs break-all text-ink">{name}</span>
+        {repository && <span className="truncate text-xs text-graphite">{repository}</span>}
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-cobalt group-hover/code:underline">
+        Open <ExternalLink aria-hidden className="size-3" />
+      </span>
+    </a>
   )
 }
 

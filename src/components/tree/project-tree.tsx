@@ -3,15 +3,18 @@
 import {
   ChevronRight,
   ClipboardPaste,
+  Download,
   FileText,
   FileUp,
   Folder,
+  FolderDown,
   FolderPlus,
   FolderX,
   MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
+  Waypoints,
   Workflow,
 } from "lucide-react"
 import dynamic from "next/dynamic"
@@ -23,14 +26,14 @@ import { toast } from "sonner"
 import {
   createDocument,
   createFolder,
-  deleteFolder,
   listReferences,
   moveItem,
   renameItem,
-  trashDocument,
+  trashItem,
   type ActionResult,
   type ProjectRef,
 } from "@/app/[org]/[project]/tree-actions"
+import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -62,6 +65,8 @@ import { pickedFromDrop, type PickedFile } from "@/lib/import/picked"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
+import { ProjectLink, type SidebarProject } from "@/components/workspace-sections"
+
 import type { ImportTarget } from "./import-dialog"
 import { DeleteProjectDialog, RenameProjectDialog } from "./project-dialogs"
 
@@ -72,6 +77,14 @@ const PasteMarkdownDialog = dynamic(
   () => import("./paste-markdown-dialog").then((module) => module.PasteMarkdownDialog),
   { ssr: false }
 )
+const PasteMermaidDialog = dynamic(
+  () => import("./paste-mermaid-dialog").then((module) => module.PasteMermaidDialog),
+  { ssr: false }
+)
+const ExportDialog = dynamic(() => import("./export-dialog").then((module) => module.ExportDialog), { ssr: false })
+
+// The ways notes come in: files, pasted Markdown, pasted Mermaid.
+type BringIn = "import" | "paste" | "mermaid"
 
 const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
@@ -80,46 +93,52 @@ const FILES_TYPE = "Files"
 const carries = (event: React.DragEvent) =>
   event.dataTransfer.types.includes(DRAG_TYPE) || event.dataTransfer.types.includes(FILES_TYPE)
 
+// A project's whiteboards, pages and folders. In a workspace it is the open
+// project's row in its workspace's section of the sidebar, with the tree
+// under it (`row`); on a public page it stands alone, under the project's name.
 export function ProjectTree({
   project,
   projectName,
+  row,
   nodes,
   canEdit,
   canDelete = false,
-  canUpgrade,
   trashHref,
 }: {
   project: ProjectRef
   projectName: string
+  row?: { href: string } & Pick<SidebarProject, "visibility" | "takenDown">
   // Where this project's trash is. A public visitor has none.
   trashHref?: string
   nodes: TreeNode[]
   canEdit: boolean
   // Admins and owners may delete the whole project.
   canDelete?: boolean
-  // Whether this server has a paid plan to offer when the limit is hit.
-  canUpgrade: boolean
 }) {
   const router = useRouter()
   const params = useParams<{ docId?: string }>()
   const activeId = params.docId ?? null
   const [, startTransition] = useTransition()
+  const showRefusal = useShowRefusal()
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
-  // A document that is linked from elsewhere, waiting for confirmation.
+  // A document, or a folder holding one, that is linked from elsewhere,
+  // waiting for confirmation.
   const [confirmTrash, setConfirmTrash] = useState<{
+    kind: "folder" | "document"
     id: string
     name: string
     references: string[]
   } | null>(null)
   // The project's own rename or delete dialog, when open.
   const [projectDialog, setProjectDialog] = useState<"rename" | "delete" | null>(null)
+  const [exporting, setExporting] = useState(false)
   // An open import or paste dialog. The key makes each opening a fresh one.
   const [bringingIn, setBringingIn] = useState<{
     key: number
-    how: "import" | "paste"
+    how: BringIn
     target: ImportTarget
     dropped: Promise<PickedFile[]> | null
   } | null>(null)
@@ -148,18 +167,7 @@ export function ProjectTree({
   function run(action: () => Promise<ActionResult | void>, onOk?: (result: ActionResult) => void) {
     startTransition(async () => {
       const result = await action()
-      if (result && "error" in result)
-        toast.error(
-          result.error,
-          result.limit && canUpgrade
-            ? {
-                action: {
-                  label: "Upgrade",
-                  onClick: () => router.push(`/${project.slug}/settings/billing`),
-                },
-              }
-            : undefined
-        )
+      if (result && "error" in result) showRefusal(result)
       else if (result) onOk?.(result)
     })
   }
@@ -179,9 +187,10 @@ export function ProjectTree({
     else run(() => createDocument(project, type, container))
   }
 
-  function trash(id: string) {
+  // Folders and documents alike: to the trash, with everything inside.
+  function trash(kind: "folder" | "document", id: string) {
     run(
-      () => trashDocument(project, id),
+      () => trashItem(project, kind, id),
       () => {
         toast.success("Moved to trash.")
         // Leave the page if it, or something it contains, was open.
@@ -191,16 +200,17 @@ export function ProjectTree({
     )
   }
 
-  // Warn first when other documents link to this one (R1.8).
-  function requestTrash(id: string, name: string) {
+  // Warn first when other documents link to this one, or for a folder to
+  // anything inside it (R1.8).
+  function requestTrash(kind: "folder" | "document", id: string, name: string) {
     startTransition(async () => {
-      const references = await listReferences(id)
-      if (references.length) setConfirmTrash({ id, name, references })
-      else trash(id)
+      const references = await listReferences(id, kind)
+      if (references.length) setConfirmTrash({ kind, id, name, references })
+      else trash(kind, id)
     })
   }
 
-  function bringIn(how: "import" | "paste", container: Container, name: string, dropped: Promise<PickedFile[]> | null = null) {
+  function bringIn(how: BringIn, container: Container, name: string, dropped: Promise<PickedFile[]> | null = null) {
     if (container.kind !== "root") setExpanded((current) => new Set(current).add(container.id))
     setBringingIn((current) => ({ key: (current?.key ?? 0) + 1, how, target: { container, name }, dropped }))
   }
@@ -308,7 +318,7 @@ export function ProjectTree({
           )}
         </div>
 
-        {canEdit && (
+        {canEdit ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -329,19 +339,32 @@ export function ProjectTree({
                 <Pencil />
                 Rename
               </DropdownMenuItem>
+              {node.kind === "document" && <DownloadItem id={node.id} type={node.type} />}
               <DropdownMenuItem
                 variant="destructive"
-                onClick={() =>
-                  node.kind === "folder"
-                    ? run(() => deleteFolder(project, node.id))
-                    : requestTrash(node.id, node.name)
-                }
+                onClick={() => requestTrash(node.kind, node.id, node.name)}
               >
                 <Trash2 />
-                {node.kind === "folder" ? "Delete folder" : "Move to trash"}
+                Move to trash
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : (
+          // Anyone who can read a document can take it out.
+          node.kind === "document" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuAction showOnHover aria-label={`Actions for ${node.name}`}>
+                    <MoreHorizontal />
+                  </SidebarMenuAction>
+                }
+              />
+              <DropdownMenuContent align="start" className="min-w-52">
+                <DownloadItem id={node.id} type={node.type} />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
         )}
 
         {isOpen && node.children.length > 0 && (
@@ -364,33 +387,44 @@ export function ProjectTree({
     )
   }
 
-  return (
-    <SidebarGroup
-      className="flex-1"
-      onDragOver={(event) => {
-        if (!canEdit || !carries(event)) return
-        event.preventDefault()
-        setDropTarget("root")
-      }}
-      onDragLeave={() => setDropTarget((current) => (current === "root" ? null : current))}
-      onDrop={(event) => canEdit && drop(event, { kind: "root" }, projectName)}
-    >
+  // The whole project takes a drop, into its top level.
+  const rootDrop = {
+    onDragOver: (event: React.DragEvent) => {
+      if (!canEdit || !carries(event)) return
+      event.preventDefault()
+      setDropTarget("root")
+    },
+    onDragLeave: () => setDropTarget((current) => (current === "root" ? null : current)),
+    onDrop: (event: React.DragEvent) => canEdit && drop(event, { kind: "root" }, projectName),
+  }
+
+  const dialogs = (
+    <>
       {bringingIn?.how === "import" && (
         <ImportDialog
           key={bringingIn.key}
           project={project}
           target={bringingIn.target}
           dropped={bringingIn.dropped}
-          canUpgrade={canUpgrade}
           onClose={() => setBringingIn(null)}
         />
+      )}
+      {exporting && (
+        <ExportDialog projectId={project.projectId} projectName={projectName} onClose={() => setExporting(false)} />
       )}
       {bringingIn?.how === "paste" && (
         <PasteMarkdownDialog
           key={bringingIn.key}
           project={project}
           target={bringingIn.target}
-          canUpgrade={canUpgrade}
+          onClose={() => setBringingIn(null)}
+        />
+      )}
+      {bringingIn?.how === "mermaid" && (
+        <PasteMermaidDialog
+          key={bringingIn.key}
+          project={project}
+          target={bringingIn.target}
           onClose={() => setBringingIn(null)}
         />
       )}
@@ -411,8 +445,9 @@ export function ProjectTree({
           <DialogHeader>
             <DialogTitle>Move “{confirmTrash?.name}” to the trash?</DialogTitle>
             <DialogDescription>
-              It is linked from {confirmTrash?.references.length === 1 ? "another document" : "other documents"}.
-              Those links will show it as trashed until you restore it.
+              {confirmTrash?.kind === "folder" ? "Something in it is" : "It is"} linked from{" "}
+              {confirmTrash?.references.length === 1 ? "another document" : "other documents"}. Those links will show
+              it as trashed until you restore {confirmTrash?.kind === "folder" ? "the folder" : "it"}.
             </DialogDescription>
           </DialogHeader>
           <ul className="list-disc pl-5 text-sm">
@@ -423,7 +458,7 @@ export function ProjectTree({
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirmTrash) trash(confirmTrash.id)
+                if (confirmTrash) trash(confirmTrash.kind, confirmTrash.id)
                 setConfirmTrash(null)
               }}
             >
@@ -432,69 +467,116 @@ export function ProjectTree({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )
+
+  // What is rarely needed lives here, not in a row of its own. `Action` is
+  // the button's shape: beside a group's label, or beside the project's row.
+  const Action = row ? SidebarMenuAction : SidebarGroupAction
+  const projectMenu = trashHref && (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Action aria-label="Project menu" className={cn(canEdit && (row ? "right-7" : "right-9"))}>
+            <MoreHorizontal />
+          </Action>
+        }
+      />
+      <DropdownMenuContent align="start" className="min-w-44">
+        <DropdownMenuItem render={<Link href={trashHref} />}>
+          <Trash2 />
+          Trash
+        </DropdownMenuItem>
+        {canEdit && (
+          <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
+            <Pencil />
+            Rename project
+          </DropdownMenuItem>
+        )}
+        {/* Every member, viewers included: what they can read is theirs to take out. */}
+        <DropdownMenuItem onClick={() => setExporting(true)}>
+          <FolderDown />
+          Export project…
+        </DropdownMenuItem>
+        {canDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => setProjectDialog("delete")}>
+              <FolderX />
+              Delete project
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+  const addMenu = canEdit && (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Action aria-label="Add to project">
+            <Plus />
+          </Action>
+        }
+      />
+      <DropdownMenuContent align="start" className="min-w-52">
+        <CreateItems
+          allowFolder
+          onCreate={(type) => create(type, { kind: "root" })}
+          onBringIn={(how) => bringIn(how, { kind: "root" }, projectName)}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+  const empty = canEdit
+    ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here."
+    : "No whiteboards or pages yet."
+
+  if (row)
+    return (
+      // A plain item, not a SidebarMenuItem: that one shows its actions on
+      // hover, and would show every row's in the tree beneath at once.
+      <li
+        data-sidebar="menu-item"
+        {...rootDrop}
+        className={cn("relative rounded-md", dropTarget === "root" && "bg-sidebar-accent/50")}
+      >
+        {dialogs}
+        <div className="group/menu-item relative">
+          <ProjectLink
+            href={row.href}
+            project={{ name: projectName, visibility: row.visibility, takenDown: row.takenDown }}
+            className={cn("font-medium", canEdit && "group-has-data-[sidebar=menu-action]/menu-item:pr-14")}
+          />
+          {projectMenu}
+          {addMenu}
+        </div>
+        {/* Under the project, a guide down from its icon, as a folder has. */}
+        {nodes.length ? (
+          <SidebarMenu className="relative pl-4.5 before:absolute before:top-0 before:bottom-1 before:left-4 before:w-px before:bg-rule">
+            {nodes.map((node) => renderNode(node, 0))}
+          </SidebarMenu>
+        ) : (
+          <p className="py-1 pr-2 pl-8 text-xs leading-relaxed text-graphite">{empty}</p>
+        )}
+      </li>
+    )
+
+  return (
+    <SidebarGroup className="flex-1" {...rootDrop}>
+      {dialogs}
       <SidebarGroupLabel className="h-auto py-1 pr-14 font-heading text-[15px] font-semibold text-ink">
         <span className="truncate">{projectName}</span>
       </SidebarGroupLabel>
-      {/* What is rarely needed lives here, not in a row of its own. */}
-      {trashHref && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarGroupAction aria-label="Project menu" className={cn(canEdit && "right-9")}>
-                <MoreHorizontal />
-              </SidebarGroupAction>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuItem render={<Link href={trashHref} />}>
-              <Trash2 />
-              Trash
-            </DropdownMenuItem>
-            {canEdit && (
-              <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
-                <Pencil />
-                Rename project
-              </DropdownMenuItem>
-            )}
-            {canDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => setProjectDialog("delete")}>
-                  <FolderX />
-                  Delete project
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      {canEdit && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarGroupAction aria-label="Add to project">
-                <Plus />
-              </SidebarGroupAction>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-52">
-            <CreateItems
-              allowFolder
-              onCreate={(type) => create(type, { kind: "root" })}
-              onBringIn={(how) => bringIn(how, { kind: "root" }, projectName)}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      {projectMenu}
+      {addMenu}
       <SidebarGroupContent
         className={cn("min-h-24 flex-1 rounded-md", dropTarget === "root" && "bg-sidebar-accent/50")}
       >
         {nodes.length ? (
           <SidebarMenu>{nodes.map((node) => renderNode(node, 0))}</SidebarMenu>
         ) : (
-          <p className="px-2 py-1 text-sm leading-relaxed text-graphite">
-            {canEdit ? "No whiteboards or pages yet. Use + to add one, or drop Markdown files here." : "No whiteboards or pages yet."}
-          </p>
+          <p className="px-2 py-1 text-sm leading-relaxed text-graphite">{empty}</p>
         )}
       </SidebarGroupContent>
     </SidebarGroup>
@@ -510,7 +592,7 @@ function CreateItems({
   inside?: boolean
   allowFolder: boolean
   onCreate: (type: DocumentType | "folder") => void
-  onBringIn: (how: "import" | "paste") => void
+  onBringIn: (how: BringIn) => void
 }) {
   const suffix = inside ? " inside" : ""
   return (
@@ -538,7 +620,21 @@ function CreateItems({
         <ClipboardPaste />
         Paste Markdown{suffix}…
       </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => onBringIn("mermaid")}>
+        <Waypoints />
+        Paste Mermaid{suffix}…
+      </DropdownMenuItem>
     </>
+  )
+}
+
+// The document as a file: a page as Markdown, a whiteboard as a picture.
+function DownloadItem({ id, type }: { id: string; type: DocumentType }) {
+  return (
+    <DropdownMenuItem render={<a href={`/api/documents/${id}/${type === "text" ? "markdown" : "svg"}`} download />}>
+      <Download />
+      {type === "text" ? "Download as Markdown" : "Download as SVG"}
+    </DropdownMenuItem>
   )
 }
 

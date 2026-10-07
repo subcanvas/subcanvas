@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto"
 
 import { expect, type Locator, type Page } from "@playwright/test"
 
-// What every spec needs before it can look at anything: an account, an org,
-// a project, a whiteboard. Each one is named after a fresh id, so two specs
+// What every spec needs before it can look at anything: an account, a
+// workspace, a project, a whiteboard. Each one is named after a fresh id, so two specs
 // running at once — or a run against a database somebody else is using —
 // never collide, and nothing has to be cleaned up afterwards.
 
@@ -19,13 +19,17 @@ export function freshAccount(): Account {
   return { id, email: `e2e-${id}@example.test`, password: `pw-${id}` }
 }
 
-// Creates the account through the sign-up form and lands on onboarding,
-// which is where a person with no org goes.
+// Every account gets a personal workspace when it is created, named after
+// the part of its email before the @, and so is its address.
+export const personalSlug = (account: Account) => `e2e-${account.id}`
+
+// Creates the account through the sign-up form and lands in its personal
+// workspace, which is where signing in goes.
 export async function signUp(page: Page, account = freshAccount()): Promise<Account> {
   await page.goto("/login")
   await page.getByRole("button", { name: "Create an account" }).click()
   await signInForm(page, account, "Create account")
-  await page.waitForURL("/onboarding")
+  await page.waitForURL(`/${personalSlug(account)}`)
   return account
 }
 
@@ -54,32 +58,53 @@ export async function signOut(page: Page) {
   await page.waitForURL("/login")
 }
 
-// An org of one's own. Returns its slug, which is the first segment of
-// every link to it.
+// The sidebar: a section for each workspace, Personal first and then the
+// team workspaces by name, each headed by a button that opens and closes it.
+// Beside the heading, + is "New project in <heading>", and the menu with the
+// workspace's pages is "<heading> workspace menu".
+export const sidebar = (page: Page) => page.getByRole("navigation", { name: "Workspaces" })
+
+export const workspaceSection = (page: Page, heading: string) =>
+  sidebar(page).getByRole("button", { name: heading, exact: true })
+
+// Opens a workspace's menu in the sidebar and returns it.
+export async function openWorkspaceMenu(page: Page, heading: string) {
+  await sidebar(page).getByRole("button", { name: `${heading} workspace menu`, exact: true }).click()
+  const menu = page.getByRole("menu")
+  await expect(menu).toBeVisible()
+  return menu
+}
+
+// A team workspace, named "E2E <id>", made on the page "New team workspace"
+// in the sidebar leads to. Returns its slug, which is the first segment of
+// every link to it. (Not `e2e-<id>`: a personal workspace may have that.)
 export async function createOrg(page: Page, id = freshId()): Promise<string> {
-  const slug = `e2e-${id}`
+  const slug = `e2e-${id}-team`
   await page.goto("/onboarding")
   await page.getByLabel("Name").fill(`E2E ${id}`)
   await page.getByLabel("Web address").fill(slug)
-  await page.getByRole("button", { name: "Create org" }).click()
+  await page.getByRole("button", { name: "Create workspace" }).click()
   await page.waitForURL(`/${slug}`)
   return slug
 }
 
-// Signs up and creates an org in one step, which is where most specs start.
+// Signs up and creates a team workspace in one step, which is where most
+// specs start: a team workspace can invite people, a personal one cannot.
 export async function signUpWithOrg(page: Page) {
   const account = await signUp(page)
   const slug = await createOrg(page, account.id)
   return { account, slug }
 }
 
-// Returns the project's id, taken from the address it lands on.
+// Returns the project's id, taken from the address it lands on. Starts from
+// the Projects page's own button; the sidebar's + for each workspace is
+// "New project in <workspace>".
 export async function createProject(
   page: Page,
   name: string,
   visibility: "private" | "public" = "private"
 ): Promise<string> {
-  await page.getByRole("button", { name: "New project" }).click()
+  await page.getByRole("main").getByRole("button", { name: "New project", exact: true }).click()
   await page.getByLabel("Name").fill(name)
   if (visibility === "public")
     await page.getByRole("radio", { name: "Public" }).click()

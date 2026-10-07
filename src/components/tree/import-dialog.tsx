@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { checkImport, importBatch } from "@/app/[org]/[project]/import-actions"
 import type { ProjectRef } from "@/app/[org]/[project]/tree-actions"
+import { LimitRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -53,6 +54,7 @@ const REASONS: Record<SkipReason, string> = {
   unreadable: "could not be read",
   protected: "protected with a password",
   "unsafe-path": "their path leads outside the zip",
+  whiteboard: "whiteboards from a Subcanvas export, which are not imported",
 }
 
 const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en")} ${n === 1 ? one : many}`
@@ -61,7 +63,6 @@ export function ImportDialog({
   project,
   target,
   dropped,
-  canUpgrade,
   onClose,
 }: {
   project: ProjectRef
@@ -69,7 +70,6 @@ export function ImportDialog({
   // Files dropped on the tree, still being listed. Without them the dialog
   // opens by asking for some.
   dropped: Promise<PickedFile[]> | null
-  canUpgrade: boolean
   onClose: () => void
 }) {
   const [stage, setStage] = useState<Stage>(dropped ? { step: "reading" } : { step: "choose" })
@@ -190,8 +190,8 @@ export function ImportDialog({
             <DialogHeader>
               <DialogTitle>Import files</DialogTitle>
               <DialogDescription>
-                Markdown and text files become documents in {target.name}, and folders stay folders.
-                A zip works too: a Notion export (Markdown &amp; CSV), an Obsidian vault, a wiki.
+                Markdown, HTML and text files become documents in {target.name}, and folders stay folders.
+                A zip works too: a Notion export (choose HTML), an Obsidian vault, a wiki.
               </DialogDescription>
             </DialogHeader>
 
@@ -258,7 +258,8 @@ export function ImportDialog({
               </p>
             )}
             <p className="text-xs leading-relaxed text-graphite">
-              Everything is read in your browser. Only the text of the notes is sent.
+              Everything is read in your browser. Only the text of the pages and the pictures and videos they
+              show are sent.
             </p>
           </div>
         )}
@@ -270,7 +271,7 @@ export function ImportDialog({
               <DialogDescription>
                 {stage.plan.documents.length
                   ? `${count(stage.plan.documents.length, "document")}${stage.plan.folders.length ? ` in ${count(stage.plan.folders.length, "folder")}` : ""} will be added to ${target.name}.`
-                  : "None of these files are Markdown, text, or CSV."}
+                  : "None of these files are Markdown, HTML, text, or CSV."}
               </DialogDescription>
             </DialogHeader>
             {stage.plan.documents.length > 0 && (
@@ -359,11 +360,7 @@ export function ImportDialog({
                   : `${stage.imported.toLocaleString("en")} of ${count(stage.plan.documents.length, "document")} made it. What was imported stays; the rest was not added.`}
               </DialogDescription>
             </DialogHeader>
-            {stage.error && (
-              <p role="alert" className="text-sm text-destructive">
-                {stage.error}
-              </p>
-            )}
+            {stage.error && <LimitRefusal refused={{ error: stage.error, limit: stage.limit }} />}
             <Notes
               notes={[
                 ...stage.plainText.map((title) => `“${title}” could not be converted, and was imported as plain text.`),
@@ -376,11 +373,6 @@ export function ImportDialog({
               ]}
             />
             <DialogFooter>
-              {stage.limit && canUpgrade && (
-                <Button variant="outline" nativeButton={false} render={<Link href={`/${project.slug}/settings/billing`} />}>
-                  Upgrade
-                </Button>
-              )}
               {stage.imported > 0 ? (
                 <Button
                   nativeButton={false}
@@ -423,10 +415,10 @@ function outlineOf(plan: ImportPlan) {
 function notesOf({ plan, skipped }: Prepared, done = false) {
   const notes: string[] = []
   if (plan.uploads.length && !done)
-    notes.push(`${count(plan.uploads.length, "picture or video", "pictures and videos")} in these notes will be uploaded with them.`)
+    notes.push(`${count(plan.uploads.length, "picture or video", "pictures and videos")} in these pages will be uploaded with them.`)
   if (plan.localImages)
     notes.push(
-      `${count(plan.localImages, "image")} in these notes ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported, because ${plan.localImages === 1 ? "it is" : "they are"} not among the files or not a kind that is kept. ${plan.localImages === 1 ? "Its description is" : "Their descriptions are"} kept in the text.`
+      `${count(plan.localImages, "picture")} in these pages ${done ? (plan.localImages === 1 ? "was" : "were") : "will"} not ${done ? "" : "be "}imported, because ${plan.localImages === 1 ? "it is" : "they are"} not among the files or not a kind that is kept. The words that described ${plan.localImages === 1 ? "it stay" : "them stay"} in the text.`
     )
   if (plan.tablesLeftOut)
     notes.push(
