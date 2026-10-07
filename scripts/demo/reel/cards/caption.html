@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Caption</title>
+<!-- A caption laid over the video by demo.ts: the text comes after the #,
+     and the page is photographed with a transparent background at the
+     video's 1920x1080. -->
+<link rel="stylesheet" href="fonts.css">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; background: transparent; overflow: hidden; }
+  p {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    margin: 0;
+    color: #fff;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* A scene's point, along the bottom: 130px up, clear of the whiteboard's
+     hint bar ("E to edit · Scroll to pan …") in every shot, zoomed or not. */
+  p.caption {
+    bottom: 130px;
+    max-width: 1500px;
+    padding: 18px 34px 20px;
+    border-radius: 20px;
+    background: rgba(16, 22, 47, 0.92);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 30px rgba(16, 22, 47, 0.25);
+    font-family: "Bricolage Grotesque", "Geist", sans-serif;
+    font-weight: 600;
+    font-size: 46px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  /* A note about the footage itself, small, at the top. */
+  p.note {
+    top: 40px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: rgba(16, 22, 47, 0.85);
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 24px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<p id="text" class="caption"></p>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thumbnail</title>
+<!-- The listing's 240x240 thumbnail: the Subcanvas mark, a box in a box.
+     draw(p) is one moment of a box opening: the camera goes into the inner
+     box until it is the outer one, with a new box inside it, so the last
+     frame is the first and the GIF loops without a seam. demo.ts steps p
+     and photographs each frame. -->
+<style>
+  html, body { margin: 0; width: 240px; height: 240px; overflow: hidden; background: #f4f6fa; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="s" width="240" height="240" viewBox="0 0 240 240"></svg>
+<script>
+  // The mark at 240px: the outer box and the cobalt box inside it, from
+  // public/brand/subcanvas-icon-512.png scaled by 240/512.
+  const OUTER = { x: 54, y: 54, w: 132, h: 132, r: 26 } // inner edge of the stroke
+  const STROKE = 10
+  const INNER = { x: 98, y: 98, w: 64, h: 64, r: 13 }
+  const INK = [16, 22, 47], COBALT = [36, 71, 249], WHITE = [255, 255, 255]
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))
+  const rgb = (c) => `rgb(${c.join(",")})`
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+  // The camera that maps the inner box onto the outer one.
+  const k = OUTER.w / INNER.w
+  function rect(b, t) {
+    // Where box b is drawn when the camera has moved t of the way in.
+    const s = 1 + (k - 1) * t
+    const fx = INNER.x + INNER.w / 2, fy = INNER.y + INNER.h / 2
+    const ox = OUTER.x + OUTER.w / 2, oy = OUTER.y + OUTER.h / 2
+    const px = fx + (ox - fx) * t, py = fy + (oy - fy) * t
+    return { x: px + (b.x - fx) * s, y: py + (b.y - fy) * s, w: b.w * s, h: b.h * s, r: b.r * s }
+  }
+  window.draw = (p) => {
+    const t = ease(Math.min(1, Math.max(0, p)))
+    const o = rect(OUTER, t), i = rect(INNER, t)
+    // The inner box becomes the outer one: cobalt to white, with the ink
+    // border growing in; a new cobalt box rises inside it near the end.
+    const fill = mix(COBALT, WHITE, t)
+    const border = STROKE * t
+    const n = Math.min(1, Math.max(0, (p - 0.55) / 0.45))
+    const nb = { x: i.x + (INNER.x - OUTER.x) * (i.w / OUTER.w), y: i.y + (INNER.y - OUTER.y) * (i.h / OUTER.h), w: INNER.w * (i.w / OUTER.w), h: INNER.h * (i.h / OUTER.h), r: INNER.r * (i.w / OUTER.w) }
+    const ns = 0.6 + 0.4 * ease(n)
+    const ncx = nb.x + nb.w / 2, ncy = nb.y + nb.h / 2
+    document.getElementById("s").innerHTML = `
+      <rect x="${o.x - STROKE * (o.w / OUTER.w) / 2}" y="${o.y - STROKE * (o.w / OUTER.w) / 2}" width="${o.w + STROKE * (o.w / OUTER.w)}" height="${o.h + STROKE * (o.w / OUTER.w)}"
+        rx="${o.r}" fill="#fff" stroke="${rgb(INK)}" stroke-width="${STROKE * (o.w / OUTER.w)}" opacity="${Math.max(0, 1 - 2 * t)}"/>
+      <rect x="${i.x - border / 2}" y="${i.y - border / 2}" width="${i.w + border}" height="${i.h + border}" rx="${i.r}"
+        fill="${rgb(fill)}" stroke="${rgb(INK)}" stroke-width="${border}" stroke-opacity="${t}"/>
+      <rect x="${ncx - (nb.w * ns) / 2}" y="${ncy - (nb.h * ns) / 2}" width="${nb.w * ns}" height="${nb.h * ns}" rx="${nb.r * ns}"
+        fill="${rgb(COBALT)}" opacity="${n}"/>`
+  }
+  window.draw(0)
+</script>
+</body>
+</html>

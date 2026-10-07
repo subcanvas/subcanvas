@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gallery</title>
+<!-- A Product Hunt gallery image, 1270x760: a headline over a frame of the
+     video. demo.ts sets both and photographs the page. -->
+<link rel="stylesheet" href="fonts.css">
+<style>
+  html, body { margin: 0; width: 1270px; height: 760px; overflow: hidden; background: #f4f6fa; }
+  body::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(circle, #d6deea 1.2px, transparent 1.4px);
+    background-size: 24px 24px;
+  }
+  main { position: relative; display: flex; flex-direction: column; align-items: center; gap: 26px; padding-top: 38px; }
+  h1 {
+    margin: 0; max-width: 1150px; text-align: center; text-wrap: balance;
+    font-family: "Bricolage Grotesque", "Geist", sans-serif; font-weight: 600;
+    font-size: 42px; line-height: 1.1; letter-spacing: -0.02em; color: #10162f;
+  }
+  img {
+    width: 1056px; height: 594px; object-fit: cover; object-position: top;
+    border-radius: 14px; border: 1px solid #dde3ee;
+    box-shadow: 0 18px 50px rgb(16 22 47 / 0.18);
+  }
+</style>
+</head>
+<body>
+<main><h1 id="headline"></h1><img id="frame" alt=""></main>
+</body>
+</html>
