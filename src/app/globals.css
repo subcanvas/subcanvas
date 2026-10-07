@@ -216,6 +216,13 @@
   border: 1px solid var(--rule);
   border-radius: 0.6rem;
 }
+/* An arrow's label, and the code and document marks beside it, are drawn
+   above every node, a selected one included (React Flow raises those to
+   1000): a label under a box reads as half a word. The embed picture
+   draws them last for the same reason (render-svg.ts). */
+.react-flow__edgelabel-renderer {
+  z-index: 1001;
+}
 /* In view mode nothing on the canvas offers to be changed. The handles stay
    in the layout, since arrows are drawn from where they are measured. */
 .react-flow[data-locked] .react-flow__resize-control {
