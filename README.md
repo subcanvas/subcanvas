@@ -15,10 +15,10 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 
 <!-- Share, then Copy embed, on the whiteboard at subcanvas.app. -->
 <p align="center">
-  <a href="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2">
+  <a href="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg?theme=dark">
-      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/0b5a0f09-b2f6-48d5-b6df-005d5d5469c2/d/6b1c4b7a-d57a-4a12-9217-40f898f7e4b2/embed.svg" width="880">
+      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg?theme=dark">
+      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg" width="880">
     </picture>
   </a>
 </p>
