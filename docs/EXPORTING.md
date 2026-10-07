@@ -63,6 +63,8 @@ A zip made this way holds up to 4 GB and 65,000 files, which is what a zip can h
       "color": "default", "shape": "rectangle", "icon": null, "emoji": null,
       "open_mode": "panel",
       "repository_path": null,
+      "code_url": "https://github.com/acme/shop/blob/main/services/payments/charge.ts#L10-L20",
+      "code_url_from_folder": false,
       "holds": { "id": "…", "type": "text", "title": "Payments", "path": "Architecture/Payments.md", "url": "https://subcanvas.app/…" },
       "media": null
     }
@@ -72,7 +74,7 @@ A zip made this way holds up to 4 GB and 65,000 files, which is what a zip can h
       "id": "…", "source": "…", "target": "…",
       "source_handle": null, "target_handle": "left",
       "label": "charges", "direction": "forward", "shape": "spline", "stroke": "solid",
-      "color": "default", "icon": null, "emoji": null, "open_mode": "panel",
+      "color": "default", "icon": null, "emoji": null, "code_url": null, "open_mode": "panel",
       "holds": null
     }
   ]
@@ -87,6 +89,7 @@ A zip made this way holds up to 4 GB and 65,000 files, which is what a zip can h
 | `group` | The id of the group the node is in |
 | `description` | A text node's paragraph |
 | `repository_path` | The folder of a repository the node stands for, when it came from a GitHub import |
+| `code_url` | The node's or arrow's code link: the address of the code behind it. A box from a GitHub import with no link of its own has its folder's address, and `code_url_from_folder` is true |
 | `holds` | The document the node or arrow opens into: its `id`, `type` (`text` or `whiteboard`) and `title`; `path`, its file from the top of the zip (a page's `.md`, a whiteboard's `.json`) when it is in the export; `url`, its address in the app when you can read it |
 | `media` | On a picture or video: `type` (`image` or `video`), the file's `width` and `height` in pixels, its `alt` text, `path` in the zip, and `url` in the app. The caption is the node's `title` |
 | `source_handle`, `target_handle` | The side an arrow leaves or reaches (`top`, `right`, `bottom`, `left`), or null for the side facing the other end |
@@ -96,7 +99,7 @@ Colors are names (`red`, `blue`, …), which each theme draws in its own shade.
 
 ## The manifest
 
-`subcanvas-export.json` has the `format` (`subcanvas-export`), a `version`, when it was made (`exported_at`), the app it came `from`, the `project`'s id and name, every `folder` with its path, every `document` with its `id`, `type`, `kind` (`description` for a box's description), `title`, `path` (its name without an extension: what it holds is in the folder of that name) and `files`, and `left_out`: each file that is not in the zip, and why. Import files also reads its presence as the sign that a zip is a Subcanvas export.
+`subcanvas-export.json` has the `format` (`subcanvas-export`), a `version`, when it was made (`exported_at`), the app it came `from`, the `project`'s id, name and `repository` (where it was imported from: `repository`, `ref` and `commit`, or null), every `folder` with its path, every `document` with its `id`, `type`, `kind` (`description` for a box's description), `title`, `path` (its name without an extension: what it holds is in the folder of that name) and `files`, and `left_out`: each file that is not in the zip, and why. Import files also reads its presence as the sign that a zip is a Subcanvas export.
 
 ## Bringing it back
 

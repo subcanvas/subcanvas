@@ -1,5 +1,7 @@
 import type * as Y from "yjs"
 
+import type { ProjectSource } from "@/lib/github/source"
+import { codeLinkOf } from "@/lib/whiteboard/code-link"
 import { renderWhiteboardSvg } from "@/lib/whiteboard/render-svg"
 import { edgesMap, nodesMap, readEdge, readNode, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 
@@ -20,8 +22,13 @@ export function readWhiteboard(doc: Y.Doc): WhiteboardContents {
   return { nodes, edges }
 }
 
-export function whiteboardSvg(contents: WhiteboardContents, title: string, host: string) {
-  return renderWhiteboardSvg({ ...contents, theme: "light", title, host })
+export function whiteboardSvg(
+  contents: WhiteboardContents,
+  title: string,
+  host: string,
+  repository: ProjectSource | null = null
+) {
+  return renderWhiteboardSvg({ ...contents, theme: "light", title, host, repository })
 }
 
 // The document a box or an arrow holds. `path` is its file in the export
@@ -39,13 +46,22 @@ export function whiteboardFile({
   contents,
   held,
   media,
+  repository = null,
 }: {
   id: string
   title: string
   contents: WhiteboardContents
   held: (documentId: string) => HeldDocument
   media: (mediaPath: string) => MediaFile
+  // Where the project was imported from, for the folder links of its boxes.
+  repository?: ProjectSource | null
 }) {
+  // The code link a node opens, and whether it is the folder it was
+  // imported from rather than a link of its own.
+  const code = (node: WbNode) => {
+    const link = codeLinkOf(node, repository)
+    return { code_url: link?.url ?? null, code_url_from_folder: link?.derived ?? false }
+  }
   const holds = (object: { docId: string | null; docType: WbNode["docType"] }) => {
     if (!object.docId) return null
     return { id: object.docId, type: object.docType, ...held(object.docId) }
@@ -73,6 +89,7 @@ export function whiteboardFile({
       emoji: node.emoji,
       open_mode: node.openMode,
       repository_path: node.path,
+      ...code(node),
       holds: holds(node),
       media: node.mediaPath
         ? {
@@ -97,6 +114,7 @@ export function whiteboardFile({
       color: edge.color,
       icon: edge.icon,
       emoji: edge.emoji,
+      code_url: edge.codeUrl,
       open_mode: edge.openMode,
       holds: holds(edge),
     })),
