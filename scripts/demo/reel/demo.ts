@@ -508,12 +508,13 @@ async function open(url: string, drawn: string) {
 }
 // Clicks through to what the click opens: the next frame is that, drawn.
 // It arrives framed as close as the push before the click ended, so the
-// cut never jumps outward, then settles to `scale`.
-async function clickThrough(target: string, scale: number, at: string | { x: number; y: number } = MIDDLE, landing = 1.6) {
+// cut never jumps outward, then settles to `scale`, on `settle` if given.
+type Point = string | { x: number; y: number }
+async function clickThrough(target: string, scale: number, at: Point = MIDDLE, landing = 1.6, settle: Point = at) {
   zoom(at, landing, 0)
   await demo.cursor.click({ duration: 0 })
   await demo.waitFor(target, { settle: 150 })
-  zoom(at, scale, 900)
+  zoom(settle, scale, 900)
 }
 
 // A stretch of the agent's recorded session, [from, to) in its ms, sped up
@@ -586,7 +587,9 @@ caption("Any box opens into the diagram inside it.")
 zoom(NODE(repositoryBox), 1.6, 1500)
 await move(INSIDE(repositoryBox), 1300)
 await demo.wait(300)
-await clickThrough(SHEET("React"), 1.2)
+// It settles into the window's top left corner (zooms stay inside the
+// window), so the sheet's title and trail read whole above the diagram.
+await clickThrough(SHEET("React"), 1.1, MIDDLE, 1.6, { x: 0, y: 0 })
 await move(REST, 800)
 still("Any box opens into the diagram inside it.", 800)
 await demo.wait(2200)
