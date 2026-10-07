@@ -17,18 +17,21 @@
  *                         one with .subcanvas files, so it has names and
  *                         arrows. Default subcanvas/subcanvas. fixture/<name>
  *                         reads a copy on disk instead (see the README).
- *   DEMO_INTO             The two boxes the first shot goes into, outermost
- *                         first. Default Application,Core libraries.
+ *   DEMO_INTO             The two boxes the arrow scene goes into, outermost
+ *                         first. Default Application,Routes.
  *   DEMO_ARROW            An arrow on the innermost of those sheets, with a
- *                         description. Default "writes documents from the server".
+ *                         description: the page it opens into. Default
+ *                         "export API", whose page is an OpenAPI excerpt.
  *   DEMO_ARROW_FILE       The .subcanvas file that declares it, from this
- *                         checkout. Default src/lib/github/.subcanvas.
+ *                         checkout. Default src/app/[org]/.subcanvas.
+ *   DEMO_AGENT_BOX        A box on the first of those sheets, whose sheet the
+ *                         agent in scene 5 draws on. Default Core libraries.
  *   DEMO_REPOSITORY       Imported on camera: a well-known repository with no
  *                         .subcanvas files, so the video shows what anyone
  *                         gets with no setup. Default react/react.
  *   DEMO_REPOSITORY_BOX   A box on that repository's top sheet. Default Packages.
  *   DEMO_AGENT_PROMPT     What the agent in scene 5 is asked. The default asks
- *                         for the arrow missing from the Core libraries sheet.
+ *                         for the arrow missing from the DEMO_AGENT_BOX sheet.
  *   DEMO_CLAUDE           The Claude Code CLI the agent runs as. Default claude.
  *                         Its session is recorded once and kept (see
  *                         agent.ts); delete out/agent-<stage>.json to record
@@ -40,13 +43,15 @@
  *                         Default reel-demo@subcanvas.test: an account with nothing
  *                         else in it, so the agent finds the project it is
  *                         asked about.
- *   DEMO_ORG_NAME         The org's name. Default Acme. The sidebar is
- *                         collapsed on camera, so it rarely shows.
- *   DEMO_STAGE_ORG        Slug of the org that keeps finished imports of both
- *                         repositories for the scenes that do not import
- *                         (see "Two orgs" below). Default reel-demo.
- *   DEMO_ORG              Reuse this org for the on-camera import instead of
- *                         creating a fresh one.
+ *   DEMO_STAGE_WORKSPACE  Slug of the team workspace that keeps finished
+ *                         imports of both repositories for the scenes that do
+ *                         not import (see "Two workspaces" below). Default
+ *                         reel-demo.
+ *   DEMO_WORKSPACE        Slug of the workspace the on-camera import lands in.
+ *                         Default: the account's personal workspace while it
+ *                         holds no projects, else a fresh team workspace.
+ *   DEMO_WORKSPACE_NAME   A fresh team workspace's name. Default Acme. The
+ *                         sidebar is collapsed on camera, so it rarely shows.
  *   DEMO_IMPORT_WAIT      Milliseconds of video on "Importing…" before the
  *                         cut to the diagram, which is marked as sped up.
  *                         Default 600.
@@ -55,16 +60,18 @@
  *   DEMO_KEEP_PRELUDE     Set to 1 to keep the sign-in prelude in the video.
  *
  * Scenes (the render prints where each starts). The video autoplays muted
- * on Product Hunt, so a caption on the picture says each scene's point, and
- * the narration says the same:
+ * on Product Hunt, so a caption on the picture says each scene's point.
+ * There is no narration; music, if any, is laid under it afterwards
+ * (render.sh, DEMO_MUSIC):
  *
  *   1. A repository with no .subcanvas files imported on camera, so a
  *      repository becomes a diagram in the first five seconds: its main
  *      folders become boxes automatically.
  *   2. One of them opens onto the diagram inside it.
  *   3. Subcanvas's own diagram, whose .subcanvas files name the boxes and
- *      add the arrows.
- *   4. An arrow there, opened into the page that says why it exists.
+ *      add the arrows: its Routes sheet.
+ *   4. An arrow there, "export API", opened into its page: an OpenAPI
+ *      excerpt of the export routes, framed on the top of its YAML.
  *   5. An agent draws one: a recorded Claude Code session over the MCP
  *      server, played back in a terminal beside the sheet while its edit is
  *      made again (see agent.ts).
@@ -74,11 +81,12 @@
  * Canvas shots are in view mode with the sidebar collapsed, both set in the
  * prelude: no editing tools, and nothing from the demo account on screen.
  *
- * Two orgs: the import in scene 1 is real and lands in a fresh org, but the
- * page it produces has ids nobody knows in advance, and reelscript can only
+ * Two workspaces: the import in scene 1 is real and lands in an empty
+ * workspace (the account's personal one, the first time), but the page it
+ * produces has ids nobody knows in advance, and reelscript can only
  * navigate to addresses the script knows. So the other scenes play on
- * imports made ahead of time (once, and kept) in the staging org, whose
- * addresses this script learns before the camera rolls.
+ * imports made ahead of time (once, and kept) in the staging workspace,
+ * whose addresses this script learns before the camera rolls.
  *
  * Prelude: reelscript starts its browser signed out, so the script signs in
  * by typing. Those seconds are cut from the video afterwards with ffmpeg;
@@ -96,6 +104,7 @@ import { execFileSync } from "node:child_process"
 
 import { chromium, type Page } from "@playwright/test"
 import { createDemo } from "@reelscript/cli"
+import { parse as parseYaml } from "yaml"
 
 import { madeBy, mcpClient, recordAgent, replay, undo, type AgentRun, type Made } from "./agent"
 
@@ -104,21 +113,22 @@ import { madeBy, mcpClient, recordAgent, replay, undo, type AgentRun, type Made 
 const base = (process.env.DEMO_BASE_URL ?? "http://localhost:3420").replace(/\/$/, "")
 const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(base)
 const selfRepository = process.env.DEMO_SELF_REPOSITORY ?? "subcanvas/subcanvas"
-const into = (process.env.DEMO_INTO ?? "Application,Core libraries").split(",").map((s) => s.trim())
+const into = (process.env.DEMO_INTO ?? "Application,Routes").split(",").map((s) => s.trim())
 if (into.length !== 2) throw new Error("demo: DEMO_INTO names two boxes, outermost first")
-const arrow = process.env.DEMO_ARROW ?? "writes documents from the server"
-const arrowFile = process.env.DEMO_ARROW_FILE ?? "src/lib/github/.subcanvas"
+const arrow = process.env.DEMO_ARROW ?? "export API"
+const arrowFile = process.env.DEMO_ARROW_FILE ?? "src/app/[org]/.subcanvas"
+const agentBox = process.env.DEMO_AGENT_BOX ?? "Core libraries"
 const repository = process.env.DEMO_REPOSITORY ?? "react/react"
 const repositoryBox = process.env.DEMO_REPOSITORY_BOX ?? "Packages"
 const readmeUrl = process.env.DEMO_README_URL
 const email = process.env.DEMO_EMAIL ?? "reel-demo@subcanvas.test"
 const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
-const orgName = process.env.DEMO_ORG_NAME ?? "Acme"
-const stageSlug = process.env.DEMO_STAGE_ORG ?? "reel-demo"
+const workspaceName = process.env.DEMO_WORKSPACE_NAME ?? "Acme"
+const stageSlug = process.env.DEMO_STAGE_WORKSPACE ?? "reel-demo"
 // What the agent in scene 5 is asked, as Claude Code shows it on camera.
 const agentPrompt =
   process.env.DEMO_AGENT_PROMPT ??
-  "Read src/lib/sync and add the arrow missing from the Core libraries diagram in my subcanvas project. Answer in one short sentence."
+  `Read src/lib/sync and add the arrow missing from the ${agentBox} diagram in my subcanvas project. Answer in one short sentence.`
 const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 600)
 const publicSite = (process.env.DEMO_PUBLIC_SITE ?? "https://subcanvas.app").replace(/\/$/, "")
 
@@ -128,11 +138,18 @@ const here = dirname(new URL(import.meta.url).pathname)
 const outDir = resolve(here, "..", "out")
 const card = (name: string) => new URL(`./cards/${name}.html`, import.meta.url).href
 
-// The first words of the arrow's reason, from its file in this checkout, to
-// know its page has opened.
+// The first words of the arrow's page, from its file in this checkout, to
+// know the page has opened.
 const selfName = nameOf(selfRepository)
-const arrowText = readFileSync(resolve(here, "..", "..", "..", arrowFile), "utf8").trimEnd()
-const reason = arrowText.match(new RegExp(`label: ${arrow}\\s*\\n\\s*description: (\\S+ \\S+ \\S+ \\S+)`))?.[1]
+const declared = parseYaml(readFileSync(resolve(here, "..", "..", "..", arrowFile), "utf8")) as {
+  connects?: { label?: string; description?: string }[]
+}
+const reason = declared.connects
+  ?.find((connection) => connection.label === arrow)
+  ?.description?.trim()
+  .split(/\s+/)
+  .slice(0, 4)
+  .join(" ")
 if (!reason) throw new Error(`demo: ${arrowFile} has no arrow "${arrow}" with a description`)
 
 // --- Selectors ----------------------------------------------------------------
@@ -158,13 +175,26 @@ const EDGE_MARK = (label: string) =>
 const REASON = `main:not(:has(${PANEL})) :text("${reason}")`
 const SIGNED_IN = '[aria-label="Account menu"] >> visible=true'
 
-// --- Before the camera rolls --------------------------------------------------
-// A real Playwright browser, in real time: the account, the staging org with
-// its finished imports (kept between runs), a fresh empty org for the import
-// that happens on camera, and warm routes so a dev server does not compile
-// in the middle of a scene.
+// Any box: a sheet's boxes are drawn only once the sheet has loaded.
+const ANY_NODE = ".react-flow__node"
 
-type Stage = { zero: { top: string }; self: { top: string; inside: string; deeper: string } }
+// --- Before the camera rolls --------------------------------------------------
+// A real Playwright browser, in real time: the account, the staging workspace
+// with its finished imports (kept between runs), an empty workspace for the
+// import that happens on camera, and warm routes so a dev server does not
+// compile in the middle of a scene.
+
+// The staged imports' addresses: react's top sheet, and Subcanvas's top
+// sheet, the sheet inside its first DEMO_INTO box, and the two sheets inside
+// that one the arrow and agent scenes play on.
+type Stage = {
+  zero: { top: string }
+  self: { top: string; inside: string; arrows: string; agent: string }
+}
+const isStage = (value: unknown): value is Stage => {
+  const stage = value as Partial<Stage> | null
+  return Boolean(stage?.zero?.top && stage.self?.top && stage.self.inside && stage.self.arrows && stage.self.agent)
+}
 
 async function pressNode(page: Page, title: string) {
   // React Flow hands a press to d3-drag, which needs a real pointer.
@@ -206,11 +236,12 @@ async function openBox(page: Page, title: string): Promise<string> {
   return page.url()
 }
 
-async function createOrg(page: Page, slug: string) {
+// A team workspace, from "New team workspace" (/onboarding).
+async function createWorkspace(page: Page, slug: string) {
   await page.goto(`${base}/onboarding`)
-  await page.getByLabel("Name").fill(orgName)
+  await page.getByLabel("Name").fill(workspaceName)
   await page.getByLabel("Web address").fill(slug)
-  await page.getByRole("button", { name: "Create org" }).click()
+  await page.getByRole("button", { name: "Create workspace" }).click()
   await page.waitForURL(`${base}/${slug}`)
 }
 
@@ -265,50 +296,66 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
       await page.getByLabel("Email").fill(email)
       await page.getByLabel("Password").fill(password)
       await page.getByRole("button", { name: "Create account", exact: true }).click()
+      // A new account lands in its personal workspace.
       await Promise.race([
-        page.waitForURL(`${base}/onboarding`).catch(() => {}),
+        page.waitForURL((url) => !url.pathname.startsWith("/login")).catch(() => {}),
         alert.waitFor().catch(() => {}),
       ])
       if (await alert.isVisible())
         throw new Error(`Could not create ${email}: ${await alert.textContent()}`)
     }
 
+    // The personal workspace, where sign-in lands. Its address is made from
+    // the email, so it can be the staging workspace's: that would put the
+    // staged imports where the camera's import should land.
+    await page.goto(`${base}/auth/home`)
+    await page.waitForURL((url) => url.pathname !== "/auth/home")
+    const personal = new URL(page.url()).pathname.split("/")[1]
+    if (personal === stageSlug)
+      throw new Error(`demo: /${stageSlug} is ${email}'s personal workspace; choose another DEMO_STAGE_WORKSPACE`)
+
     // A dev server draws its route badge in the corner; this hides it for a day.
     if (local) await page.request.post(`${base}/__nextjs_disable_dev_indicator`).catch(() => {})
 
-    // The staging org and its imports, made once and kept. Their addresses
-    // are remembered beside the renders and checked before they are trusted.
+    // The staging workspace and its imports, made once and kept. Their
+    // addresses are remembered beside the renders and checked before they
+    // are trusted.
     const stageFile = resolve(outDir, `stage-${stageSlug}.json`)
     let stage: Stage | null = null
     if (existsSync(stageFile)) {
       // Trusted once its sheet draws. A second import is not a harmless
       // retry: the account would then hold two copies of each project.
-      const saved = JSON.parse(readFileSync(stageFile, "utf8")) as Stage
+      const saved = JSON.parse(readFileSync(stageFile, "utf8")) as unknown
+      if (!isStage(saved)) throw new Error(`demo: ${stageFile} is from an earlier script; stage in a new workspace (DEMO_STAGE_WORKSPACE)`)
       const response = await page.goto(saved.self.top)
       const shown = await drawn(page).waitFor({ timeout: 30_000 }).then(() => true, () => false)
       if (response?.ok() && shown) stage = saved
     }
     if (!stage) {
       const response = await page.goto(`${base}/${stageSlug}`)
-      if (!response?.ok()) await createOrg(page, stageSlug)
+      if (!response?.ok()) await createWorkspace(page, stageSlug)
       const zeroTop = await importInto(page, stageSlug, repository)
       const selfTop = await importInto(page, stageSlug, selfRepository)
       const selfInside = await openBox(page, into[0])
-      const selfDeeper = await openBox(page, into[1])
-      stage = { zero: { top: zeroTop }, self: { top: selfTop, inside: selfInside, deeper: selfDeeper } }
+      const selfArrows = await openBox(page, into[1])
+      await page.goto(selfInside)
+      const selfAgent = await openBox(page, agentBox)
+      stage = { zero: { top: zeroTop }, self: { top: selfTop, inside: selfInside, arrows: selfArrows, agent: selfAgent } }
       mkdirSync(outDir, { recursive: true })
       writeFileSync(stageFile, JSON.stringify(stage, null, 2) + "\n")
     }
     // Warm every route the camera will visit.
-    for (const href of [stage.zero.top, stage.self.top, stage.self.inside, stage.self.deeper]) {
+    for (const href of [stage.zero.top, stage.self.top, stage.self.inside, stage.self.arrows, stage.self.agent]) {
       await page.goto(href)
       await drawn(page).waitFor()
     }
 
-    // The MCP side: the demo account's token, and the Core libraries sheet.
+    // The MCP side: the demo account's token, and the two sheets the arrow
+    // and agent scenes play on.
     const token = await accessToken(page)
     const mcp = mcpClient(base, token)
-    const coreId = docIdOf(stage.self.deeper)
+    const arrowsId = docIdOf(stage.self.arrows)
+    const agentId = docIdOf(stage.self.agent)
 
     // An edit a render replayed and did not get to undo (it stopped halfway).
     const replayedFile = resolve(outDir, "agent-replayed.json")
@@ -317,14 +364,14 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
       unlinkSync(replayedFile)
     }
 
-    // Scene 2 opens the arrow's reason straight from the arrow, as a page,
+    // Scene 4 opens the arrow's page straight from the arrow, as a page,
     // rather than in the panel beside the canvas: the arrow's own setting.
-    const board = await mcp("read_whiteboard", { whiteboard_id: coreId })
+    const board = await mcp("read_whiteboard", { whiteboard_id: arrowsId })
     const edges = (board.data.edges as { id: string; label?: string; open_mode?: string }[] | undefined) ?? []
     const reasonEdge = edges.find((edge) => edge.label === arrow)
-    if (!reasonEdge) throw new Error(`demo: no arrow "${arrow}" on the Core libraries sheet`)
+    if (!reasonEdge) throw new Error(`demo: no arrow "${arrow}" on the ${into[1]} sheet`)
     if (reasonEdge.open_mode !== "navigate")
-      await mcp("update_edges", { whiteboard_id: coreId, edges: [{ id: reasonEdge.id, open_mode: "navigate" }] })
+      await mcp("update_edges", { whiteboard_id: arrowsId, edges: [{ id: reasonEdge.id, open_mode: "navigate" }] })
 
     // The agent's session, recorded once and kept. Its edit is undone right
     // away, so the sheet is as it was when the camera shows it being drawn
@@ -335,7 +382,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
     if (
       agent &&
       (!agent.events ||
-        madeBy(agent).whiteboard_id !== coreId ||
+        madeBy(agent).whiteboard_id !== agentId ||
         agent.prompt !== agentPrompt ||
         agent.cols !== AGENT_COLS ||
         agent.rows !== AGENT_ROWS)
@@ -348,7 +395,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
         base,
         token,
         prompt: agentPrompt,
-        whiteboardId: coreId,
+        whiteboardId: agentId,
         cols: AGENT_COLS,
         rows: AGENT_ROWS,
       })
@@ -356,10 +403,23 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
       writeFileSync(agentFile, JSON.stringify(agent, null, 2) + "\n")
     }
 
-    // The fresh org the on-camera import lands in. Nothing is deleted, so it
-    // gets a name of its own each time.
-    const slug = process.env.DEMO_ORG ?? `demo-${nameOf(repository)}-${Math.random().toString(36).slice(2, 8)}`
-    if (!process.env.DEMO_ORG) await createOrg(page, slug)
+    // The workspace the on-camera import lands in: the account's personal
+    // workspace, where sign-up put it, while it holds no projects. After
+    // that, a fresh team workspace each time: nothing is deleted.
+    let slug = process.env.DEMO_WORKSPACE
+    if (!slug) {
+      await page.goto(`${base}/${personal}`)
+      const empty = await page
+        .getByRole("main")
+        .getByText("Start with a project")
+        .waitFor({ timeout: 5_000 })
+        .then(() => true, () => false)
+      if (personal && empty) slug = personal
+      else {
+        slug = `demo-${nameOf(repository)}-${Math.random().toString(36).slice(2, 8)}`
+        await createWorkspace(page, slug)
+      }
+    }
     return { slug, stage, token, agent }
   } catch (error) {
     // What the page looked like when it went wrong, beside the renders.
@@ -374,7 +434,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
 
 process.stderr.write(`demo: preparing ${base} (${selfRepository}, ${repository})\n`)
 const { slug, stage, token, agent } = await prepare()
-process.stderr.write(`demo: org /${slug}, staging /${stageSlug}\n`)
+process.stderr.write(`demo: importing into /${slug}, staging /${stageSlug}\n`)
 
 // --- The address bar ------------------------------------------------------------
 // Against production, the real address. Against a dev server, nothing: its
@@ -394,8 +454,6 @@ const demo = createDemo({
   desktop: [1600, 900],
   menubar: false,
   fps: 60,
-  voice: "af_heart",
-  pronunciations: { Subcanvas: "Sub canvas", subcanvas: "sub canvas", README: "read me", YAML: "yammel" },
   address,
 })
 
@@ -424,9 +482,6 @@ const noteEnd = () => (overlays.findLast((o) => o.kind === "note")!.to = demo.ge
 // past this point, cut from the render with no caption on it.
 const stills: { headline: string; at: number; after: number }[] = []
 const still = (headline: string, after: number) => stills.push({ headline, at: demo.getTimeline().length, after })
-// Each sentence fits the scene it belongs to (sentences queue, so one
-// that runs long delays every one after it).
-const say = (text: string) => demo.say(text)
 type Where = "browser" | "terminal"
 const move = (target: string | { x: number; y: number }, duration = 700, window?: Where) =>
   demo.cursor.moveTo(target, { duration, ease: "smooth", ...(window ? { window } : {}) })
@@ -440,6 +495,10 @@ const MIDDLE = { x: 48 + (1440 - 48) / 2, y: 45 + (768 - 45) / 2 }
 // right, clear of the diagrams; and off the screen entirely.
 const REST = { x: 1330, y: 700 }
 const OFF = { x: 1700, y: 1000 }
+// The top of a page, with the sidebar collapsed: its column is 660 pixels
+// wide, centred on x 744, with the title from y 95 and a code block under
+// one paragraph from y 206.
+const PAGE_TOP = { x: 744, y: 360 }
 // Opens a page with it drawn on camera, not its loading: `drawn` is
 // something that is only there once it is.
 async function open(url: string, drawn: string) {
@@ -469,7 +528,7 @@ function paced(events: [number, string][], from: number, to: number, ms: number)
 
 // The prelude, cut from the video: reelscript's browser signs in, puts the
 // canvas in view mode and collapses the sidebar (both kept for the rest of
-// the session), then opens the empty org the import lands in, so the video
+// the session), then opens the empty workspace the import lands in, so the video
 // starts on its Import button.
 const IMPORT_BUTTON = 'button:has-text("Import from GitHub")'
 await demo.browser.goto(`${base}/login`, { settle: 600 })
@@ -486,7 +545,7 @@ await demo.press("Control+Backslash")
 await demo.wait(300)
 await move(OFF, 100)
 await open(`${base}/${slug}`, IMPORT_BUTTON)
-zoom(IMPORT_BUTTON, 1.4, 0) // close enough on the empty org to read it
+zoom(IMPORT_BUTTON, 1.4, 0) // close enough on the empty workspace to read it
 const preludeActions = demo.getTimeline().length
 
 // The pace: each caption stays up at least a second and a half plus a
@@ -499,7 +558,6 @@ const preludeActions = demo.getTimeline().length
 // folders become boxes on their own.
 mark("Import a repository")
 caption("Turn a GitHub repo into a diagram you can click into.")
-say("Turn a GitHub repo into a diagram you can click into.")
 await demo.wait(500)
 await move(IMPORT_BUTTON, 900)
 await demo.cursor.click()
@@ -515,7 +573,6 @@ await demo.wait(importWait)
 await demo.waitFor(SHEET(repositoryBox), { settle: 150 })
 zoom(SHEET(repositoryBox), 1.45, 0)
 caption("Its main folders become boxes, automatically.")
-say("Its main folders become boxes, automatically.")
 await move(REST, 700)
 still("Paste a GitHub repo. Its main folders become boxes.", 400)
 await demo.wait(500)
@@ -526,7 +583,6 @@ await demo.wait(2300)
 // the click, and a settle.
 mark("Into a box")
 caption("Any box opens into the diagram inside it.")
-say("Any box opens into the diagram inside it.")
 zoom(NODE(repositoryBox), 1.6, 1500)
 await move(INSIDE(repositoryBox), 1300)
 await demo.wait(300)
@@ -539,22 +595,22 @@ await demo.wait(2200)
 // boxes and say what talks to what.
 mark("Arrows from .subcanvas files")
 caption("Arrows come from a few lines of YAML in each folder.")
-say("In Subcanvas's own repo, a few lines of YAML per folder add the arrows.")
-await open(stage.self.deeper, EDGE_LABEL(arrow))
+await open(stage.self.arrows, EDGE_LABEL(arrow))
 zoom(MIDDLE, 1.25, 0)
 zoom(MIDDLE, 1.32, 5400) // a slow drift, so the hold is not a still
 await move(REST, 900)
 await demo.wait(4500)
 
-// 4. An arrow, opened into the page that says why it is there. The arrow
-// is set to open as a page (in the preparation), so there is no panel.
+// 4. An arrow, opened into its page: for "export API", an OpenAPI excerpt
+// of the routes it stands for. The arrow is set to open as a page (in the
+// preparation), so there is no panel. At 1.45x the window shows 993 by 530
+// pixels of the page; PAGE_TOP frames the page's title, its first lines,
+// and the top of the YAML down to the second path.
 mark("An arrow's reason")
 caption("An arrow opens into why it is there.")
-say("An arrow opens into why it is there.")
 await move(EDGE_MARK(arrow), 1100)
 await demo.wait(300)
-await clickThrough(REASON, 1.45, { x: 720, y: 190 }, 1.45)
-zoom(REASON, 1.45, 0)
+await clickThrough(REASON, 1.45, PAGE_TOP, 1.45)
 await move(REST, 700)
 still("An arrow opens into why it is there.", 900)
 await demo.wait(2700)
@@ -565,7 +621,6 @@ await demo.wait(2700)
 // made again, and the arrow arrives on the sheet.
 mark("An agent draws an arrow")
 caption("Or ask Claude Code to draw the arrows. It reads the code.")
-say("Or ask Claude Code to draw the arrows. It reads the code.")
 const agentArrow = String(
   ((agent.writes.find((write) => write.name === "connect_nodes")?.input.edges as { label?: string }[] | undefined) ?? [])[0]
     ?.label ?? ""
@@ -577,7 +632,7 @@ if (!agentArrow) throw new Error("demo: the agent's arrow has no label to find i
 // and 10 pixels of padding.
 const terminalSize = { width: agent.cols * 8.4 + 24, height: agent.rows * 18 + 20 }
 await demo.browser.place({ x: 16, y: 44, width: 1600 - 48 - terminalSize.width, height: 768 })
-await open(stage.self.deeper, EDGE_LABEL(arrow))
+await open(stage.self.agent, ANY_NODE)
 note("Claude Code session and its edit replayed, sped up")
 await demo.terminal.open({
   title: `${selfName} — claude`,
@@ -596,7 +651,6 @@ await demo.call(async () => {
   const made = await replay(mcpClient(base, token), agent)
   writeFileSync(replayedFile, JSON.stringify(made) + "\n")
 })
-say("It found the missing one, and drew it.")
 await demo.terminal.print("", { events: paced(agent.events, agent.editAt, Infinity, 1600), maxGapMs: Infinity })
 // Closer, on the arrow it drew and its answer together: at 1.3x the view is
 // 1231 pixels of the desktop wide, so centred 97 pixels inside the
@@ -615,7 +669,6 @@ await demo.wait(2600)
 // under it, whose tooltip would say "View".
 mark("Share, Copy embed")
 caption("Put the live diagram in your README. It keeps itself up to date.")
-say("Put the live diagram in your README. It keeps itself up to date.")
 demo.zoom.out({ duration: 0 })
 await demo.terminal.place({ x: 700, y: 140, ...terminalSize })
 await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
@@ -655,7 +708,6 @@ mark("End card")
 captionEnd()
 demo.zoom.out({ duration: 500 })
 await move(OFF, 500)
-say("Subcanvas dot app. Free to start.")
 await demo.browser.goto(card("end"), { settle: 4400 })
 
 // --- Where each scene and caption starts -------------------------------------
@@ -692,7 +744,6 @@ function lengthOf(action: ReturnType<typeof demo.getTimeline>[number]): number {
       const total = action.duration ?? Math.min(2500, 150 + 60 * lines)
       return 80 + total + 250
     }
-    case "say":
     case "zoom.to":
     case "zoom.out":
     case "waitFor":

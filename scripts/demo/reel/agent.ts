@@ -72,7 +72,7 @@ export type AgentRun = {
 // whiteboards. The shell, edits to files, and the web are refused.
 const ALLOW = [
   "Read", "Grep", "Glob",
-  ...["list_orgs", "list_projects", "get_project", "read_whiteboard", "connect_nodes", "attach_document"].map(
+  ...["list_workspaces", "list_projects", "get_project", "read_whiteboard", "connect_nodes", "attach_document"].map(
     (tool) => `mcp__subcanvas__${tool}`
   ),
 ]
