@@ -23,27 +23,24 @@ connects:
       paths:
         /api/projects/{projectId}/export:
           get:
-            summary: The project's folders and documents, and where each goes in the zip
+            summary: Folders and documents, laid out
             responses:
-              "200": { description: "{ project, layout: { folders, documents } }" }
-              "404": { description: No such project, or you cannot read it }
+              "200": { description: Project and layout }
+              "404": { description: Not yours to read }
         /api/projects/{projectId}/export/documents:
           get:
             summary: Some of its documents, converted
             parameters:
-              - name: ids
-                in: query
-                required: true
-                description: 1 to 50 document ids, comma-separated
+              - { name: ids, in: query, required: true }
             responses:
               "200":
-                description: One JSON line per document, up to 4 MB an answer; ask again for the rest
+                description: A JSON line per document
                 content:
                   application/x-ndjson:
                     schema:
                       oneOf:
-                        - { title: Page, required: [id, type, title, markdown] }
-                        - { title: Whiteboard, required: [id, type, title, svg, nodes, edges] }
-                        - { title: Unreadable, required: [id, error] }
-              "400": { description: Ask for 1 to 50 documents by id }
+                        - { title: Page }
+                        - { title: Whiteboard }
+                        - { title: Unreadable }
+              "400": { description: 1 to 50 ids }
       ```
