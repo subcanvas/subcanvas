@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { claudeCodeCommand, codexCommand, cursorInstallLink, vscodeInstallLink } from "./install-links"
+import {
+  claudeCodeCommand,
+  claudeCodePluginCommand,
+  codexCommand,
+  cursorInstallLink,
+  vscodeInstallLink,
+} from "./install-links"
 
 const url = "https://subcanvas.app/mcp"
 
@@ -27,5 +33,11 @@ describe("install links", () => {
 
   it("gives Claude Code the documented command", () => {
     expect(claudeCodeCommand(url)).toBe("claude mcp add --transport http subcanvas https://subcanvas.app/mcp")
+  })
+
+  it("installs the Claude Code plugin from this repository's marketplace", () => {
+    expect(claudeCodePluginCommand()).toBe(
+      "claude plugin marketplace add subcanvas/subcanvas && claude plugin install subcanvas@subcanvas"
+    )
   })
 })

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "subcanvas": {
+      "type": "http",
+      "url": "https://subcanvas.app/mcp"
+    }
+  }
+}

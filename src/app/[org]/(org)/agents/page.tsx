@@ -3,7 +3,15 @@ import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
 import { buttonVariants } from "@/components/ui/button"
-import { claudeCodeCommand, codexCommand, cursorInstallLink, vscodeInstallLink } from "@/lib/mcp/install-links"
+import { EXAMPLE_PROMPTS } from "@/lib/mcp/example-prompts"
+import {
+  claudeCodeCommand,
+  claudeCodePluginCommand,
+  codexCommand,
+  cursorInstallLink,
+  PLUGIN_SERVER_URL,
+  vscodeInstallLink,
+} from "@/lib/mcp/install-links"
 import { MCP_PATH } from "@/lib/mcp/origin"
 import { agentSignInAvailable } from "@/lib/mcp/sign-in"
 import { originFromHeaders } from "@/lib/origin"
@@ -12,7 +20,7 @@ import { tools } from "@/lib/mcp/tools"
 import { getOrgContext } from "@/lib/orgs"
 import { docsUrl } from "@/lib/source"
 
-import { CopyField } from "./copy-field"
+import { CopyField, PromptField } from "./copy-field"
 
 export const metadata = { title: "Connect an agent" }
 
@@ -73,7 +81,20 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Client name="Claude Code" wide>
-          <p>Run this, then type <code className="font-mono">/mcp</code> in Claude Code and sign in.</p>
+          <p>
+            Install the Subcanvas plugin. It brings the server and a skill for drawing whiteboards
+            people can read. Then type <code className="font-mono">/mcp</code> in Claude Code and sign in.
+          </p>
+          <CopyField label="the Claude Code plugin command" value={claudeCodePluginCommand()} />
+          {url === PLUGIN_SERVER_URL ? (
+            <p>Or add only the server:</p>
+          ) : (
+            <p>
+              The plugin connects to subcanvas.app. To connect to this server, run this as well, and turn
+              the plugin&apos;s own server off in <code className="font-mono">/mcp</code>. Without the
+              plugin, this alone connects Claude Code.
+            </p>
+          )}
           <CopyField label="the Claude Code command" value={claudeCodeCommand(url)} />
         </Client>
         <Client name="Codex" wide>
@@ -115,6 +136,20 @@ export default async function AgentsPage({ params }: PageProps<"/[org]/agents">)
           </p>
         </Client>
       </div>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">What to ask your agent</h2>
+          <p className="max-w-xl text-sm leading-relaxed text-graphite">
+            Once it is connected, ask in plain words. A few things it does well:
+          </p>
+        </div>
+        <ol className="flex flex-col gap-3">
+          {EXAMPLE_PROMPTS.map(({ title, prompt }) => (
+            <PromptField key={title} title={title} prompt={prompt} />
+          ))}
+        </ol>
+      </section>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">

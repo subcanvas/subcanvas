@@ -12,7 +12,7 @@ Every workspace has a page with the address and the quickest way into each clien
 
 | Client | How |
 |---|---|
-| Claude Code | `claude mcp add --transport http subcanvas https://<your domain>/mcp`, then `/mcp` to sign in |
+| Claude Code | For subcanvas.app, the plugin: `claude plugin marketplace add subcanvas/subcanvas`, then `claude plugin install subcanvas@subcanvas` (below). For any server, `claude mcp add --transport http subcanvas https://<your domain>/mcp`. Then `/mcp` to sign in |
 | Codex (CLI, IDE extension, ChatGPT desktop) | `codex mcp add subcanvas --url https://<your domain>/mcp`, then `codex mcp login subcanvas` |
 | Cursor | The "Add to Cursor" button, or `{ "mcpServers": { "subcanvas": { "url": "https://<your domain>/mcp" } } }` in `~/.cursor/mcp.json` |
 | VS Code | The "Add to VS Code" button, or `{ "servers": { "subcanvas": { "type": "http", "url": "https://<your domain>/mcp" } } }` in `mcp.json` |
@@ -20,6 +20,24 @@ Every workspace has a page with the address and the quickest way into each clien
 | ChatGPT | Settings → Security and login → Developer mode; then add an app with the address as its public endpoint |
 
 What happens next is the same everywhere. The client asks `/mcp` without a token and gets a `401` whose `WWW-Authenticate` header points at `/.well-known/oauth-protected-resource`. That document names Supabase Auth as the authorization server. The client reads Supabase's metadata, registers itself, and opens a browser. The person signs in to Subcanvas if they are not already, sees "Let *client* use Subcanvas as you?" at `/oauth/consent`, and approves. The client gets an access token and a refresh token, and uses the server.
+
+### The Claude Code plugin
+
+This repository is also a Claude Code plugin marketplace: `.claude-plugin/marketplace.json` lists one plugin, [`plugins/subcanvas`](../plugins/subcanvas). It brings the server at `https://subcanvas.app/mcp` and a skill, `diagrams`, that teaches the agent to draw whiteboards people can read with these tools: a box, a text node, or a group, each for what it is for; detail nested inside a box rather than beside it; arrows with short labels and a page behind each saying why it exists; `arrange_nodes` after adding; titles within the limits below; reading before writing; and asking before deleting what a person made. Two commands come with it, `/subcanvas:map-repo` and `/subcanvas:update-diagram`. `src/lib/mcp/plugin.test.ts` fails when the skill names a tool that does not exist or a limit that has changed.
+
+The plugin's server is subcanvas.app's. On a server of your own, add it with `claude mcp add` as in the table and turn the plugin's server, `plugin:subcanvas:subcanvas`, off in `/mcp`; the skill works the same with either. Raise `version` in `plugins/subcanvas/.claude-plugin/plugin.json` with every change to the plugin, since installed copies update only when it changes, and check it with `claude plugin validate .`.
+
+## What to ask your agent
+
+Once connected, ask in plain words. These show what Subcanvas is for with a coding agent, and each asks only for what the tools below can do:
+
+- Map this repository's services and how they talk to each other as a Subcanvas whiteboard, then put a page behind each arrow saying what crosses it.
+- Explain this pull request as a Subcanvas whiteboard: a box for each part it changes, arrows for how the changes depend on each other, and a page inside each box saying what changed and why.
+- Turn docs/onboarding.md into a nested Subcanvas whiteboard: a box for each section, with its detail on a page or a whiteboard inside the box.
+- Keep the Subcanvas diagram of this repository up to date with this branch. Add what the branch adds, fix what it changes, and ask me before you remove anything.
+- Review the Architecture whiteboard in Subcanvas against the code and fix what is wrong. List anything you would delete and wait for my answer.
+
+The same list is on the Connect an agent page, from `src/lib/mcp/example-prompts.ts`.
 
 ## Tools
 
