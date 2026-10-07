@@ -91,6 +91,7 @@ An **object** is a node or an arrow. Groups contain nodes.
 | R3.14 | Create, delete, move, resize, connect, multi-select, copy/paste, undo/redo, pan, and zoom. |
 | R3.14a | Deleting an object sends what it held to the trash (R1.10); undo brings the object back with it. A picture's or video's file is deleted once nothing shows it and the deletion can no longer be undone. On a touch screen an object is deleted from its side panel. |
 | R3.15 | A toolbar for adding boxes, text nodes, groups, and pictures and videos. |
+| R3.16 | **Mermaid.** A Mermaid flowchart, sequence diagram or ER diagram becomes a whiteboard of ordinary boxes, groups and arrows, laid out in the diagram's direction: from Paste Mermaid in the project tree's menus (a new whiteboard), pasted on an open whiteboard (added beside what is there, after asking, in one step to undo), from a Mermaid code block's menu in a page (a whiteboard inside the page, the code kept), and from the MCP tool `import_mermaid`. Whatever is not drawn as written is listed before anything is made ([docs/IMPORTING.md](docs/IMPORTING.md#mermaid-diagrams)). |
 
 ## 4. What objects hold, and the side panel
 

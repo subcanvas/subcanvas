@@ -14,6 +14,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Waypoints,
   Workflow,
 } from "lucide-react"
 import dynamic from "next/dynamic"
@@ -76,7 +77,14 @@ const PasteMarkdownDialog = dynamic(
   () => import("./paste-markdown-dialog").then((module) => module.PasteMarkdownDialog),
   { ssr: false }
 )
+const PasteMermaidDialog = dynamic(
+  () => import("./paste-mermaid-dialog").then((module) => module.PasteMermaidDialog),
+  { ssr: false }
+)
 const ExportDialog = dynamic(() => import("./export-dialog").then((module) => module.ExportDialog), { ssr: false })
+
+// The ways notes come in: files, pasted Markdown, pasted Mermaid.
+type BringIn = "import" | "paste" | "mermaid"
 
 const DRAG_TYPE = "application/x-subcanvas-item"
 type Dragged = { kind: "folder" | "document"; id: string }
@@ -130,7 +138,7 @@ export function ProjectTree({
   // An open import or paste dialog. The key makes each opening a fresh one.
   const [bringingIn, setBringingIn] = useState<{
     key: number
-    how: "import" | "paste"
+    how: BringIn
     target: ImportTarget
     dropped: Promise<PickedFile[]> | null
   } | null>(null)
@@ -202,7 +210,7 @@ export function ProjectTree({
     })
   }
 
-  function bringIn(how: "import" | "paste", container: Container, name: string, dropped: Promise<PickedFile[]> | null = null) {
+  function bringIn(how: BringIn, container: Container, name: string, dropped: Promise<PickedFile[]> | null = null) {
     if (container.kind !== "root") setExpanded((current) => new Set(current).add(container.id))
     setBringingIn((current) => ({ key: (current?.key ?? 0) + 1, how, target: { container, name }, dropped }))
   }
@@ -412,6 +420,14 @@ export function ProjectTree({
           onClose={() => setBringingIn(null)}
         />
       )}
+      {bringingIn?.how === "mermaid" && (
+        <PasteMermaidDialog
+          key={bringingIn.key}
+          project={project}
+          target={bringingIn.target}
+          onClose={() => setBringingIn(null)}
+        />
+      )}
       <RenameProjectDialog
         project={project}
         projectName={projectName}
@@ -576,7 +592,7 @@ function CreateItems({
   inside?: boolean
   allowFolder: boolean
   onCreate: (type: DocumentType | "folder") => void
-  onBringIn: (how: "import" | "paste") => void
+  onBringIn: (how: BringIn) => void
 }) {
   const suffix = inside ? " inside" : ""
   return (
@@ -603,6 +619,10 @@ function CreateItems({
       <DropdownMenuItem onClick={() => onBringIn("paste")}>
         <ClipboardPaste />
         Paste Markdown{suffix}…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => onBringIn("mermaid")}>
+        <Waypoints />
+        Paste Mermaid{suffix}…
       </DropdownMenuItem>
     </>
   )

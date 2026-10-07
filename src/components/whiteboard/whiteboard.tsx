@@ -16,11 +16,13 @@ import {
   useStoreApi,
 } from "@xyflow/react"
 import { Copy, Group, ImagePlus, LayoutGrid, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react"
+import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { writeMermaidPages } from "@/app/[org]/[project]/import-actions"
 import type { EditorUser } from "@/components/editor/text-editor"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
@@ -34,6 +36,9 @@ import { createClient } from "@/lib/supabase/client"
 import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
+import type { Diagram } from "@/lib/mermaid/diagram"
+import { drawDiagramBeside } from "@/lib/mermaid/draw"
+import { looksLikeMermaid } from "@/lib/mermaid/parse"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
@@ -55,6 +60,12 @@ import { nodeTypes } from "./nodes"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
 import { useHeldContent } from "./use-held-content"
 import { useMediaUploads } from "./use-media-uploads"
+
+// Asked only when Mermaid is pasted, so loaded then.
+const MermaidPasteDialog = dynamic(
+  () => import("./mermaid-paste-dialog").then((module) => module.MermaidPasteDialog),
+  { ssr: false }
+)
 
 const PASTE_OFFSET = 24
 const NUDGE = 5
@@ -117,6 +128,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   // True while files are being dragged over the canvas.
   const [dropping, setDropping] = useState(false)
   const [dismissed, setDismissed] = useState<string | null>(null)
+  // Mermaid pasted here, waiting for the person to say it should be drawn.
+  const [pastedMermaid, setPastedMermaid] = useState<string | null>(null)
   const panel = usePanelWidth(root)
 
   // React Flow's own fit on mount measures before every node has a size, so
@@ -434,6 +447,35 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     else insert(clip, { x: step + PASTE_OFFSET, y: step + PASTE_OFFSET }, false)
   }
 
+  // A Mermaid diagram, drawn beside what is here. Pages inside its boxes (an
+  // ER diagram's attributes) are made first, so the boxes arrive holding
+  // them and one undo takes all of it away.
+  async function addMermaid(diagram: Diagram) {
+    if (!canEdit) return
+    const taken = flow.getNodes().flatMap((node) => {
+      const internal = !node.parentId && flow.getInternalNode(node.id)
+      if (!internal) return []
+      return { ...internal.internals.positionAbsolute, width: internal.measured.width ?? 0, height: internal.measured.height ?? 0 }
+    })
+    const drawn = drawDiagramBeside(diagram, taken)
+    let nodes = drawn.nodes
+    if (drawn.pages.length) {
+      const result = await writeMermaidPages(
+        { slug: context.slug, orgId: context.orgId, projectId: context.projectId },
+        context.whiteboardId,
+        drawn.pages
+      )
+      if ("error" in result) showRefusal({ ...result, error: `The pages inside the boxes could not be made. ${result.error}` })
+      else nodes = nodes.map((node) => (result.ids?.[node.id] ? { ...node, docId: result.ids[node.id], docType: "text" } : node))
+    }
+    const ids = wb.insertDrawn(nodes, drawn.edges)
+    selectOnly(ids)
+    // Once the new nodes have been measured.
+    setTimeout(() => void flow.fitView({ ...FIT_VIEW, nodes: ids.map((id) => ({ id })), duration: 300 }), 50)
+    const boxes = drawn.nodes.filter((node) => node.kind !== "group").length
+    toast.success(`Added ${boxes} ${boxes === 1 ? "box" : "boxes"} and ${drawn.edges.length} ${drawn.edges.length === 1 ? "arrow" : "arrows"}.`)
+  }
+
   function cut() {
     if (!canEdit) return
     copy()
@@ -553,16 +595,21 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
 
   // Paste is heard as the browser's own event, not as a key: only that event
   // carries what is on the system clipboard. A picture copied anywhere (a
-  // screenshot, an image on a web page) becomes a media node; otherwise paste
-  // means the nodes last copied here.
+  // screenshot, an image on a web page) becomes a media node, and Mermaid
+  // text is offered as a diagram; otherwise paste means the nodes last
+  // copied here.
   const onPaste = useEffectEvent((event: ClipboardEvent) => {
     const target = event.target as HTMLElement
     if (event.defaultPrevented || target.closest(TYPING)) return
     if (target !== document.body && !root.current?.contains(target)) return
     event.preventDefault()
     const files = [...(event.clipboardData?.files ?? [])]
+    const text = event.clipboardData?.getData("text/plain") ?? ""
     if (files.length) addFiles(files, pointer.current)
-    else void paste()
+    else if (looksLikeMermaid(text)) {
+      if (canEdit) setPastedMermaid(text)
+      else if (editable) toast.message("Switch to edit mode to add a Mermaid diagram.")
+    } else void paste()
   })
   useEffect(() => {
     const listener = (event: ClipboardEvent) => onPaste(event)
@@ -744,7 +791,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
                 <p className="font-heading text-xl font-semibold">Nothing here yet</p>
                 <p className="text-sm text-graphite">
                   {canEdit
-                    ? "Add a box to begin. Any box can hold a page of notes, or a whole whiteboard of its own."
+                    ? "Add a box to begin, or paste a Mermaid diagram. Any box can hold a page of notes, or a whole whiteboard of its own."
                     : "Nothing has been added here yet."}
                 </p>
               </div>
@@ -797,6 +844,9 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
             onClose={() => setDismissed(selectedId)}
           />
         </>
+      )}
+      {pastedMermaid !== null && (
+        <MermaidPasteDialog text={pastedMermaid} onAdd={addMermaid} onClose={() => setPastedMermaid(null)} />
       )}
     </div>
     </WhiteboardActionsContext>

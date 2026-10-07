@@ -30,6 +30,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
 - **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them, and a Claude Code plugin teaches them to draw: [Agents](#agents) below.
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
+- **Mermaid.** Paste a Mermaid flowchart, sequence diagram or ER diagram, or have an agent send one, and it becomes a whiteboard of real boxes and arrows you can click into and edit: [docs/IMPORTING.md](docs/IMPORTING.md#mermaid-diagrams).
 - **Your work, out.** A page downloads as Markdown and a whiteboard as SVG from its menu, and a whole project exports as a zip of those, with a JSON file of each whiteboard and its pictures and videos. Import files brings the zip's pages back: [docs/EXPORTING.md](docs/EXPORTING.md).
 
 Subcanvas is live at subcanvas.app and changing fast. What is being built is in [REQUIREMENTS.md](REQUIREMENTS.md), the data model and build order in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and what comes next in [docs/ROADMAP.md](docs/ROADMAP.md).

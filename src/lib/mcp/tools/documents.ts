@@ -14,7 +14,7 @@ import { documentUrl, findDocument, findProject, findTypedDocument, NO_DOCUMENT,
 import { createInsideObject } from "../object-documents"
 import { defineTool, id, type ToolContext } from "../tool"
 
-const container = z
+export const container = z
   .discriminatedUnion("kind", [
     z.object({ kind: z.literal("root") }).describe("The top level of the project."),
     z.object({ kind: z.literal("folder"), id: id("The folder.") }),
