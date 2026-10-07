@@ -3,6 +3,24 @@
 For the launch video itself, rendered frame by frame with reelscript rather
 than recorded, see [reel/README.md](reel/README.md) and `pnpm demo:reel`.
 
+## Music
+
+The launch video has no voice; a music track is laid under it
+(`DEMO_MUSIC`, see [reel/README.md](reel/README.md#music)). Both tracks are
+from Pixabay, under the
+[Pixabay Content License](https://pixabay.com/service/license-summary/):
+free to use in a video, commercially too, with no attribution required.
+Both are human-made and not registered with Content ID. Credited here all
+the same:
+
+| File | Track | Used for |
+|---|---|---|
+| `lofi-jonasblakewood-573480.mp3` (47.9 s) | “Lofi Chill” by JonasBlakewood, Pixabay item 573480 | `demo.mp4`, the default |
+| `tech-bombinsound-499582.mp3` (2:20) | “Technology” by BombinSound, Pixabay item 499582 | `demo-tech.mp4` |
+
+The files are not in the repository; they were downloaded from pixabay.com
+to `~/Downloads/subcanvas-music/`.
+
 `record_demo.py` walks a storyboard through the real app while
 [OpenScreen](https://getopenscreen.com) records the window, then exports the
 video with a zoom wherever the cursor paused, burns in the captions, and cuts
