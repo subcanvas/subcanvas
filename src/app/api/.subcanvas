@@ -1,5 +1,5 @@
-title: Stripe webhook
-description: Receives subscription events from Stripe and records each workspace's plan, and emails the operator a summary of each day when the cron asks. The only code that runs without a signed-in user.
+title: API routes
+description: Route handlers for what is not a page. The export of pages, whiteboards and projects, pictures and videos, error reports, Stripe's subscription events, and the operator's daily summary. Stripe and the cron are the only callers without a signed-in user.
 connects:
   - to: src/lib/billing
     label: subscription events
