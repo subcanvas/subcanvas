@@ -13,9 +13,10 @@ video=$1 track=$2 out=$3
 FFMPEG=${REELSCRIPT_FFMPEG:-ffmpeg}
 FFPROBE=${FFPROBE:-ffprobe}
 
-length() { "$FFPROBE" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$1"; }
-D=$(length "$video")
-T=$(length "$track")
+# The picture's length, not the file's: a video that already has music can
+# hold a few hundredths of a second more of it.
+D=$("$FFPROBE" -v error -select_streams v:0 -show_entries stream=duration -of default=noprint_wrappers=1:nokey=1 "$video")
+T=$("$FFPROBE" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$track")
 if awk -v d="$D" -v t="$T" 'BEGIN { exit !(t < d) }'; then
   echo "music: $track is ${T}s, shorter than the ${D}s video; the end would be silent" >&2
   exit 1
