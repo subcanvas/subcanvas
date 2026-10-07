@@ -97,6 +97,15 @@ test("Mermaid pasted on a whiteboard is offered, drawn beside what is there, and
   await expect(nodeNamed(page, "CUSTOMER", "a document")).toBeVisible()
   await expect(nodeNamed(page, "ORDER")).toBeVisible()
   await expect(edgeBetween(page, "CUSTOMER", "ORDER", "labelled places (1 to 0..*)")).toBeAttached()
+  // The view zooms to what was added, in an animation: measure the boxes once
+  // it has stopped, or two of them can be read at different zooms.
+  await expect
+    .poll(async () => {
+      const before = await boxOf(nodeNamed(page, "Already here"))
+      await page.waitForTimeout(150)
+      return JSON.stringify(before) === JSON.stringify(await boxOf(nodeNamed(page, "Already here")))
+    })
+    .toBe(true)
   const here = await boxOf(nodeNamed(page, "Already here"))
   expect(disjoint(here, await boxOf(nodeNamed(page, "CUSTOMER", "a document")))).toBe(true)
   expect(disjoint(here, await boxOf(nodeNamed(page, "ORDER")))).toBe(true)
