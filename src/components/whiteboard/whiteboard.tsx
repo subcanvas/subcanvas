@@ -1014,7 +1014,9 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
         </ReactFlow>
       </div>
 
-      {selection && selectedId !== dismissed && (
+      {/* Not while a name is typed on the canvas: the box is being named
+          where it is, and the panel would only narrow the canvas under it. */}
+      {selection && selectedId !== dismissed && !naming && (
         <>
           <PanelResizer area={root} {...panel} />
           <Inspector
