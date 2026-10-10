@@ -54,7 +54,13 @@ function hintsFor(state: HintState): Hint[] {
     return [open, { text: "Label and style it in the panel", wide: true }, remove]
   if (state.nodes + state.edges > 0) return [remove, { keys: ["Esc"], text: "clear the selection" }]
   // Nothing selected: the first thing to learn is that boxes open.
-  return [{ text: "Double-click a box to open what's inside" }, ...navigate, { keys: ["E"], text: "view mode", wide: true }, all]
+  return [
+    { keys: ["Tab"], text: "draw a box" },
+    { text: "Double-click a box to open what's inside" },
+    ...navigate,
+    { keys: ["E"], text: "view mode", wide: true },
+    all,
+  ]
 }
 
 // What the keyboard and pointer do right now, given what is selected.

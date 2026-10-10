@@ -632,6 +632,18 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     bringIntoView(id, at, size)
   }
 
+  // Tab on an empty selection: a box in the middle of the view, named next.
+  function drawFirst() {
+    const spot = nextSpot()
+    const size = { width: DEFAULT_SIZE.plain.width!, height: DEFAULT_SIZE.plain.height! }
+    const snap = (middle: number, side: number) => Math.round((middle - side / 2) / GRID) * GRID
+    const at = { x: snap(spot.x, size.width), y: snap(spot.y, size.height) }
+    const id = wb.addLinkedNode({ ...at, ...size, parentId: null }, { color: "default", shape: "rectangle" }, [])
+    drawn.current = id
+    selectOnly([id])
+    setNaming(id)
+  }
+
   // Pans, without zooming, when a box drawn from the keyboard would land
   // off the canvas.
   function bringIntoView(id: string, at: { x: number; y: number }, size: { width: number; height: number }) {
@@ -733,6 +745,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     else if (key === "enter") run(enterSelection)
     else if (key === "tab" && canEdit && selectedNodes.length === 1 && !selectedEdges.length)
       run(() => drawNext(event.shiftKey ? "below" : "right", selectedNodes[0].id))
+    // With nothing selected, Tab draws the first box, so a diagram can be
+    // started without the mouse.
+    else if (key === "tab" && canEdit && !selectedNodes.length && !selectedEdges.length && target === document.body)
+      run(drawFirst)
     else if (key.startsWith("arrow") && canEdit && selectedNodes.length) {
       const step = event.shiftKey ? BIG_NUDGE : NUDGE
       run(() =>
@@ -962,7 +978,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
                 <p className="font-heading text-xl font-semibold">Nothing here yet</p>
                 <p className="text-sm text-graphite">
                   {canEdit
-                    ? "Add a box to begin, or paste a Mermaid diagram. Any box can hold a page of notes, or a whole whiteboard of its own."
+                    ? "Press Tab to draw a box and name it, Tab again for the next, or paste a Mermaid diagram. Any box can hold a page of notes, or a whole whiteboard of its own."
                     : "Nothing has been added here yet."}
                 </p>
               </div>
