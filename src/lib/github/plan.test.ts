@@ -101,6 +101,12 @@ describe("planImport, on the shop fixture", async () => {
     expect(node("apps", "apps/admin").title).toBe("Admin")
   })
 
+  it("draws a box as its file asks, and plain without one", () => {
+    expect(node("services", "services/payments")).toMatchObject({ color: "green", shape: "rounded" })
+    expect(node("services", "services/ledger").color).toBeUndefined()
+    expect(node("services", "services/ledger").shape).toBeUndefined()
+  })
+
   it("gives a folder with folders inside a whiteboard, and its README a node there", () => {
     expect(node("services", "services/payments")).toMatchObject({
       title: "Payments",

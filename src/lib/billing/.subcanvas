@@ -1,5 +1,6 @@
 title: Billing
 description: Stripe checkout, the customer portal, and plan limits. Optional. A server with no Stripe key has no paid plan and no limits.
+color: purple
 connects:
   - to: src/lib/supabase
     label: records each workspace's plan

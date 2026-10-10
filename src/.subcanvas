@@ -1,5 +1,6 @@
 title: Application
 description: The Next.js app. Routes render the interface; the libraries under it talk to Supabase and Stripe.
+color: blue
 connects:
   - to: supabase
     label: Auth, data, Realtime

@@ -1,5 +1,6 @@
 title: Workspace
-description: Everything a signed-in member sees. A workspace's projects, members, and billing, and inside a project, its document tree, whiteboards, and pages.
+description: Everything at a workspace's address. Its members see its projects, members, and billing, and inside a project its document tree, whiteboards, and pages. Anyone sees a public project, read-only, at the same address.
+color: blue
 connects:
   - to: src/components/tree
     label: project tree
@@ -9,6 +10,9 @@ connects:
     label: pages
   - to: src/lib/github
     label: Import from GitHub
+  - to: src/lib/sync
+    label: read-only sync
+    description: Visitors to a public project hold no Realtime connection. They re-read the document's snapshot and update log every 20 seconds while the tab is visible, and the same request is their heartbeat for the "N watching" count.
   - to: src/lib/supabase
     label: queries as the member
     description: Routes and server actions query Supabase with the member's session. A viewer who calls an editor's action is refused by the database, not only by the interface.

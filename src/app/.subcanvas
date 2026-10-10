@@ -1,5 +1,6 @@
 title: Routes
 description: Pages, layouts, server actions, and route handlers (Next.js App Router). Thin on purpose. They check who is asking, load data, and hand it to components.
+color: blue
 connects:
   - to: src/components
     label: renders

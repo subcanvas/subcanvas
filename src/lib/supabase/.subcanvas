@@ -1,5 +1,6 @@
 title: Supabase clients
 description: Browser, server, and proxy clients that carry the member's session, plus generated database types. One admin client exists, used only by billing.
+color: purple
 connects:
   - to: supabase/migrations
     label: PostgREST and Auth

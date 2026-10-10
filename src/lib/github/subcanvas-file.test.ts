@@ -7,6 +7,8 @@ describe("parseSubcanvasFile", () => {
     const { file, warnings } = parseSubcanvasFile(
       `title: Payments
 description: Charges cards and reconciles payouts.
+color: Green
+shape: cylinder
 connects:
   - to: services/ledger          # path from the repository root
     label: gRPC
@@ -21,6 +23,9 @@ ignore:
     expect(file).toEqual({
       title: "Payments",
       description: "Charges cards and reconciles payouts.",
+      // The whiteboard's own names, in any case.
+      color: "green",
+      shape: "cylinder",
       connects: [
         { to: "services/ledger", label: "gRPC", description: "Posts a journal entry for every settled charge." },
         { to: "services/notifications", label: "", description: "" },
@@ -32,7 +37,7 @@ ignore:
 
   it("treats an empty file as a marker", () => {
     expect(parseSubcanvasFile("", "a")).toEqual({
-      file: { title: null, description: null, connects: [], ignore: [] },
+      file: { title: null, description: null, color: null, shape: null, connects: [], ignore: [] },
       warnings: [],
     })
     expect(parseSubcanvasFile("# only a comment\n", "a").warnings).toEqual([])
@@ -49,6 +54,16 @@ ignore:
     expect(file.connects).toEqual([])
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toMatch(/^svc\/\.subcanvas: /)
+  })
+
+  it("draws a box only in the whiteboard's own colors and outlines", () => {
+    const { file, warnings } = parseSubcanvasFile("color: chartreuse\nshape: [cylinder]\n", "db")
+    expect(file.color).toBeNull()
+    expect(file.shape).toBeNull()
+    expect(warnings).toEqual([
+      "db/.subcanvas: `color: chartreuse` is not one of `default`, `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`.",
+      "db/.subcanvas: `shape` must be text.",
+    ])
   })
 
   it("accepts only strings", () => {
@@ -72,6 +87,8 @@ extra: true
     expect(file).toEqual({
       title: null,
       description: null,
+      color: null,
+      shape: null,
       connects: [{ to: "ok", label: "", description: "" }],
       ignore: ["kept"],
     })
