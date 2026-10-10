@@ -204,9 +204,11 @@ export async function recordAgent({
     AGENT_COLS: String(cols),
     AGENT_ROWS: String(rows),
     AGENT_CLAUDE: process.env.DEMO_CLAUDE ?? "claude",
-    // No update notice, and none of the account's claude.ai connectors.
+    // No update notice, none of the account's claude.ai connectors, and no
+    // suggested next prompt left in the input line at the end.
     DISABLE_AUTOUPDATER: "1",
     ENABLE_CLAUDEAI_MCP_SERVERS: "false",
+    CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "false",
   })
 
   const mcp = mcpClient(base, token)
