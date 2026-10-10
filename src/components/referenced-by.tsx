@@ -11,17 +11,17 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { documentHref } from "@/lib/navigation"
+import { useProjectAddresses } from "@/components/project-addresses"
 
 export type Reference = {
   id: string
   title: string
   type: "text" | "whiteboard"
-  projectId: string
 }
 
 // Every other place this document appears (R1.7).
-export function ReferencedBy({ slug, references }: { slug: string; references: Reference[] }) {
+export function ReferencedBy({ references }: { references: Reference[] }) {
+  const addresses = useProjectAddresses()
   if (!references.length) return null
 
   return (
@@ -44,7 +44,7 @@ export function ReferencedBy({ slug, references }: { slug: string; references: R
             return (
               <li key={reference.id}>
                 <Link
-                  href={documentHref({ slug, projectId: reference.projectId }, reference.id)}
+                  href={addresses.href(reference.id)}
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                 >
                   <Icon className="size-4 shrink-0 text-muted-foreground" />

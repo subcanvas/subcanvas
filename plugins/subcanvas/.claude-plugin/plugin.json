@@ -1,7 +1,7 @@
 {
   "name": "subcanvas",
   "displayName": "Subcanvas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connects the Subcanvas MCP server and teaches Claude Code to draw nested whiteboards that people can read: boxes that open into their own whiteboards, and arrows with a page that says why they exist.",
   "author": {
     "name": "Subcanvas",

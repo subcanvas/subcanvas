@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { idsOf } from "./support/admin"
 import { createProject, freshId, signUpWithOrg } from "./support/app"
 import { callTool, connectThroughOAuth, OAUTH_SERVER_OFF, oauthServerEnabled } from "./support/mcp"
 
@@ -10,9 +11,10 @@ import { callTool, connectThroughOAuth, OAUTH_SERVER_OFF, oauthServerEnabled } f
 // server page that drew it: Settings → General and Members, and every public
 // project. Nothing was wrong before the first agent read a list, so the order
 // here is the point.
-test("pages that draw badges still load after an agent reads a list", async ({ page, baseURL }) => {
+test("pages that draw badges still load after an agent reads a list", async ({ page, browser, baseURL }) => {
   const { account, slug } = await signUpWithOrg(page)
-  const projectId = await createProject(page, `Public ${freshId()}`, "public")
+  const project = `/${slug}/${await createProject(page, `Public ${freshId()}`, "public")}`
+  const { projectId } = await idsOf(project)
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
 
   const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
@@ -27,9 +29,19 @@ test("pages that draw badges still load after an agent reads a list", async ({ p
   expect(read.blocks.map((block) => block.markdown)).toEqual(["* first", "* second", "* third"])
   await client.close()
 
+  // The public project as a visitor sees it, badge and all.
+  const visitorContext = await browser.newContext()
+  const visitor = await visitorContext.newPage()
+  try {
+    const response = await visitor.goto(`${baseURL}${project}`)
+    expect(response?.status(), project).toBe(200)
+    await expect(visitor.getByText("Public project", { exact: true })).toBeVisible()
+    await expect(visitor.getByText("third", { exact: true })).toBeVisible()
+  } finally {
+    await visitorContext.close()
+  }
+
   for (const [path, landmark] of [
-    [`/p/${projectId}`, page.getByText("Public project", { exact: true })],
-    [`/p/${projectId}/d/${document_id}`, page.getByText("third", { exact: true })],
     [`/${slug}/settings/general`, page.getByRole("heading", { name: "General", level: 1 })],
     [`/${slug}/settings/members`, page.getByRole("heading", { name: "Members", level: 1 })],
   ] as const) {

@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { setProjectVisibility, type ProjectRef } from "@/app/[org]/[project]/tree-actions"
 import { useShowRefusal } from "@/components/limit-refusal"
+import { useProjectAddresses } from "@/components/project-addresses"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,8 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { embedSnippet } from "@/lib/embed"
-import { documentHref } from "@/lib/navigation"
-import { PUBLIC_SLUG, publicProjectPath } from "@/lib/public-route"
+import { projectHref } from "@/lib/navigation"
 
 // Who can see the project, in one place: the button says it, the popover
 // holds the link and lets an admin change it. Going public always asks
@@ -61,13 +61,14 @@ export function ShareProject({
   const [copied, setCopied] = useState<"link" | "project" | "embed" | null>(null)
   const [pending, startTransition] = useTransition()
   const showRefusal = useShowRefusal()
+  const addresses = useProjectAddresses()
   const isPublic = visibility === "public"
   const Icon = takenDown ? EyeOff : isPublic ? Globe : Lock
   const origin = typeof window === "undefined" ? "" : window.location.origin
-  const projectLink = `${origin}${publicProjectPath(project.projectId)}`
-  const link = current
-    ? `${origin}${documentHref({ slug: PUBLIC_SLUG, projectId: project.projectId }, current.id, current.via)}`
-    : projectLink
+  // Members and visitors share addresses, so the link a member sees is the
+  // one to send.
+  const projectLink = `${origin}${projectHref(project)}`
+  const link = current ? `${origin}${addresses.href(current.id, current.via)}` : projectLink
 
   function change() {
     startTransition(async () => {
@@ -143,7 +144,13 @@ export function ShareProject({
                 onClick={() =>
                   copy(
                     "embed",
-                    embedSnippet({ origin, projectId: project.projectId, docId: current.id, title: current.title })
+                    embedSnippet({
+                      origin,
+                      page: `${origin}${addresses.href(current.id)}`,
+                      projectId: project.projectId,
+                      docId: current.id,
+                      title: current.title,
+                    })
                   )
                 }
               >

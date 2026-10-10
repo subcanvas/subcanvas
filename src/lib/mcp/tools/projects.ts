@@ -3,9 +3,10 @@ import { z } from "zod"
 import * as operations from "@/lib/documents/operations"
 import { readOrgAccess } from "@/lib/org-access"
 import type { Tables } from "@/lib/supabase/database.types"
+import { projectHref } from "@/lib/navigation"
 import { buildTree, type DocumentRow, type FolderRow, type TreeNode } from "@/lib/tree"
 
-import { findProject, NO_ORG, NO_PROJECT, orgSlug } from "../lookup"
+import { findProject, NO_ORG, NO_PROJECT, orgSlug, projectUrl, READ_FROM_TRASH, resolveAddress } from "../lookup"
 import { defineTool, id } from "../tool"
 
 const visibility = z
@@ -91,11 +92,13 @@ export const projectTools = [
         // What each shows: nothing in the trash, nor inside something that
         // is. `document_count` is computed by the database, which the
         // generated types do not describe.
-        .select("id, name, visibility, taken_down_at, source, document_count")
+        .select("id, slug, name, visibility, taken_down_at, source, document_count")
         .eq("org_id", workspace_id)
         .order("created_at")
         .overrideTypes<
-          (Pick<Tables<"projects">, "id" | "name" | "visibility" | "taken_down_at" | "source"> & { document_count: number })[],
+          (Pick<Tables<"projects">, "id" | "slug" | "name" | "visibility" | "taken_down_at" | "source"> & {
+            document_count: number
+          })[],
           { merge: false }
         >()
       if (error) return { error: error.message }
@@ -108,7 +111,7 @@ export const projectTools = [
         shown_as: shownAs(project),
         documents: project.document_count,
         imported_from: project.source,
-        url: `${context.origin}/${slug}/${project.id}`,
+        url: `${context.origin}${projectHref({ slug, project: project.slug })}`,
       }))
       return {
         text: projects.length
@@ -183,10 +186,39 @@ export const projectTools = [
             visibility: project.visibility,
             taken_down: project.taken_down_at !== null,
             imported_from: project.source,
-            url: slug ? `${context.origin}/${slug}/${project.id}` : null,
+            url: slug ? `${context.origin}${projectHref({ slug, project: project.slug })}` : null,
           },
           tree,
           ...(include_trash ? { trash } : {}),
+        },
+      }
+    },
+  }),
+
+  defineTool({
+    name: "open_address",
+    title: "Find what an address points to",
+    group: "Workspaces and projects",
+    description:
+      "Turns the address of a Subcanvas page, as a person copies it from their browser or from Share (`https://<server>/<workspace>/<project>/<title>-<code>`, or just `/<workspace>/<project>` for a project), into the ids the other tools take: the project's, and the whiteboard's or page's when the address names one. Older addresses that hold ids (`/p/<project id>/d/<document id>`) work too.",
+    input: {
+      address: z.string().min(1).max(2000).describe("The address, whole or only its path."),
+    },
+    kind: "read",
+    run: async (context, { address }) => {
+      const found = await resolveAddress(context, address)
+      if (!found) return { error: "Nothing at that address, or you do not have access to it." }
+      const { project, document } = found
+      return {
+        text: document
+          ? `"${document.title}", a ${document.type === "whiteboard" ? "whiteboard" : "page"} (${document.id}), in the project "${project.name}" (${project.id}).${document.in_trash ? ` ${READ_FROM_TRASH}` : ""}`
+          : `The project "${project.name}" (${project.id}).`,
+        data: {
+          project_id: project.id,
+          project_name: project.name,
+          ...(document
+            ? { document_id: document.id, title: document.title, type: document.type, in_trash: document.in_trash }
+            : {}),
         },
       }
     },
@@ -213,10 +245,11 @@ export const projectTools = [
         visibility: wanted,
       })
       if ("error" in result) return result
-      const slug = await orgSlug(context, workspace_id)
+      const created = await findProject(context, result.id)
+      const url = created ? await projectUrl(context, created) : null
       return {
         text: `Created project "${name.trim()}" (${result.id}).`,
-        data: { project_id: result.id, url: slug ? `${context.origin}/${slug}/${result.id}` : null },
+        data: { project_id: result.id, url },
       }
     },
   }),

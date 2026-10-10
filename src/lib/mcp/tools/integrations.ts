@@ -4,7 +4,7 @@ import { embedSnippet } from "@/lib/embed"
 import { importFromReference } from "@/lib/github/import-reference"
 import { publicProjectPath } from "@/lib/public-route"
 
-import { findProject, findTypedDocument, NO_PROJECT, orgSlug } from "../lookup"
+import { documentUrl, findProject, findTypedDocument, NO_DOCUMENT, NO_PROJECT } from "../lookup"
 import { defineTool, id } from "../tool"
 
 export const integrationTools = [
@@ -36,8 +36,11 @@ export const integrationTools = [
       })
       if ("error" in outcome) return outcome
 
-      const slug = await orgSlug(context, workspace_id)
-      const url = slug ? `${context.origin}/${slug}/${outcome.projectId}/d/${outcome.documentId}` : null
+      const url = await documentUrl(context, {
+        id: outcome.documentId,
+        org_id: workspace_id,
+        project_id: outcome.projectId,
+      })
       const project = await findProject(context, outcome.projectId)
       return {
         text: [
@@ -78,14 +81,17 @@ export const integrationTools = [
             "This whiteboard's project was taken down by the operator after a report, so nobody outside the workspace can read it and an embed of it would show nothing. The project's Share menu in the app says whom to write to.",
         }
 
+      const page = await documentUrl(context, whiteboard)
+      if (!page) return NO_DOCUMENT
       const snippet = embedSnippet({
         origin: context.origin,
+        page,
         projectId: project.id,
         docId: whiteboard.id,
         title: whiteboard.title,
       })
-      const page = `${context.origin}${publicProjectPath(project.id)}/d/${whiteboard.id}`
-      return { text: snippet, data: { html: snippet, page_url: page, image_url: `${page}/embed.svg` } }
+      const image = `${context.origin}${publicProjectPath(project.id)}/d/${whiteboard.id}/embed.svg`
+      return { text: snippet, data: { html: snippet, page_url: page, image_url: image } }
     },
   }),
 ]

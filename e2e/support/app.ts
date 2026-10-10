@@ -96,9 +96,9 @@ export async function signUpWithOrg(page: Page) {
   return { account, slug }
 }
 
-// Returns the project's id, taken from the address it lands on. Starts from
-// the Projects page's own button; the sidebar's + for each workspace is
-// "New project in <workspace>".
+// Returns the project's short name, the last part of the address it lands
+// on (/<workspace>/<project>). Starts from the Projects page's own button;
+// the sidebar's + for each workspace is "New project in <workspace>".
 export async function createProject(
   page: Page,
   name: string,
@@ -132,6 +132,20 @@ async function renameOpenDocument(page: Page, title: string) {
   // The trail is rendered on the server, so the new name showing up there is
   // proof the rename was saved, not just typed.
   await expect(breadcrumb(page).getByText(title, { exact: true })).toBeVisible()
+}
+
+// A whiteboard's or page's address: /<workspace>/<project>/<title>-<code>
+// (src/lib/navigation.ts), with or without a trail.
+export const documentAddress = /^[^?#]*\/[^/?#]+\/[^/?#]+\/(?:[a-z0-9-]+-)?[0-9a-f]{8,32}(?:[?#].*)?$/
+
+// Away from the open document to a page of the same project with no editor
+// on it, its trash: a document made next is then known by its editor or
+// tools showing, which the last one's cannot be mistaken for. (The project's
+// own address opens its first document.)
+export async function leaveDocument(page: Page) {
+  const [workspace, project] = new URL(page.url()).pathname.split("/").slice(1)
+  await page.goto(`/${workspace}/${project}/trash`)
+  await expect(page.getByRole("heading", { name: "Trash", level: 1 })).toBeVisible()
 }
 
 export const breadcrumb = (page: Page) => page.getByRole("navigation", { name: "breadcrumb" })

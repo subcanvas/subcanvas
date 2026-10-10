@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { NOT_ALLOWED } from "@/lib/documents/operations"
 import { batchSchema, checkImportAllowance, writeImportBatch } from "@/lib/import/write"
 import { createMermaidWhiteboard, pagesSchema, writePages } from "@/lib/mermaid/write"
+import { projectHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/server"
 import type { Container } from "@/lib/tree"
 
@@ -40,7 +41,7 @@ export async function importBatch(
 
   const result = await writeImportBatch(supabase, project, user.id, target, parsed.data)
   // Each batch shows up in the tree as it lands.
-  if ("ok" in result) revalidatePath(`/${project.slug}/${project.projectId}`, "layout")
+  if ("ok" in result) revalidatePath(projectHref(project), "layout")
   return result
 }
 
@@ -61,7 +62,7 @@ export async function importMermaid(
 
   const result = await createMermaidWhiteboard(supabase, project, user.id, target, text)
   if ("error" in result) return result
-  revalidatePath(`/${project.slug}/${project.projectId}`, "layout")
+  revalidatePath(projectHref(project), "layout")
   return { ok: true, id: result.whiteboardId, notes: result.notes }
 }
 

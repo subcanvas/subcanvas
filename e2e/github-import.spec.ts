@@ -39,7 +39,7 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
 
   // Nothing in this repository is skipped, so the import goes straight to
   // the top whiteboard rather than stopping to show notes.
-  await page.waitForURL(new RegExp(`/${slug}/[0-9a-f-]{36}/d/[0-9a-f-]{36}$`))
+  await page.waitForURL(new RegExp(`/${slug}/orchard/[a-z0-9-]*[0-9a-f]{8,32}$`))
   await expect(whiteboardTools(page)).toBeVisible()
   // The root `.subcanvas` names the top whiteboard.
   await expect(breadcrumb(page).getByText("Orchard", { exact: true })).toBeVisible()

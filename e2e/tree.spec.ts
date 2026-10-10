@@ -4,6 +4,7 @@ import {
   addNode,
   createProject,
   createWhiteboard,
+  documentAddress,
   freshId,
   inspector,
   signUpWithOrg,
@@ -72,7 +73,7 @@ test("a document is made in a folder, renamed, moved, trashed, restored and dele
   // A document inside the folder. Creating one opens it, and its title is
   // the database's default until it is renamed.
   await rowMenu(page, folderA, "New page inside")
-  await page.waitForURL(/\/d\//)
+  await page.waitForURL(documentAddress)
   await expect(documentRow(page, "Untitled")).toBeVisible()
 
   const doc = `Notes ${id}`
@@ -142,7 +143,7 @@ test("a folder goes to the trash with everything in it, comes back with it, and 
   const folder = `Folder ${id}`
   await createFolder(page, folder)
   await rowMenu(page, folder, "New page inside")
-  await page.waitForURL(/\/d\//)
+  await page.waitForURL(documentAddress)
   const doc = `Inside ${id}`
   await renameRow(page, "Untitled", doc)
   await expect(documentRow(page, doc)).toBeVisible()
@@ -197,13 +198,13 @@ async function linkExisting(page: Page, title: string) {
 
 test("a document linked from two whiteboards says so, and warns before it is trashed", async ({ page }) => {
   const id = freshId()
-  const { slug } = await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj")
+  await signUpWithOrg(page)
+  await createProject(page, "Proj")
 
   // The document that will be linked to.
   await page.getByRole("button", { name: "Add to project" }).click()
   await page.getByRole("menuitem", { name: "New page", exact: true }).click()
-  await page.waitForURL(/\/d\//)
+  await page.waitForURL(documentAddress)
   const target = `Target ${id}`
   await renameRow(page, "Untitled", target)
   await expect(documentRow(page, target)).toBeVisible()
@@ -213,11 +214,11 @@ test("a document linked from two whiteboards says so, and warns before it is tra
 
   const boards = [`Board One ${id}`, `Board Two ${id}`]
   for (const board of boards) {
-    // From the project page, not from the last board: a new whiteboard is
-    // known by its tools showing, and the last board's are still showing
-    // while the new one loads.
-    await page.goto(`/${slug}/${projectId}`)
-    await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
+    // From the page, not from the last board: a new whiteboard is known by
+    // its tools showing, and the last board's are still showing while the
+    // new one loads.
+    await documentRow(page, target).click()
+    await expect(page.getByLabel("Document title")).toHaveValue(target)
     await createWhiteboard(page, board)
     await addNode(page, `Ref ${id}`)
     await linkExisting(page, target)

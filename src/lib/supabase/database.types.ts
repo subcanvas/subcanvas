@@ -218,6 +218,7 @@ export type Database = {
       }
       documents: {
         Row: {
+          code: string
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -235,6 +236,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          code?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -252,6 +254,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          code?: string
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -514,6 +517,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_previous_slugs: {
+        Row: {
+          org_id: string
+          project_id: string
+          slug: string
+        }
+        Insert: {
+          org_id: string
+          project_id: string
+          slug: string
+        }
+        Update: {
+          org_id?: string
+          project_id?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_previous_slugs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_previous_slugs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
@@ -521,6 +557,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          slug: string
           source: Json | null
           taken_down_at: string | null
           visibility: Database["public"]["Enums"]["project_visibility"]
@@ -531,6 +568,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          slug?: string
           source?: Json | null
           taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
@@ -541,6 +579,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          slug?: string
           source?: Json | null
           taken_down_at?: string | null
           visibility?: Database["public"]["Enums"]["project_visibility"]
@@ -711,6 +750,7 @@ export type Database = {
       documents_in_view: {
         Args: { p_project_id: string }
         Returns: {
+          code: string
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -733,6 +773,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      find_project: {
+        Args: { p_project: string; p_workspace: string }
+        Returns: {
+          member: boolean
+          org_id: string
+          project_id: string
+          slug: string
+        }[]
       }
       folder_media_objects: {
         Args: { p_folder_id: string }
@@ -786,6 +835,13 @@ export type Database = {
           paid: boolean
           private_document_limit: number
           private_documents: number
+        }[]
+      }
+      project_address: {
+        Args: { p_project_id: string }
+        Returns: {
+          project: string
+          workspace: string
         }[]
       }
       record_error: {

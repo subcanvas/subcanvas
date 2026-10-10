@@ -14,6 +14,7 @@ import {
   nodeDocument,
   signUpWithOrg,
 } from "./support/app"
+import { idsOf } from "./support/admin"
 import { createTextDocument, expectSavedByNow, inviteAndJoin, pageEditor } from "./support/collab"
 import { bringIn, chooseFiles, FIXTURES, runImport, treeFolder, treeLink } from "./support/import"
 
@@ -54,8 +55,8 @@ test("a page downloads as Markdown from its menu, for its editors and for a visi
   page,
   browser,
 }) => {
-  await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj", "public")
+  const { slug } = await signUpWithOrg(page)
+  const project = await createProject(page, "Proj", "public")
   await bringIn(page, "Paste Markdown…")
   await page
     .getByRole("textbox", { name: "Markdown" })
@@ -77,7 +78,7 @@ test("a page downloads as Markdown from its menu, for its editors and for a visi
   const visitorContext = await browser.newContext()
   const visitor = await visitorContext.newPage()
   try {
-    await visitor.goto(`${new URL(page.url()).origin}/p/${projectId}`)
+    await visitor.goto(`${new URL(page.url()).origin}/${slug}/${project}`)
     const theirs = await download(visitor, "Launch notes", "Download as Markdown")
     expect((await contentsOf(theirs)).toString("utf8")).toBe(markdown)
   } finally {
@@ -87,7 +88,7 @@ test("a page downloads as Markdown from its menu, for its editors and for a visi
 
 test("a whiteboard in a private project downloads as SVG, and nobody outside it can have it", async ({ page, browser }) => {
   const id = freshId()
-  await signUpWithOrg(page)
+  const { account } = await signUpWithOrg(page)
   await createProject(page, "Proj")
   await createWhiteboard(page, "Board")
   const alpha = `Alpha${id.slice(0, 6)}`
@@ -105,7 +106,7 @@ test("a whiteboard in a private project downloads as SVG, and nobody outside it 
 
   // The same address, asked without the owner's session: the project is
   // private, so there is nothing there.
-  const docId = new URL(page.url()).pathname.split("/d/")[1]
+  const { documentId: docId } = await idsOf(page.url(), account)
   const stranger = await browser.newContext()
   try {
     const response = await stranger.request.get(`${new URL(page.url()).origin}/api/documents/${docId}/svg`)

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { releasedWords, releaseHeldDocument } from "@/lib/documents/held"
-import { documentHref } from "@/lib/navigation"
+import { useProjectAddresses } from "@/components/project-addresses"
 import { createClient } from "@/lib/supabase/client"
 import { useDocumentMeta } from "@/lib/use-document-meta"
 import {
@@ -58,6 +58,7 @@ export function ObjectDocument({
   onOpenModeChange: (mode: OpenMode) => void
 }) {
   const router = useRouter()
+  const addresses = useProjectAddresses()
   const meta = useDocumentMeta(docId)
   const [pending, startTransition] = useTransition()
   const showRefusal = useShowRefusal()
@@ -98,10 +99,7 @@ export function ObjectDocument({
   const open = () =>
     docId &&
     router.push(
-      documentHref({ slug: context.slug, projectId: context.projectId }, docId, [
-        ...context.via,
-        context.whiteboardId,
-      ])
+      addresses.href(docId, [...context.via, context.whiteboardId])
     )
 
   const Icon = docType === "whiteboard" ? Workflow : FileText

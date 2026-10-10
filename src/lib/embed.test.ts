@@ -2,12 +2,17 @@ import { expect, it } from "vitest"
 
 import { embedSnippet } from "./embed"
 
-const ids = { origin: "https://subcanvas.app", projectId: "PROJECT", docId: "DOC" }
+const ids = {
+  origin: "https://subcanvas.app",
+  page: "https://subcanvas.app/team/design/overview-c28c38dd",
+  projectId: "PROJECT",
+  docId: "DOC",
+}
 
-it("links a themed picture to the public page", () => {
+it("links a themed picture, addressed by ids, to the whiteboard's readable address", () => {
   expect(embedSnippet({ ...ids, title: "System design" })).toBe(
     [
-      `<a href="https://subcanvas.app/p/PROJECT/d/DOC">`,
+      `<a href="https://subcanvas.app/team/design/overview-c28c38dd">`,
       `  <picture>`,
       `    <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/PROJECT/d/DOC/embed.svg?theme=dark">`,
       `    <img alt="System design, a Subcanvas diagram" src="https://subcanvas.app/p/PROJECT/d/DOC/embed.svg">`,

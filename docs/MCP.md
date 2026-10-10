@@ -41,7 +41,7 @@ The same list is on the Connect an agent page, from `src/lib/mcp/example-prompts
 
 ## Tools
 
-Everything is addressed by id. Writes are marked in their MCP annotations as plain writes or as destructive, so a client can ask before it deletes something.
+Everything is addressed by id. An agent given an address a person copied from their browser or from Share finds the ids behind it with `open_address`. Writes are marked in their MCP annotations as plain writes or as destructive, so a client can ask before it deletes something.
 
 The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREMENTS.md#glossary)), with a few older names kept for compatibility: a page is a document of type `text` and its tools say "text document", arrows are `edges`, a box is a node of kind `plain`, and a picture or video is kind `media`. A node's `description` is a text node's body text; the page inside a node or arrow, which the app calls its description, is a document it holds (`attach_document`).
 
@@ -50,6 +50,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `list_workspaces` | List workspaces | reads |
 | `list_projects` | List projects | reads |
 | `get_project` | Get a project and its document tree | reads |
+| `open_address` | Find what an address points to | reads |
 | `create_project` | Create a project | writes |
 | `set_project_visibility` | Make a project public or private | writes |
 | `rename_project` | Rename a project | writes |

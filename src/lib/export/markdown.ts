@@ -40,9 +40,11 @@ export type ExportedMarkdown = {
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-// A document's page in the app: /<org>/<project>/d/<document>, or the public
-// /p/<project>/d/<document>, maybe with a trail (`?via=`) after it.
-const DOCUMENT_PAGE = new RegExp(`^/[^/?#]+/${UUID}/d/(${UUID})(?:[?#].*)?$`, "i")
+// A document's address by id, as links inside documents are saved
+// (lib/navigation.ts, documentPermalink): /<workspace>/<project>/d/<document>,
+// where <project> is a short name or, in older links, an id, or the older
+// public /p/<project>/d/<document>; maybe with a trail (`?via=`) after it.
+const DOCUMENT_PAGE = new RegExp(`^/[^/?#]+/[^/?#]+/d/(${UUID})(?:[?#].*)?$`, "i")
 const MEDIA_ADDRESS = "/api/media/"
 const MEDIA_BLOCKS = new Set(["image", "video", "audio", "file"])
 

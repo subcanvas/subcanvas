@@ -15,6 +15,7 @@ export const maxDuration = 60
 
 type ProjectCard = {
   id: string
+  slug: string
   name: string
   visibility: "private" | "public"
   taken_down_at: string | null
@@ -33,7 +34,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
     // What each shows: nothing in the trash, nor inside something that is.
     // `document_count` is computed by the database, which the generated
     // types do not describe.
-    .select("id, name, visibility, taken_down_at, document_count")
+    .select("id, slug, name, visibility, taken_down_at, document_count")
     .eq("org_id", org.id)
     .order("created_at")
     .overrideTypes<ProjectCard[], { merge: false }>()
@@ -69,7 +70,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
               <li key={project.id}>
                 {/* A project that holds sheets is drawn as a stack of them. An empty one is a single sheet. */}
                 <Link
-                  href={`/${org.slug}/${project.id}`}
+                  href={`/${org.slug}/${project.slug}`}
                   className={cn(
                     count > 0 && "sheet-stack",
                     "group flex h-32 flex-col justify-between rounded-lg border border-rule bg-sheet p-4 transition-[translate,border-color] outline-none [--stack-edge:var(--blueline)] hover:-translate-y-0.5 hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"

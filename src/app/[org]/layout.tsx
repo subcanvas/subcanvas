@@ -2,14 +2,19 @@ import { PlanProvider } from "@/components/limit-refusal"
 import { recordVisit } from "@/lib/activity"
 import { upgradeFor } from "@/lib/billing/limit"
 import { billingConfigured } from "@/lib/billing/stripe"
-import { getOrgContext } from "@/lib/orgs"
+import { findOrgContext } from "@/lib/orgs"
 
 export default async function OrgLayout({
   children,
   params,
 }: LayoutProps<"/[org]">) {
   const { org: slug } = await params
-  const { supabase, user, role, plan } = await getOrgContext(slug)
+  // A visitor to one of the workspace's public projects is not a member: the
+  // project's own layout decides what they see (lib/project-access.ts), and
+  // the workspace's own pages send them away ((org)/layout.tsx).
+  const member = await findOrgContext(slug)
+  if (!member) return <div className="flex flex-1 flex-col">{children}</div>
+  const { supabase, user, role, plan } = member
   // For the step record: coming back on a later day, and the operator's
   // email about a new account (lib/activity.ts).
   await recordVisit(supabase, user)

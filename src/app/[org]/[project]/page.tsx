@@ -1,27 +1,47 @@
-import { notFound } from "next/navigation"
+import { redirect } from "next/navigation"
 
 import { ShareProject } from "@/components/share-project"
 import { abuseContact } from "@/lib/legal"
+import { documentHref, projectHref } from "@/lib/navigation"
 import { privateDocumentLimit } from "@/lib/org-access"
-import { getOrgContext } from "@/lib/orgs"
+import { getProjectAccess } from "@/lib/project-access"
 import { hasRole } from "@/lib/roles"
 
+// A project's address opens its first whiteboard or page, the top of its
+// list, so the link a person shares shows something. A project with nothing
+// in it says so.
 export default async function ProjectPage({ params }: PageProps<"/[org]/[project]">) {
-  const { org: slug, project: projectId } = await params
-  const { supabase, org, role, canEdit, plan } = await getOrgContext(slug)
-  const { data: project } = await supabase
-    .from("projects")
-    .select("visibility, taken_down_at")
-    .eq("id", projectId)
-    .eq("org_id", org.id)
-    .maybeSingle()
-  if (!project) notFound()
+  const { org: slug, project: projectParam } = await params
+  const access = await getProjectAccess(slug, projectParam)
+  const { supabase, project, path } = access
+  if (projectParam !== path.project) redirect(projectHref(path))
 
+  const { data: first } = await supabase
+    .from("documents")
+    .select("code, title")
+    .eq("project_id", project.id)
+    .eq("kind", "standard")
+    .is("folder_id", null)
+    .is("parent_document_id", null)
+    .is("deleted_at", null)
+    .order("position")
+    .limit(1)
+    .maybeSingle()
+  if (first) redirect(documentHref(path, first))
+
+  if (access.kind === "visitor")
+    return (
+      <main id="main" className="flex flex-1 items-center justify-center p-8">
+        <p className="text-muted-foreground">There is nothing in this project yet.</p>
+      </main>
+    )
+
+  const { org, role, canEdit, plan } = access
   return (
     <main id="main" className="flex flex-1 flex-col">
       <div className="flex justify-end px-4 py-2">
         <ShareProject
-          project={{ slug: org.slug, orgId: org.id, projectId }}
+          project={{ ...path, orgId: org.id, projectId: project.id }}
           visibility={project.visibility}
           canChange={hasRole(role, "admin") && canEdit}
           privateLimit={privateDocumentLimit(plan)}

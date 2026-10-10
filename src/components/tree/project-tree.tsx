@@ -34,6 +34,7 @@ import {
   type ProjectRef,
 } from "@/app/[org]/[project]/tree-actions"
 import { useShowRefusal } from "@/components/limit-refusal"
+import { useProjectAddresses } from "@/components/project-addresses"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -62,6 +63,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { pickedFromDrop, type PickedFile } from "@/lib/import/picked"
+import { codeFromSegment, projectHref } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
 
@@ -116,8 +118,10 @@ export function ProjectTree({
   canDelete?: boolean
 }) {
   const router = useRouter()
-  const params = useParams<{ docId?: string }>()
-  const activeId = params.docId ?? null
+  const params = useParams<{ doc?: string }>()
+  const addresses = useProjectAddresses()
+  const activeCode = params.doc ? codeFromSegment(params.doc) : null
+  const activeId = activeCode ? addresses.idForCode(activeCode) : null
   const [, startTransition] = useTransition()
   const showRefusal = useShowRefusal()
 
@@ -195,7 +199,7 @@ export function ProjectTree({
         toast.success("Moved to trash.")
         // Leave the page if it, or something it contains, was open.
         if (id === activeId || activePath?.includes(id))
-          router.push(`/${project.slug}/${project.projectId}`)
+          router.push(projectHref(project))
       }
     )
   }
@@ -232,7 +236,7 @@ export function ProjectTree({
   function renderNode(node: TreeNode, depth: number) {
     const isOpen = visibleExpanded.has(node.id)
     const container: Container = { kind: node.kind, id: node.id }
-    const href = `/${project.slug}/${project.projectId}/d/${node.id}`
+    const href = addresses.href(node.id)
     const Icon =
       node.kind === "folder" ? Folder : node.type === "whiteboard" ? Workflow : FileText
     const expandable = node.kind === "folder" || node.children.length > 0

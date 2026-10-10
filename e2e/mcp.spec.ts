@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test"
 
+import { idsOf } from "./support/admin"
+
 import {
   cardTitled,
   createProject,
+  documentAddress,
   freshAccount,
   freshId,
   personalSlug,
@@ -102,11 +105,22 @@ test("signs an agent in through the consent page, and it works as that person", 
   const { project_id } = (await callTool(client, "create_project", { workspace_id: workspaces[1].id, name: projectName })) as {
     project_id: string
   }
-  const { document_id: board } = (await callTool(client, "create_document", {
+  const { document_id: board, url: boardUrl } = (await callTool(client, "create_document", {
     project_id,
     type: "whiteboard",
     title: boardName,
-  })) as { document_id: string }
+  })) as { document_id: string; url: string }
+
+  // The address it hands back is the readable one a person sees, and an
+  // address a person pastes back leads to the ids again.
+  expect(new URL(boardUrl).pathname).toMatch(documentAddress)
+  expect(await callTool(client, "open_address", { address: boardUrl })).toEqual(
+    expect.objectContaining({ project_id, document_id: board, title: boardName, type: "whiteboard" })
+  )
+  expect(await callTool(client, "open_address", { address: new URL(boardUrl).pathname.split("/").slice(0, 3).join("/") })).toEqual(
+    expect.objectContaining({ project_id, project_name: projectName })
+  )
+  expect(await refusedTool(client, "open_address", { address: `/${slug}/no-such-project` })).toMatch(/Nothing at that address/)
 
   // A node deleted by an agent takes what it held to the trash, as on the canvas.
   const inside = `Inside ${id}`
@@ -148,7 +162,8 @@ test("signs an agent in through the consent page, and it works as that person", 
   // What the agent made is there for the person, in the browser.
   await page.goto(`/${slug}`)
   await page.getByRole("main").getByRole("link", { name: projectName }).click()
-  await page.waitForURL(`/${slug}/${project_id}`)
+  // A project's address opens its first whiteboard.
+  await page.waitForURL(new RegExp(`/${slug}/[a-z0-9-]+/[a-z0-9-]*[0-9a-f]{8,32}$`))
   await expect(page.getByRole("link", { name: boardName, exact: true })).toBeVisible()
   await page.goto(`/${slug}/${project_id}/trash`)
   await expect(page.getByRole("main").getByRole("listitem").filter({ hasText: inside })).toContainText("Whiteboard")
@@ -236,7 +251,7 @@ test("cancelling on the consent page gives the agent no token", async ({ page, b
 
 test("a viewer's agent can read and cannot write", async ({ page, browser, baseURL }) => {
   const owner = await signUpWithOrg(page)
-  const projectId = await createProject(page, "Owner's project")
+  const { projectId } = await idsOf(`/${owner.slug}/${await createProject(page, "Owner's project")}`, owner.account)
   const viewer = freshAccount()
   const invite = await inviteViewer(page, owner.slug, viewer.email)
 
