@@ -6,6 +6,7 @@ import { iconNode } from "./icons"
 import { MAX_NODE_SIDE } from "./limits"
 import { DEFAULT_SIZE, singleEmoji, type ColorKey, type WbEdge, type WbNode } from "./schema"
 import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./shapes"
+import { sidesOf } from "./sides"
 
 // A whiteboard drawn as a standalone SVG string: no browser, no React Flow.
 // It is what an embed in a README shows (docs/ROADMAP.md, section 4), so it
@@ -100,7 +101,6 @@ const MAX_NODE_SIZE = MAX_NODE_SIDE
 const MAX_TEXT_LINES = 40
 const MAX_IMAGE_SIDE = 4000
 
-const SIDES: readonly Side[] = ["top", "right", "bottom", "left"]
 const NORMALS: Record<Side, Point> = {
   top: { x: 0, y: -1 },
   right: { x: 1, y: 0 },
@@ -550,8 +550,6 @@ function groupNode(placed: Placed, palette: Palette) {
 
 // --- Edges ----------------------------------------------------------------
 
-const isSide = (value: string | null): value is Side => SIDES.includes(value as Side)
-
 const center = (box: Box): Point => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 })
 
 // Where an edge meets a node on one side: on the outline of a shaped node,
@@ -563,17 +561,6 @@ function sidePoint({ node, box }: Placed, side: Side): Point {
     x: middle.x + (NORMALS[side].x * box.width) / 2,
     y: middle.y + (NORMALS[side].y * box.height) / 2,
   }
-}
-
-// An edge drawn in the app remembers the sides it was attached to. One
-// written by an import may not, so it takes the two sides that face each
-// other.
-function facingSides(source: Box, target: Box): [Side, Side] {
-  const from = center(source)
-  const to = center(target)
-  if (Math.abs(to.x - from.x) >= Math.abs(to.y - from.y))
-    return to.x >= from.x ? ["right", "left"] : ["left", "right"]
-  return to.y >= from.y ? ["bottom", "top"] : ["top", "bottom"]
 }
 
 type Route = { path: string; label: Point; reach: Point[] }
@@ -692,9 +679,8 @@ function drawEdge(edge: WbEdge, placed: Map<string, Placed>, palette: Palette): 
   const target = placed.get(edge.target)
   if (!source || !target) return null
 
-  const facing = facingSides(source.box, target.box)
-  const fromSide = isSide(edge.sourceHandle) ? edge.sourceHandle : facing[0]
-  const toSide = isSide(edge.targetHandle) ? edge.targetHandle : facing[1]
+  // As the canvas draws it (sides.ts).
+  const { sourceHandle: fromSide, targetHandle: toSide } = sidesOf(edge, source.box, target.box)
   const from = sidePoint(source, fromSide)
   const to = sidePoint(target, toSide)
   const route = (edge.shape === "step" ? stepRoute : splineRoute)(from, fromSide, to, toSide)

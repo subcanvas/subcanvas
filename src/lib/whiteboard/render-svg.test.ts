@@ -34,6 +34,7 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
 const edge = (fields: Partial<WbEdge> & { id: string; source: string; target: string }): WbEdge => ({
   sourceHandle: null,
   targetHandle: null,
+  fixedSides: false,
   shape: "spline",
   stroke: "solid",
   direction: "forward",
@@ -159,9 +160,17 @@ describe("renderWhiteboardSvg", () => {
     expect(paths[0].getAttribute("d")).toMatch(/^M160 32C.* 400 32$/)
   })
 
-  it("attaches to the sides the edge remembers", () => {
-    const svg = render(two, [edge({ id: "e", source: "a", target: "b", sourceHandle: "bottom", targetHandle: "top" })])
+  it("attaches to the sides an edge keeps on purpose", () => {
+    const svg = render(two, [
+      edge({ id: "e", source: "a", target: "b", sourceHandle: "bottom", targetHandle: "top", fixedSides: true }),
+    ])
     expect(edgeLines(parse(svg))[0].getAttribute("d")).toMatch(/^M80 64C.* 480 0$/)
+  })
+
+  it("joins the facing sides, whichever sides an edge was first drawn by", () => {
+    const remembered = render(two, [edge({ id: "e", source: "a", target: "b", sourceHandle: "bottom", targetHandle: "top" })])
+    const fresh = render(two, [edge({ id: "e", source: "a", target: "b" })])
+    expect(edgeLines(parse(remembered))[0].getAttribute("d")).toBe(edgeLines(parse(fresh))[0].getAttribute("d"))
   })
 
   it("draws a step edge with right angles only", () => {
@@ -179,7 +188,7 @@ describe("renderWhiteboardSvg", () => {
         for (const [x, y] of [[400, 300], [-400, 40], [30, -300], [0, 84]]) {
           const svg = render(
             [node({ id: "a" }), node({ id: "b", x, y })],
-            [edge({ id: "e", source: "a", target: "b", shape: "step", sourceHandle, targetHandle })]
+            [edge({ id: "e", source: "a", target: "b", shape: "step", sourceHandle, targetHandle, fixedSides: true })]
           )
           const points = edgeLines(parse(svg))[0]
             .getAttribute("d")!

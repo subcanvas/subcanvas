@@ -42,6 +42,7 @@ const wbEdge = (source: string, target: string, label = ""): WbEdge => ({
   target,
   sourceHandle: null,
   targetHandle: null,
+  fixedSides: false,
   shape: "spline",
   stroke: "solid",
   direction: "forward",

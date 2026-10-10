@@ -42,6 +42,7 @@ import { looksLikeMermaid } from "@/lib/mermaid/parse"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
 import { nearestBox, placeNext, type Direction } from "@/lib/whiteboard/keyboard-drawing"
+import { sidesOf } from "@/lib/whiteboard/sides"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
 import { DEFAULT_SIZE, type NodeKind, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 import {
@@ -156,6 +157,34 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     setMode(next)
     storeMode(next)
   }
+
+  // Every arrow by the sides its nodes face each other with, where the nodes
+  // are now, a node being dragged included, so an arrow follows a box round
+  // instead of looping back across it (lib/whiteboard/sides.ts).
+  const edges = useMemo(() => {
+    const byId = new Map(wb.nodes.map((node) => [node.id, node]))
+    const absolute = (node: FlowNode) => {
+      let { x, y } = node.position
+      for (let parent = node.parentId && byId.get(node.parentId); parent; parent = parent.parentId && byId.get(parent.parentId)) {
+        x += parent.position.x
+        y += parent.position.y
+      }
+      const size = DEFAULT_SIZE[node.data.wb.kind]
+      return {
+        x,
+        y,
+        width: node.measured?.width ?? node.width ?? node.data.wb.width ?? size.width ?? 0,
+        height: node.measured?.height ?? node.height ?? node.data.wb.height ?? size.height ?? 0,
+      }
+    }
+    return wb.edges.map((edge) => {
+      const source = byId.get(edge.source)
+      const target = byId.get(edge.target)
+      if (!source || !target || !edge.data) return edge
+      const sides = sidesOf(edge.data.wb, absolute(source), absolute(target))
+      return sides.sourceHandle === edge.sourceHandle && sides.targetHandle === edge.targetHandle ? edge : { ...edge, ...sides }
+    })
+  }, [wb.nodes, wb.edges])
 
   const selectedNodes = useMemo(() => wb.nodes.filter((node) => node.selected), [wb.nodes])
   const selectedEdges = useMemo(() => wb.edges.filter((edge) => edge.selected), [wb.edges])
@@ -806,7 +835,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
             button, drags the canvas. A finger on a touch screen pans. */}
         <ReactFlow
           nodes={wb.nodes}
-          edges={wb.edges}
+          edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodesChange={wb.onNodesChange}

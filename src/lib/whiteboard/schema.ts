@@ -64,6 +64,12 @@ export type WbEdge = {
   target: string
   sourceHandle: string | null
   targetHandle: string | null
+  // An arrow leaves and enters by the sides of its nodes that face each
+  // other, worked out again wherever the nodes are (sides.ts), so it never
+  // loops back across one. Only an arrow whose sides were chosen to go
+  // around something (a Mermaid diagram's back edges) keeps the handles
+  // above; for the rest they are only where it was first drawn.
+  fixedSides: boolean
   shape: EdgeShape
   stroke: EdgeStroke
   direction: EdgeDirection
@@ -215,6 +221,7 @@ export function readEdge(id: string, map: Y.Map<unknown>): WbEdge {
     target: text(map, "target"),
     sourceHandle: textOrNull(map, "sourceHandle"),
     targetHandle: textOrNull(map, "targetHandle"),
+    fixedSides: map.get("fixedSides") === true,
     shape: pick(map, "shape", ["spline", "step"] as const, "spline"),
     stroke: pick(map, "stroke", ["solid", "dotted"] as const, "solid"),
     direction: pick(map, "direction", ["none", "forward", "reverse", "both"] as const, "forward"),

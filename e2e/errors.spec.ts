@@ -33,11 +33,16 @@ test("an error thrown in the browser is one row, counted each time it happens ag
     { source: "browser", route: "/[org]", message: `E2E failure ${marker}`, count: 1 },
   ])
 
-  // A tab reports an error once; a new page load is a new tab's worth.
+  // A tab reports an error once; a new page load is a new tab's worth. The
+  // reporter listens once the page has hydrated, which can be after the
+  // load event, so the new page's error is thrown until it is heard: a tab
+  // reports it once however often it happens.
   await throwIt()
   await page.reload()
-  await throwIt()
-  await expect.poll(() => errorReports(marker)[0]?.count).toBe(2)
+  await expect(async () => {
+    await throwIt()
+    expect(errorReports(marker)[0]?.count).toBe(2)
+  }).toPass()
   expect(errorReports(marker)).toHaveLength(1)
   expect(JSON.stringify(errorReports(marker))).not.toContain(personalSlug(account))
 })
