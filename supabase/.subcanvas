@@ -1,2 +1,4 @@
 title: Backend (Supabase)
 description: Postgres, Auth, and Realtime. The schema and its row-level security live in migrations, and are tested with pgTAP.
+color: green
+shape: cylinder

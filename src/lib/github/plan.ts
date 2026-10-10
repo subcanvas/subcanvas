@@ -3,6 +3,9 @@ import { MAX_MAPPED_FOLDERS, type Mapping } from "./mapping"
 import { baseName, depthOf, ROOT } from "./paths"
 import type { Repository, RepositoryFile } from "./provider"
 import { firstParagraph } from "./readme"
+import type { ColorKey } from "@/lib/whiteboard/schema"
+import type { NodeShape } from "@/lib/whiteboard/shapes"
+
 import type { SubcanvasFile } from "./subcanvas-file"
 
 // The whiteboards an import will draw, worked out before anything is
@@ -18,6 +21,9 @@ export type PlannedNode = {
   description: string
   // The folder this node stands for. Null for a README node and the heading.
   path: string | null
+  // As the folder's .subcanvas file asks; the defaults otherwise.
+  color?: ColorKey
+  shape?: NodeShape
   holds: { kind: "board"; folder: string } | { kind: "readme"; file: RepositoryFile } | null
 }
 
@@ -122,6 +128,8 @@ export function planImport({
       title: titleOf(folder.path),
       description: subcanvasFiles.get(folder.path)?.description ?? summary,
       path: folder.path,
+      color: subcanvasFiles.get(folder.path)?.color ?? undefined,
+      shape: subcanvasFiles.get(folder.path)?.shape ?? undefined,
       holds: opensWhiteboard
         ? { kind: "board", folder: folder.path }
         : folder.readme && { kind: "readme", file: folder.readme },

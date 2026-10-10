@@ -1,5 +1,6 @@
 title: Browser tests
 description: Playwright specs, one for each part of the product. A real browser drives a production build against the local Supabase stack.
+color: yellow
 # The fixtures are small repositories and exports of their own, with
 # .subcanvas files that describe them, not this repository.
 ignore:

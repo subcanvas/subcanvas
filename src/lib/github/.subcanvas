@@ -1,5 +1,6 @@
 title: Repository import
 description: Reads a public GitHub repository and draws it. A node for each main folder, READMEs as read-only pages, and connections from .subcanvas files like this one.
+color: purple
 connects:
   - to: src/lib/sync
     label: writes documents from the server

@@ -1,5 +1,6 @@
 title: Interface
 description: React components. The whiteboard and the page are the two document types, drawn by the canvas and the text editor. The tree and the sidebar are how you move between them.
+color: teal
 connects:
   - to: src/lib
     label: models and sync

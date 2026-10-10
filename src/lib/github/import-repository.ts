@@ -301,7 +301,7 @@ async function draw(
         held = { docId, docType: "text", openMode: "panel" }
       }
 
-      return [id, { kind: "plain", ...positions.get(node.key)!, width, height, title: node.title, description: node.description, color: "default", path: node.path, ...held }] as const
+      return [id, { kind: "plain", ...positions.get(node.key)!, width, height, title: node.title, description: node.description, color: node.color ?? "default", shape: node.shape ?? "rectangle", path: node.path, ...held }] as const
     })
 
     const edges = await Promise.all(

@@ -1,5 +1,6 @@
 title: Whiteboard
 description: The canvas (React Flow). Boxes, text nodes, nestable groups, pictures and videos, and styled arrows. Any of them can hold a page or a whole whiteboard of its own.
+color: teal
 connects:
   - to: src/lib/whiteboard
     label: reads and writes the whiteboard

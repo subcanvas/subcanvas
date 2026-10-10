@@ -1,5 +1,8 @@
 import { parse } from "yaml"
 
+import { COLOR_KEYS, type ColorKey } from "@/lib/whiteboard/schema"
+import { NODE_SHAPES, type NodeShape } from "@/lib/whiteboard/shapes"
+
 import { normalizePath } from "./paths"
 
 // A `.subcanvas` file: what a folder is, and what it talks to. The format is
@@ -7,6 +10,10 @@ import { normalizePath } from "./paths"
 export type SubcanvasFile = {
   title: string | null
   description: string | null
+  // How the folder's box is drawn, from the whiteboard's own palette and
+  // outlines. Null leaves the default.
+  color: ColorKey | null
+  shape: NodeShape | null
   connects: SubcanvasConnection[]
   // Subfolders left out of the design, as paths from the repository root.
   ignore: string[]
@@ -29,9 +36,9 @@ const MAX_CONNECTION_DESCRIPTION = 2000
 const MAX_PATH = 300
 const MAX_CONNECTIONS = 50
 const MAX_IGNORES = 100
-const KNOWN_KEYS = ["title", "description", "connects", "ignore"]
+const KNOWN_KEYS = ["title", "description", "color", "shape", "connects", "ignore"]
 
-const EMPTY: SubcanvasFile = { title: null, description: null, connects: [], ignore: [] }
+const EMPTY: SubcanvasFile = { title: null, description: null, color: null, shape: null, connects: [], ignore: [] }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -84,6 +91,15 @@ export function parseSubcanvasFile(
     return trimmed.slice(0, max) || null
   }
 
+  // One of a fixed set of names, as the whiteboard's own menus have them.
+  const choice = <T extends string>(value: unknown, name: string, names: readonly T[]) => {
+    const written = string(value, name, 40)
+    if (written === null) return null
+    const found = names.find((known) => known === written.toLowerCase())
+    if (!found) warn(`\`${name}: ${written}\` is not one of ${names.map((known) => `\`${known}\``).join(", ")}.`)
+    return found ?? null
+  }
+
   const path = (value: unknown, name: string, base: string) => {
     const written = string(value, name, MAX_PATH)
     if (written === null) return null
@@ -134,6 +150,8 @@ export function parseSubcanvasFile(
     file: {
       title: string(data.title, "title", MAX_TITLE),
       description: string(data.description, "description", MAX_DESCRIPTION),
+      color: choice(data.color, "color", COLOR_KEYS),
+      shape: choice(data.shape, "shape", NODE_SHAPES),
       connects,
       ignore,
     },

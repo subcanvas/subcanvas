@@ -1,5 +1,7 @@
 title: API routes
 description: Route handlers for what is not a page. The export of pages, whiteboards and projects, pictures and videos, error reports, Stripe's subscription events, and the operator's daily summary. Stripe and the cron are the only callers without a signed-in user.
+color: blue
+shape: hexagon
 connects:
   - to: src/lib/billing
     label: subscription events

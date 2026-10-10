@@ -1,2 +1,3 @@
 title: UI kit
 description: Buttons, dialogs, menus, and the sidebar (shadcn/ui on Base UI), styled with the "Sheets" design tokens.
+color: teal

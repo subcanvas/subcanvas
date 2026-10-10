@@ -1,5 +1,7 @@
 title: Payments
 description: Charges cards and reconciles payouts.
+color: green
+shape: rounded
 connects:
   - to: services/ledger          # a path from the repository root
     label: gRPC

@@ -1,5 +1,6 @@
 title: Real-time sync
 description: A custom Yjs provider. One private Realtime channel per document, with every update also appended to Postgres, so nothing depends on a broadcast arriving.
+color: purple
 connects:
   - to: supabase/migrations
     label: Realtime and Postgres
