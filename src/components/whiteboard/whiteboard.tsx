@@ -69,8 +69,11 @@ const MermaidPasteDialog = dynamic(
 )
 
 const PASTE_OFFSET = 24
+// The dots on the sheet, which a dragged box snaps to. The arrow keys nudge
+// by less, for the box that has to sit just so; Shift+arrow by one dot.
+const GRID = 20
 const NUDGE = 5
-const BIG_NUDGE = 20
+const BIG_NUDGE = GRID
 const FIT_VIEW = { maxZoom: 1, padding: 0.2 }
 // Middle and right mouse buttons. The left one draws a selection.
 const PAN_BUTTONS = [1, 2]
@@ -269,8 +272,14 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     return { x: center.x + step, y: center.y + step }
   }
 
+  // On the grid, as a dragged box would land.
   function add(kind: NodeKind) {
-    selectOnly([wb.addNode(kind, nextSpot())])
+    const spot = nextSpot()
+    const width = DEFAULT_SIZE[kind].width ?? 0
+    // A text node grows with its text; addNode centres it as 40 high.
+    const height = DEFAULT_SIZE[kind].height ?? 40
+    const snap = (middle: number, side: number) => Math.round((middle - side / 2) / GRID) * GRID + side / 2
+    selectOnly([wb.addNode(kind, { x: snap(spot.x, width), y: snap(spot.y, height) })])
   }
 
   // The innermost group under a point, leaving out the ones `skip` names and
@@ -804,6 +813,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           onEdgesChange={wb.onEdgesChange}
           onConnect={wb.onConnect}
           onNodeDragStop={onNodeDragStop}
+          snapToGrid
+          snapGrid={[GRID, GRID]}
           onNodeDoubleClick={(_, node) =>
             node.data.wb.docId || !canName(node) ? openObject(node.id) : setNaming(node.id)
           }
@@ -832,7 +843,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           data-locked={canEdit ? undefined : ""}
         >
           {/* Drafting paper: a non-photo blue grid that never competes with the ink. */}
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="var(--blueline)" bgColor="var(--paper)" />
+          <Background variant={BackgroundVariant.Dots} gap={GRID} size={1.5} color="var(--blueline)" bgColor="var(--paper)" />
           <Controls showInteractive={false} fitViewOptions={FIT_VIEW} />
           <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
 

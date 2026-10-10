@@ -16,10 +16,19 @@ describe("placeNext", () => {
   })
 
   it("moves on down the column, or along the row, past boxes in the way", () => {
-    const right = placeNext(box(0, 0), [box(232, 0), box(232, 104)], "right", size)
-    expect(right).toEqual({ x: 232, y: 2 * (64 + GAP_DOWN) })
-    const below = placeNext(box(0, 0), [box(0, 104)], "below", size)
-    expect(below).toEqual({ x: 160 + GAP_ACROSS, y: 104 })
+    const across = 160 + GAP_ACROSS
+    const down = 64 + GAP_DOWN
+    const right = placeNext(box(0, 0), [box(across, 0), box(across, down)], "right", size)
+    expect(right).toEqual({ x: across, y: 2 * down })
+    const below = placeNext(box(0, 0), [box(0, down)], "below", size)
+    expect(below).toEqual({ x: across, y: down })
+  })
+
+  it("keeps a box drawn from one on the sheet's grid on it", () => {
+    for (const direction of ["right", "below"] as const) {
+      const { x, y } = placeNext(box(40, 60), [], direction, size)
+      expect([x % 20, y % 20]).toEqual([0, 0])
+    }
   })
 })
 

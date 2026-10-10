@@ -10,9 +10,10 @@ export type Box = { x: number; y: number; width: number; height: number }
 export type Direction = "left" | "right" | "up" | "down"
 
 // Room between a box and the one made from it: enough for an arrow and its
-// label across, less down a column.
-export const GAP_ACROSS = 72
-export const GAP_DOWN = 40
+// label across, less down a column. With a box of the default size (160 by
+// 64) on the sheet's 20-point grid, the next one lands on it too.
+export const GAP_ACROSS = 80
+export const GAP_DOWN = 36
 // How close two boxes may come before one is said to be in the other's way.
 const CLEARANCE = 16
 
