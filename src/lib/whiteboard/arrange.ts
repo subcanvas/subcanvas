@@ -25,7 +25,7 @@ export type Box = { x: number; y: number; width: number; height: number }
 export type Arrangement = {
   // Only what changed. A size is given only for a group that grew.
   nodes: Map<string, { x: number; y: number; width?: number; height?: number }>
-  edges: Map<string, { sourceHandle: string; targetHandle: string }>
+  edges: Map<string, { sourceHandle: string; targetHandle: string; fixedSides: false }>
 }
 
 // Room kept between a group's border and what is inside it.
@@ -182,8 +182,9 @@ export function arrange(
     if (!boxes.has(edge.source) || !boxes.has(edge.target)) continue
     if (!moved.has(edge.source) && !moved.has(edge.target)) continue
     const sides = edgeSides(absolute(boxes, edge.source), absolute(boxes, edge.target))
+    // A new layout leaves no reason to keep sides chosen for the old one.
     if (sides.sourceHandle !== edge.sourceHandle || sides.targetHandle !== edge.targetHandle)
-      result.edges.set(edge.id, sides)
+      result.edges.set(edge.id, { ...sides, fixedSides: false })
   }
 
   return result

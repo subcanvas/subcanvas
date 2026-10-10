@@ -188,9 +188,11 @@ export function drawDiagram(
       id: newId(),
       source: keys.get(arrow.source)!,
       target: keys.get(arrow.target)!,
+      // Sides chosen to route around the diagram are kept wherever the
+      // boxes go; the rest face each other wherever they are.
       ...(fixed
-        ? { sourceHandle: fixed.sourceHandle, targetHandle: fixed.targetHandle }
-        : edgeSides(frames.get(arrow.source)!, frames.get(arrow.target)!)),
+        ? { sourceHandle: fixed.sourceHandle, targetHandle: fixed.targetHandle, fixedSides: true }
+        : { ...edgeSides(frames.get(arrow.source)!, frames.get(arrow.target)!), fixedSides: false }),
       shape: fixed?.shape ?? "spline",
       stroke: arrow.stroke,
       direction: arrow.direction,

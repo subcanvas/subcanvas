@@ -11,7 +11,7 @@ import {
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
-import { addTwoNodesApart, clickEdge, connectNodes, dragNode, edgeBetween } from "./support/canvas"
+import { addTwoNodesApart, boxOf, clickEdge, connectNodes, dragNode, edgeBetween, nodeNamed } from "./support/canvas"
 
 // Two nodes, apart, ready to be joined.
 async function twoNodesApart(page: Page, id: string) {
@@ -138,4 +138,28 @@ test("a selected arrow goes with the Delete key, and comes back with undo", asyn
   await page.reload()
   await expect(whiteboardTools(page)).toBeVisible()
   await expect(edgeBetween(page, alpha, beta)).toBeVisible()
+})
+
+test("an arrow follows a box that is moved round to the other side, instead of looping back across it", async ({
+  page,
+}) => {
+  const id = freshId()
+  await signUpWithOrg(page)
+  await createProject(page, "Proj")
+  await createWhiteboard(page, "Board")
+  const { alpha, beta } = await twoNodesApart(page, id)
+  await connectNodes(page, alpha, beta)
+
+  // Alpha, on the left, is taken across to well past Beta's right.
+  await dragNode(page, alpha, { x: 600, y: 0 })
+  const [a, b, arrow] = await Promise.all([
+    boxOf(nodeNamed(page, alpha)),
+    boxOf(nodeNamed(page, beta)),
+    boxOf(edgeBetween(page, alpha, beta).locator("path").first()),
+  ])
+  expect(a.x).toBeGreaterThan(b.x + b.width)
+  // It now leaves Alpha's left side for Beta's right: all of it lies in the
+  // gap between them, none of it out beyond either box.
+  expect(arrow.x).toBeGreaterThanOrEqual(b.x + b.width - 2)
+  expect(arrow.x + arrow.width).toBeLessThanOrEqual(a.x + 2)
 })

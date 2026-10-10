@@ -189,7 +189,7 @@ export function layoutDiagram({
 
 // The sides an arrow leaves and enters by, the same as for a box drawn from
 // the keyboard.
-export { edgeSides } from "@/lib/whiteboard/keyboard-drawing"
+export { edgeSides } from "@/lib/whiteboard/sides"
 
 const MIN_NODE_WIDTH = 160
 const MAX_NODE_WIDTH = 260

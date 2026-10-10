@@ -14,7 +14,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 
 import type { Arrangement } from "./arrange"
-import { edgeSides, type Box } from "./keyboard-drawing"
+import type { Box } from "./keyboard-drawing"
+import { edgeSides } from "./sides"
 import {
   COLORS,
   DEFAULT_SIZE,

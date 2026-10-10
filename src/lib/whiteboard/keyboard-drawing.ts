@@ -1,5 +1,3 @@
-import type { Side } from "./shapes"
-
 // Drawing from the keyboard: Tab makes the next box to the right of the
 // selected one, Shift+Tab one below it, and Alt with an arrow moves the
 // selection to the nearest box that way. Where a new box goes, and which box
@@ -70,16 +68,4 @@ export function nearestBox<T extends Box>(from: Box, others: T[], direction: Dir
   return best?.box ?? null
 }
 
-// The sides an arrow leaves and enters by, so it takes the short way
-// between two boxes wherever they are.
-export function edgeSides(source: Box, target: Box): { sourceHandle: Side; targetHandle: Side } {
-  const dx = target.x + target.width / 2 - (source.x + source.width / 2)
-  const dy = target.y + target.height / 2 - (source.y + source.height / 2)
-  if (Math.abs(dx) >= Math.abs(dy))
-    return dx >= 0
-      ? { sourceHandle: "right", targetHandle: "left" }
-      : { sourceHandle: "left", targetHandle: "right" }
-  return dy >= 0
-    ? { sourceHandle: "bottom", targetHandle: "top" }
-    : { sourceHandle: "top", targetHandle: "bottom" }
-}
+export { edgeSides } from "./sides"
