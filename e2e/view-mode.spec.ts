@@ -13,7 +13,7 @@ import {
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
-import { boxOf, clickEmptyCanvas, drag, dragNode, expectSamePlace, nodeNamed } from "./support/canvas"
+import { boxOf, clickEmptyCanvas, drag, dragNode, expectDroppedNear, expectSamePlace, nodeNamed } from "./support/canvas"
 
 const modeToggle = (page: Page) => page.getByRole("group", { name: "Whiteboard mode" })
 
@@ -69,7 +69,7 @@ test("in view mode the tools are gone and a drag moves nothing, and E is the way
   await modeToggle(page).getByRole("button", { name: "Edit mode" }).click()
   await expect(whiteboardTools(page)).toBeVisible()
   await dragNode(page, alpha, { x: 150, y: 100 })
-  expectSamePlace(await boxOf(nodeNamed(page, alpha)), { x: before.x + 150, y: before.y + 100 })
+  expectDroppedNear(await boxOf(nodeNamed(page, alpha)), { x: before.x + 150, y: before.y + 100 })
 })
 
 test("the shortcuts in the hint bar do what it says", async ({ page }) => {

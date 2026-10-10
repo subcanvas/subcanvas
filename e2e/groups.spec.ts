@@ -53,10 +53,12 @@ test("a node dragged into a group moves with the group, until it is dragged out"
   await drag(page, centerOf(await boxOf(node)), centerOf(await boxOf(group)))
   expect(contains(await boxOf(group), await boxOf(node))).toBe(true)
 
-  // Now it comes along.
-  const before = await boxOf(node)
+  // Now it comes along, as far as the group went (which is about as far as
+  // it was dragged: it snaps to the grid).
+  const [before, groupBefore] = [await boxOf(node), await boxOf(group)]
   await dragNode(page, frame, { x: 150, y: 90 })
-  expectSamePlace(await boxOf(node), { x: before.x + 150, y: before.y + 90 })
+  const groupAfter = await boxOf(group)
+  expectSamePlace(await boxOf(node), { x: before.x + groupAfter.x - groupBefore.x, y: before.y + groupAfter.y - groupBefore.y })
   await expectSaved(page)
 
   // The belonging is saved, not just the places: after a reload the node is
@@ -64,9 +66,13 @@ test("a node dragged into a group moves with the group, until it is dragged out"
   await page.reload()
   await expect(whiteboardTools(page)).toBeVisible()
   expect(contains(await boxOf(group), await boxOf(node))).toBe(true)
-  const reloaded = await boxOf(node)
+  const [reloaded, groupReloaded] = [await boxOf(node), await boxOf(group)]
   await dragNode(page, frame, { x: -100, y: -40 })
-  expectSamePlace(await boxOf(node), { x: reloaded.x - 100, y: reloaded.y - 40 })
+  const groupMoved = await boxOf(group)
+  expectSamePlace(await boxOf(node), {
+    x: reloaded.x + groupMoved.x - groupReloaded.x,
+    y: reloaded.y + groupMoved.y - groupReloaded.y,
+  })
 
   // Out again: dragged clear of the frame, the node is its own once more.
   const groupBox = await boxOf(group)

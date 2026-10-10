@@ -168,6 +168,14 @@ export const contains = (outer: Box, inner: Box) =>
   inner.x + inner.width <= outer.x + outer.width &&
   inner.y + inner.height <= outer.y + outer.height
 
+// Where a box was dropped: a dragged box snaps to the sheet's grid, so it
+// lands within a grid step (20 points, at any zoom the tests use) of where
+// the pointer let go.
+export function expectDroppedNear(actual: Box, expected: Point) {
+  expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(30)
+  expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(30)
+}
+
 // Positions measured on screen carry sub-pixel rounding, so two of them are
 // the same when they are within a pixel.
 export function expectSamePlace(actual: Box, expected: Point) {
