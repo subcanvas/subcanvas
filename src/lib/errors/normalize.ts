@@ -85,7 +85,7 @@ export function normalizeStack(stack: string | null | undefined) {
 export const STATIC_SEGMENTS = new Set([
   ".well-known", "agents", "api", "appearance", "auth", "billing", "callback", "consent", "cron", "d",
   "daily-summary", "documents", "embed.svg", "errors", "export", "general", "home", "invite", "login",
-  "markdown", "mcp", "media", "members", "oauth", "oauth-protected-resource", "onboarding", "p", "password",
+  "markdown", "mcp", "media", "members", "mermaid", "oauth", "oauth-protected-resource", "onboarding", "p", "password",
   "privacy", "profile", "projects", "release", "settings", "stripe", "svg", "terms", "trash", "webhook",
 ])
 

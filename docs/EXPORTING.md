@@ -8,6 +8,7 @@ In the project tree, open a document's menu (**•••**):
 
 - **Download as Markdown**, on a page. The file opens with the page's title as a `# heading`, then its text in the Markdown the MCP tools read and write ([MCP.md](MCP.md#tools)): an equation as `$$`, maths in a line as `$…$`, a callout as `<aside data-icon="💡">`, a table of contents as `[TOC]`. A card for another document becomes a link to it on a line of its own, and a picture or a video becomes `![caption](address)`. Links and pictures point at their addresses in the app, which open for whoever can read them.
 - **Download as SVG**, on a whiteboard. It is the picture a public whiteboard's embed shows (see "Embedding a diagram" in the [README](../README.md)), for private whiteboards too. Pictures and videos on the whiteboard are drawn as captioned frames: an SVG file is one image that loads nothing else.
+- **Copy as Mermaid** and **Download as Mermaid**, on a whiteboard. A Mermaid flowchart that GitHub draws in a README, an issue or a pull request, and that any chat with an AI can read: the boxes with their names, shapes and colors, groups as subgraphs, and the arrows with their labels, dotted lines and directions. Mermaid cannot nest, so a box that opens into a whiteboard of its own is a plain box, with a comment saying so, and headings become comments. A document shape is written as a rectangle and a cloud as a rounded box, the nearest shapes every Mermaid reader draws. Paste Mermaid reads it back.
 
 ## A whole project
 
@@ -125,4 +126,4 @@ The import's limits apply: one import takes up to 2,000 documents and a zip of u
 
 ## For agents
 
-There is no MCP tool for downloads or exports. A tool's result is text for an agent to read, and a zip is a file; an agent reads the same documents with `get_project`, `read_text_document` (the same Markdown as a download, block by block, with ids to edit by) and `read_whiteboard` (the same contents as the JSON file). See [MCP.md](MCP.md).
+There is no MCP tool for downloads or project exports, apart from `export_mermaid`, which returns a whiteboard as the same Mermaid text as Copy as Mermaid. A tool's result is text for an agent to read, and a zip is a file; an agent reads the same documents with `get_project`, `read_text_document` (the same Markdown as a download, block by block, with ids to edit by) and `read_whiteboard` (the same contents as the JSON file). See [MCP.md](MCP.md).

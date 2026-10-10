@@ -79,6 +79,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `set_group_membership` | Move nodes into or out of a group | writes |
 | `arrange_nodes` | Lay out a whiteboard automatically | destructive |
 | `import_mermaid` | Draw a Mermaid diagram on a whiteboard | writes |
+| `export_mermaid` | Write a whiteboard as Mermaid | reads |
 | `attach_document` | Put a document inside a node or arrow | writes |
 | `detach_document` | Detach the document from a node or arrow | writes |
 | `import_github_repository` | Draw a GitHub repository as a project | writes |
