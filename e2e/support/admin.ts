@@ -84,3 +84,34 @@ export async function workspaceId(account: { email: string; password: string }, 
   if (error) throw error
   return data.id
 }
+
+// The ids behind a readable address (/<workspace>/<project>[/<title>-<code>],
+// src/lib/navigation.ts), found the way the app finds them: as anyone, for a
+// public project, or as `account`, who signs in with a password.
+export async function idsOf(
+  address: string,
+  account?: { email: string; password: string }
+): Promise<{ projectId: string; documentId: string | null }> {
+  const { url, publishableKey } = settings()
+  if (!url || !publishableKey) throw new Error("No Supabase URL or publishable key")
+  const supabase = createClient(url, publishableKey, OPTIONS)
+  if (account) {
+    const { error } = await supabase.auth.signInWithPassword(account)
+    if (error) throw error
+  }
+  const [workspace, project, document] = new URL(address, "http://local").pathname.split("/").slice(1)
+  const { data: found, error } = await supabase
+    .rpc("find_project", { p_workspace: workspace, p_project: project })
+    .single<{ project_id: string }>()
+  if (error) throw error
+  if (!document) return { projectId: found.project_id, documentId: null }
+  const code = document.slice(document.lastIndexOf("-") + 1)
+  const { data: row, error: documentError } = await supabase
+    .from("documents")
+    .select("id")
+    .eq("project_id", found.project_id)
+    .eq("code", code)
+    .single()
+  if (documentError) throw documentError
+  return { projectId: found.project_id, documentId: row.id }
+}

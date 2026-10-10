@@ -29,6 +29,7 @@ import { prosemirrorToYXmlFragment } from "y-prosemirror"
 
 import { importMermaid } from "@/app/[org]/[project]/import-actions"
 import { DocumentPicker } from "@/components/document-picker"
+import { useProjectAddresses } from "@/components/project-addresses"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { limitMessage } from "@/lib/billing/limit"
 import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
@@ -124,6 +125,7 @@ export default function TextEditor({
   autoFocus?: boolean
 }) {
   const router = useRouter()
+  const addresses = useProjectAddresses()
   const showRefusal = useShowRefusal()
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
@@ -270,7 +272,7 @@ export default function TextEditor({
   // stays, and a link to the whiteboard goes under it.
   async function drawMermaid(block: MermaidBlock) {
     const result = await importMermaid(
-      { slug: context.slug, orgId: context.orgId, projectId: context.projectId },
+      { ...addresses.project, orgId: context.orgId, projectId: context.projectId },
       { kind: "document", id: context.documentId },
       block.text
     )

@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MAX_FILE_BYTES } from "@/lib/import/limits"
 import { planImport } from "@/lib/import/plan"
-import { documentHref } from "@/lib/navigation"
+import { documentPermalink } from "@/lib/navigation"
 
 import type { ImportTarget } from "./import-dialog"
 
@@ -45,12 +45,12 @@ export function PasteMarkdownDialog({
       const { documents } = planImport([{ path: "Untitled.md", text: markdown }], {
         intoDocument: target.container.kind === "document",
         newId: () => crypto.randomUUID(),
-        hrefFor: (id) => documentHref(project, id),
+        hrefFor: (id) => documentPermalink(project, id),
       })
       const result = await importBatch(project, target.container, { folders: [], documents })
       if ("error" in result) return setFailure(result)
       onClose()
-      router.push(documentHref(project, documents[0].id))
+      router.push(documentPermalink(project, documents[0].id))
     })
   }
 

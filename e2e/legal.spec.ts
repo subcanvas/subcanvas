@@ -67,8 +67,10 @@ test("robots.txt and sitemap.xml list them", async ({ request, baseURL }) => {
   test.skip(terms.status() === 404 && operatorFromEnv() === null, NO_OPERATOR)
 
   const robots = await (await request.get("/robots.txt")).text()
-  expect(robots).toMatch(/^Allow: \/terms$/m)
-  expect(robots).toMatch(/^Allow: \/privacy$/m)
+  // Pages are crawlable; only what is not a page is held back.
+  expect(robots).toMatch(/^Allow: \/$/m)
+  const disallowed = [...robots.matchAll(/^Disallow: (.+)$/gm)].map((match) => match[1])
+  for (const page of ["/terms", "/privacy"]) expect(disallowed.some((path) => page.startsWith(path))).toBe(false)
   expect(robots).toContain(`Sitemap: ${baseURL}/sitemap.xml`)
 
   const sitemap = await (await request.get("/sitemap.xml")).text()

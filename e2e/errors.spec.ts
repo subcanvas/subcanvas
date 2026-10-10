@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { createProject, createWhiteboard, freshId, personalSlug, signUp } from "./support/app"
 import { corruptDocument, errorCountAt, errorReports } from "./support/database"
-import { adminClient, NO_ADMIN } from "./support/admin"
+import { adminClient, idsOf, NO_ADMIN } from "./support/admin"
 
 // Error reports, kept in our own database (lib/errors). A spec makes errors
 // happen, in the browser and on the server, and reads the rows as the
@@ -44,10 +44,11 @@ test("an error thrown in the browser is one row, counted each time it happens ag
 
 test("a failure on the server is one row, counted each time it happens again", async ({ page }) => {
   test.skip(!stored, NO_ADMIN)
-  await signUp(page)
+  const account = await signUp(page)
   await createProject(page, "Broken")
   await createWhiteboard(page, "Unreadable")
-  const documentId = new URL(page.url()).pathname.split("/").pop()!
+  const { documentId } = await idsOf(page.url(), account)
+  if (!documentId) throw new Error("No whiteboard open")
   corruptDocument(documentId)
 
   const route = "/api/documents/[docId]/svg"

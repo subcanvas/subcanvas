@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
-import { breadcrumb, createProject, expectSaved, freshId, signUpWithOrg } from "./support/app"
+import { createProject, expectSaved, freshId, leaveDocument, signUpWithOrg } from "./support/app"
 import { createTextDocument, pageEditor } from "./support/collab"
 import { FIXTURES, treeLink } from "./support/import"
 
@@ -39,8 +39,8 @@ test("a picture pasted into a text document is uploaded, is there after a reload
   browser,
 }) => {
   const id = freshId()
-  await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj", "public")
+  const { slug } = await signUpWithOrg(page)
+  const project = await createProject(page, "Proj", "public")
   await createTextDocument(page, `Notes ${id}`)
 
   const editor = pageEditor(page)
@@ -61,8 +61,8 @@ test("a picture pasted into a text document is uploaded, is there after a reload
   const visitorContext = await browser.newContext()
   const visitor = await visitorContext.newPage()
   try {
-    await visitor.goto(`${origin}/p/${projectId}`)
-    await visitor.getByRole("link", { name: `Notes ${id}` }).click()
+    // The project's address opens the page at the top of it.
+    await visitor.goto(`${origin}/${slug}/${project}`)
     await expect(visitor.getByText(`Before the picture ${id}`)).toBeVisible()
     await expectLoaded(images(visitor.getByRole("main")))
   } finally {
@@ -99,10 +99,9 @@ test("a picture pasted from another document gets a copy of its own", async ({ p
   })
   expect(original).toMatch(/^\/api\/media\//)
 
-  // The second document from the project's page: made while the first is
-  // open, its editor would be found before the new one had replaced it.
-  await breadcrumb(page).getByRole("link", { name: "Proj" }).click()
-  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
+  // The second document from a page with no editor: made while the first
+  // is open, its editor would be found before the new one had replaced it.
+  await leaveDocument(page)
   await createTextDocument(page, `Second ${id}`)
   await expect(treeLink(page, `Second ${id}`)).toBeVisible()
   const second = pageEditor(page)

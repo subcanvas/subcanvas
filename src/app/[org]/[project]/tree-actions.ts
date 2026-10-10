@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import * as operations from "@/lib/documents/operations"
 import type { ItemKind } from "@/lib/documents/operations"
+import { documentHref, documentPermalink, projectHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/server"
 import type { Container, DocumentType } from "@/lib/tree"
 
@@ -12,12 +13,14 @@ import type { Container, DocumentType } from "@/lib/tree"
 // server. An action adds what only the web app needs: the session from
 // cookies, revalidation, and redirects.
 
-export type ProjectRef = { slug: string; orgId: string; projectId: string }
+// `slug` is the workspace's short name and `project` the project's, the two
+// parts of the project's address (lib/navigation.ts).
+export type ProjectRef = { slug: string; project: string; orgId: string; projectId: string }
 // `limit` marks the free-tier limit, so the client can offer the upgrade.
 export type ActionResult = { error: string; limit?: true } | { ok: true }
 
-function refresh({ slug, projectId }: ProjectRef) {
-  revalidatePath(`/${slug}/${projectId}`, "layout")
+function refresh(project: ProjectRef) {
+  revalidatePath(projectHref(project), "layout")
 }
 
 // Revalidates when the operation worked, and passes its result on.
@@ -48,7 +51,8 @@ export async function createDocument(
   if ("error" in result) return result
 
   refresh(project)
-  redirect(`/${project.slug}/${project.projectId}/d/${result.id}`)
+  const { data: created } = await supabase.from("documents").select("code, title").eq("id", result.id).maybeSingle()
+  redirect(created ? documentHref(project, created) : documentPermalink(project, result.id))
 }
 
 export async function renameItem(

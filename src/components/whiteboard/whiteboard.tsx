@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
 import { reconcileLinks } from "@/lib/document-links"
 import type { ProjectSource } from "@/lib/github/source"
-import { documentHref } from "@/lib/navigation"
+import { useProjectAddresses } from "@/components/project-addresses"
 import { createClient } from "@/lib/supabase/client"
 import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
@@ -117,6 +117,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   const flow = useReactFlow<FlowNode, FlowEdge>()
   const store = useStoreApi()
   const router = useRouter()
+  const addresses = useProjectAddresses()
   const { resolvedTheme } = useTheme()
   const root = useRef<HTMLDivElement>(null)
   const wrapper = useRef<HTMLDivElement>(null)
@@ -180,19 +181,14 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
       if (!object?.docId) return
 
       if (object.docType === "whiteboard" || object.openMode === "navigate") {
-        router.push(
-          documentHref({ slug: context.slug, projectId: context.projectId }, object.docId, [
-            ...context.via,
-            context.whiteboardId,
-          ])
-        )
+        router.push(addresses.href(object.docId, [...context.via, context.whiteboardId]))
         return
       }
       setDismissed(null)
       wb.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: node.id === objectId })))
       wb.setEdges((edges) => edges.map((edge) => ({ ...edge, selected: edge.id === objectId })))
     },
-    [wb, router, context]
+    [wb, router, context, addresses]
   )
   const actions = useMemo(() => ({ openObject, repository }), [openObject, repository])
 
@@ -461,7 +457,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     let nodes = drawn.nodes
     if (drawn.pages.length) {
       const result = await writeMermaidPages(
-        { slug: context.slug, orgId: context.orgId, projectId: context.projectId },
+        { ...addresses.project, orgId: context.orgId, projectId: context.projectId },
         context.whiteboardId,
         drawn.pages
       )

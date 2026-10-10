@@ -23,7 +23,7 @@ import { MAX_CSV_COLUMNS, MAX_CSV_ROWS } from "@/lib/import/limits"
 import { pickedFromDrop, pickedFromInput, type PickedFile } from "@/lib/import/picked"
 import { planImport, tooManyDocuments, type ImportPlan, type Skipped, type SkipReason } from "@/lib/import/plan"
 import { uploadImportMedia } from "@/lib/import/upload-media"
-import { documentHref } from "@/lib/navigation"
+import { documentPermalink } from "@/lib/navigation"
 import type { Container } from "@/lib/tree"
 import { cn } from "@/lib/utils"
 
@@ -92,7 +92,7 @@ export function ImportDialog({
         intoDocument: target.container.kind === "document",
         attachments: [...skipped.map((file) => file.path), ...media.keys()],
         newId: () => crypto.randomUUID(),
-        hrefFor: (id) => documentHref(project, id),
+        hrefFor: (id) => documentPermalink(project, id),
         media: { orgId: project.orgId, projectId: project.projectId, has: (path) => media.has(path) },
       })
       const tooMany = tooManyDocuments(plan.documents.length)
@@ -376,7 +376,7 @@ export function ImportDialog({
               {stage.imported > 0 ? (
                 <Button
                   nativeButton={false}
-                  render={<Link href={documentHref(project, stage.plan.documents[0].id)} onClick={onClose} />}
+                  render={<Link href={documentPermalink(project, stage.plan.documents[0].id)} onClick={onClose} />}
                 >
                   Open “{stage.plan.documents[0].title}”
                 </Button>

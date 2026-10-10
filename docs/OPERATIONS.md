@@ -8,7 +8,7 @@ Every public page has a Report button. A report is stored in `public.abuse_repor
 
 ### Reviewing a report
 
-1. Open the project's public link from the email, or `https://<your domain>/p/<project id>`, in a private window where you are signed out. That is what the reporter saw.
+1. Open the project's public link from the email, or `https://<your domain>/p/<project id>`, which leads to the project's address, in a private window where you are signed out. That is what the reporter saw.
 2. Read the recent reports, with the project and its workspace:
    ```sql
    select r.created_at, r.reason, r.reporter_email, r.document_id,
@@ -161,7 +161,7 @@ select jsonb_pretty(public.daily_activity('2026-10-05'));
 
 What goes wrong is kept in the database, not sent to anyone: errors the server catches (`onRequestError` in `src/instrumentation.ts`, which also writes one line of JSON to the function log), and errors in people's browsers that nothing caught, which the app posts from the browser to `/api/errors`. Each distinct error is one row of `private.error_reports`, grouped by a fingerprint of its name, its message without numbers and ids, and the top frames of its stack, and counted each time it happens again.
 
-A row says where and what, never who: the route as a pattern (`/[org]/[project]/d/[docId]`, never a real address, id or query string), the message and stack with ids, numbers, email addresses and the server's own file paths taken out, and the release (`VERCEL_GIT_COMMIT_SHA`) when there is one. No account, IP address, cookie, header, request body or document content. The browser sends each error once per tab, at most 20 a tab; the route takes 20 reports a minute from one address (kept in memory for the limit, never stored) and adds at most 500 new distinct browser errors a day, while it goes on counting known ones. The daily cron deletes the errors not seen for 30 days, and its summary email lists how often things went wrong that day and the five errors that happened most.
+A row says where and what, never who: the route as a pattern (`/[org]/[project]/[doc]`, never a real address, id or query string), the message and stack with ids, numbers, email addresses and the server's own file paths taken out, and the release (`VERCEL_GIT_COMMIT_SHA`) when there is one. No account, IP address, cookie, header, request body or document content. The browser sends each error once per tab, at most 20 a tab; the route takes 20 reports a minute from one address (kept in memory for the limit, never stored) and adds at most 500 new distinct browser errors a day, while it goes on counting known ones. The daily cron deletes the errors not seen for 30 days, and its summary email lists how often things went wrong that day and the five errors that happened most.
 
 Without `SUPABASE_SECRET_KEY` nothing is stored, and the function log has the server's errors as before, and the browser's as `browser_error` lines.
 

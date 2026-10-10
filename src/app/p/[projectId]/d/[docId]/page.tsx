@@ -1,117 +1,15 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
-import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb"
-import { TextDocument } from "@/components/editor/text-document"
-import { ReferencedBy } from "@/components/referenced-by"
-import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
-import { readDocumentSource, readProjectSource } from "@/lib/github/source"
-import { parseVia } from "@/lib/navigation"
-import { PUBLIC_SLUG } from "@/lib/public-route"
+import { addressOfDocument } from "@/lib/project-access"
 import { createClient } from "@/lib/supabase/server"
 
-// The read-only page anyone can open for a document in a public project.
-// It renders the same components as the app with editing off; row-level
-// security is what lets an anonymous visitor read, and only read.
-export default async function PublicDocumentPage({
-  params,
-  searchParams,
-}: PageProps<"/p/[projectId]/d/[docId]">) {
-  const { projectId, docId } = await params
-  const via = parseVia((await searchParams).via).filter((id) => id !== docId)
+// A public document's address from before members and visitors shared one,
+// as READMEs link to it beside its embed picture (lib/embed.ts). It leads to
+// the document's readable address.
+export default async function PublicDocumentById({ params, searchParams }: PageProps<"/p/[projectId]/d/[docId]">) {
+  const { docId } = await params
   const supabase = await createClient()
-
-  const [{ data: document }, { data: project }] = await Promise.all([
-    supabase
-      .from("documents")
-      .select("id, org_id, title, type, source")
-      .eq("id", docId)
-      .eq("project_id", projectId)
-      .is("deleted_at", null)
-      .maybeSingle(),
-    supabase
-      .from("projects")
-      .select("name, source")
-      .eq("id", projectId)
-      .eq("visibility", "public")
-      .maybeSingle(),
-  ])
-  if (!document || !project) notFound()
-
-  // A document inside a trashed document or folder is in the trash too.
-  const [{ data: ancestors }, { data: live }] = await Promise.all([
-    supabase.rpc("document_ancestors", { p_document_id: document.id }),
-    supabase.rpc("document_is_live", { p_document_id: document.id }),
-  ])
-  if (!live) notFound()
-
-  let trail: Crumb[]
-  if (via.length) {
-    const { data: visited } = await supabase.from("documents").select("id, title").in("id", via)
-    const titles = new Map(visited?.map((row) => [row.id, row.title]))
-    trail = via.flatMap((id) => (titles.has(id) ? [{ id, title: titles.get(id)! }] : []))
-  } else trail = (ancestors ?? []).map(({ id, title }) => ({ id, title }))
-
-  const { data: referenceRows } = await supabase.rpc("document_references", {
-    p_document_id: document.id,
-  })
-  const references = (referenceRows ?? []).map((row) => ({
-    id: row.source_document_id,
-    title: row.source_title,
-    type: row.source_type,
-    projectId: row.project_id,
-  }))
-
-  const breadcrumb = (
-    <DocumentBreadcrumb
-      project={{ slug: PUBLIC_SLUG, projectId }}
-      projectName={project.name}
-      trail={trail}
-      current={document.title}
-    />
-  )
-  const linkedFrom = <ReferencedBy slug={PUBLIC_SLUG} references={references} />
-  // Visitors never edit, so they need no identity beyond a label.
-  const guest = { id: "guest", name: "Guest", color: "#888888" }
-  const trailIds = trail.map((crumb) => crumb.id)
-
-  if (document.type === "whiteboard")
-    return (
-      <main id="main" className="flex h-[calc(100svh-3rem)] flex-col bg-sheet max-md:h-[calc(100svh-3rem-41px)]">
-        <WhiteboardDocument
-          key={document.id}
-          documentId={document.id}
-          editable={false}
-          context={{
-            orgId: document.org_id,
-            projectId,
-            whiteboardId: document.id,
-            slug: PUBLIC_SLUG,
-            via: trailIds,
-          }}
-          user={guest}
-          repository={readProjectSource(project.source)}
-          breadcrumb={breadcrumb}
-          title={<h1 className="truncate text-lg font-semibold">{document.title}</h1>}
-          actions={linkedFrom}
-        />
-      </main>
-    )
-
-  return (
-    <main id="main" className="flex flex-1 flex-col bg-sheet">
-      <TextDocument
-        key={document.id}
-        documentId={document.id}
-        editable={false}
-        user={guest}
-        context={{ orgId: document.org_id, projectId, slug: PUBLIC_SLUG, via: trailIds }}
-        source={readDocumentSource(document.source)}
-        page={{
-          breadcrumb,
-          actions: linkedFrom,
-          title: <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>,
-        }}
-      />
-    </main>
-  )
+  const address = await addressOfDocument(supabase, docId, (await searchParams).via)
+  if (!address) notFound()
+  redirect(address)
 }

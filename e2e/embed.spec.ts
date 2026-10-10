@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { idsOf } from "./support/admin"
 import { addNode, createProject, createWhiteboard, expectSaved, freshId, signUpWithOrg } from "./support/app"
 
 // A whiteboard in a public project is also a picture, for a README: one
@@ -8,8 +9,9 @@ import { addNode, createProject, createWhiteboard, expectSaved, freshId, signUpW
 // "Copy embed" writes to the clipboard, and the test reads it back.
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
 
-// The whiteboard's id, from the address of the page it is open on.
-const openDocumentId = (page: import("@playwright/test").Page) => new URL(page.url()).pathname.split("/d/")[1]
+// The picture's address: by ids, which never change (src/lib/embed.ts).
+const pictureOf = ({ projectId, documentId }: { projectId: string; documentId: string | null }) =>
+  `/p/${projectId}/d/${documentId}/embed.svg`
 
 test("a public whiteboard is served as an SVG with its nodes, an ETag, and headers that keep it inert", async ({
   page,
@@ -17,7 +19,7 @@ test("a public whiteboard is served as an SVG with its nodes, an ETag, and heade
 }) => {
   const id = freshId()
   await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj", "public")
+  await createProject(page, "Proj", "public")
   await createWhiteboard(page, "Board")
   // One short word each: the picture wraps a title at spaces and cuts a
   // long line short, and the titles have to be found whole in it.
@@ -28,13 +30,12 @@ test("a public whiteboard is served as an SVG with its nodes, an ETag, and heade
   // "Saved" is the badge's word for "Postgres has taken it", which is what
   // the picture is drawn from.
   await expectSaved(page)
-  const docId = openDocumentId(page)
 
   // Asked with no cookies, as GitHub's image proxy would.
   const origin = new URL(page.url()).origin
   const visitor = await browser.newContext()
   try {
-    const address = `${origin}/p/${projectId}/d/${docId}/embed.svg`
+    const address = `${origin}${pictureOf(await idsOf(page.url()))}`
     const response = await visitor.request.get(address)
     expect(response.status()).toBe(200)
     expect(response.headers()["content-type"]).toContain("image/svg+xml")
@@ -73,9 +74,9 @@ test("a public whiteboard is served as an SVG with its nodes, an ETag, and heade
 
 test("Share offers an embed snippet for a public whiteboard, and copies a <picture>", async ({ page }) => {
   await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj", "public")
+  await createProject(page, "Proj", "public")
   await createWhiteboard(page, "Board")
-  const docId = openDocumentId(page)
+  const picture = pictureOf(await idsOf(page.url()))
 
   await page.getByRole("button", { name: "Share" }).click()
   await expect(page.getByText("Public project", { exact: true })).toBeVisible()
@@ -87,17 +88,19 @@ test("Share offers an embed snippet for a public whiteboard, and copies a <pictu
   // HTML rather than Markdown, because GitHub allows <picture> in a README
   // and that is what lets the diagram follow the reader's theme.
   expect(copied).toContain("<picture>")
-  expect(copied).toContain(`<a href="${origin}/p/${projectId}/d/${docId}">`)
-  expect(copied).toContain(`srcset="${origin}/p/${projectId}/d/${docId}/embed.svg?theme=dark"`)
-  expect(copied).toContain(`src="${origin}/p/${projectId}/d/${docId}/embed.svg"`)
+  // The link is the whiteboard's own readable address; the picture is
+  // addressed by ids, so renaming never breaks a README.
+  expect(copied).toContain(`<a href="${page.url()}">`)
+  expect(copied).toContain(`srcset="${origin}${picture}?theme=dark"`)
+  expect(copied).toContain(`src="${origin}${picture}"`)
   expect(copied).toContain('alt="Board, a Subcanvas diagram"')
 })
 
 test("a private project's embed is not found, and is still a picture that says so", async ({ page, browser }) => {
-  await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj")
+  const { account } = await signUpWithOrg(page)
+  await createProject(page, "Proj")
   await createWhiteboard(page, "Board")
-  const docId = openDocumentId(page)
+  const picture = pictureOf(await idsOf(page.url(), account))
 
   // Private, so the Share popover offers no embed either.
   await page.getByRole("button", { name: "Share" }).click()
@@ -107,7 +110,7 @@ test("a private project's embed is not found, and is still a picture that says s
   const origin = new URL(page.url()).origin
   const visitor = await browser.newContext()
   try {
-    const response = await visitor.request.get(`${origin}/p/${projectId}/d/${docId}/embed.svg`)
+    const response = await visitor.request.get(`${origin}${picture}`)
     expect(response.status()).toBe(404)
     // A broken image where a sentence can say why would help nobody.
     expect(response.headers()["content-type"]).toContain("image/svg+xml")

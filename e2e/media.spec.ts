@@ -9,6 +9,7 @@ import {
   expectSaved,
   freshId,
   inspector,
+  leaveDocument,
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
@@ -38,12 +39,11 @@ test("a picture added with the Media tool is on the canvas, is there after a rel
   const id = freshId()
   const { slug } = await signUpWithOrg(page)
   await createProject(page, "Proj")
-  // Both whiteboards first, each from the project's page: creating one
-  // while another is open would find that one's tools already on screen
-  // and rename it instead of waiting for the new one.
+  // Both whiteboards first, each from a page with no whiteboard on it:
+  // creating one while another is open would find that one's tools already
+  // on screen and rename it instead of waiting for the new one.
   await createWhiteboard(page, "Board A")
-  await breadcrumb(page).getByRole("link", { name: "Proj" }).click()
-  await expect(page.getByText("Open a whiteboard or a page")).toBeVisible()
+  await leaveDocument(page)
   await createWhiteboard(page, "Board B")
   await treeLink(page, "Board A").click()
   await expect(breadcrumb(page).getByText("Board A", { exact: true })).toBeVisible()

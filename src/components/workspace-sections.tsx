@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils"
 
 export type SidebarProject = {
   id: string
+  // Its short name, the last part of its address.
+  slug: string
   name: string
   visibility: "private" | "public"
   takenDown: boolean
@@ -247,7 +249,7 @@ function WorkspaceSection({
             <Fragment key={project.id}>{tree}</Fragment>
           ) : (
             <SidebarMenuItem key={project.id}>
-              <ProjectLink href={`${base}/${project.id}`} project={project} />
+              <ProjectLink href={`${base}/${project.slug}`} project={project} />
             </SidebarMenuItem>
           )
         )}

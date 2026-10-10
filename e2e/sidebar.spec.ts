@@ -69,7 +69,7 @@ test("a section's + makes a project in that workspace, from anywhere, and it ope
   const dialog = page.getByRole("dialog")
   await dialog.getByLabel("Name").fill("From the sidebar")
   await dialog.getByRole("button", { name: "Create project" }).click()
-  await page.waitForURL(new RegExp(`^[^?]*/${slug}/[0-9a-f-]{36}$`))
+  await page.waitForURL(new RegExp(`^[^?]*/${slug}/from-the-sidebar$`))
 
   // It is the open project, in its section, with its tree and its buttons.
   const row = sidebar(page).getByRole("link", { name: "From the sidebar", exact: true })

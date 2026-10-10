@@ -3,6 +3,8 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { readProjectSource, type ProjectSource } from "@/lib/github/source"
+import { documentHref } from "@/lib/navigation"
+import { publicProjectPath } from "@/lib/public-route"
 import type { Database } from "@/lib/supabase/database.types"
 import { loadDocument } from "@/lib/sync/server-document"
 import { mediaHref } from "@/lib/whiteboard/media"
@@ -84,7 +86,7 @@ export async function linkedDocuments(supabase: Client, origin: string, ids: str
   for (let at = 0; at < wanted.length; at += 100) {
     const { data: rows } = await supabase
       .from("documents")
-      .select("id, title, org_id, project_id")
+      .select("id, code, title, org_id, project_id, project:projects(slug)")
       .in("id", wanted.slice(at, at + 100))
     if (!rows?.length) continue
     const { data: orgs } = await supabase
@@ -92,11 +94,16 @@ export async function linkedDocuments(supabase: Client, origin: string, ids: str
       .select("id, slug")
       .in("id", [...new Set(rows.map((row) => row.org_id))])
     const slugs = new Map(orgs?.map((org) => [org.id, org.slug]))
-    for (const row of rows)
-      found.set(row.id, {
-        title: row.title,
-        url: `${origin}/${slugs.get(row.org_id) ?? "p"}/${row.project_id}/d/${row.id}`,
-      })
+    for (const row of rows) {
+      // A document in another workspace's public project: its address by id
+      // leads to the readable one.
+      const slug = slugs.get(row.org_id)
+      const path =
+        slug && row.project
+          ? documentHref({ slug, project: row.project.slug }, row)
+          : `${publicProjectPath(row.project_id)}/d/${row.id}`
+      found.set(row.id, { title: row.title, url: `${origin}${path}` })
+    }
   }
   return found
 }

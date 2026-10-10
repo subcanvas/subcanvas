@@ -20,7 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { documentHref, type ProjectPath } from "@/lib/navigation"
+import { useProjectAddresses } from "@/components/project-addresses"
+import { projectHref } from "@/lib/navigation"
 
 export type Crumb = { id: string; title: string }
 
@@ -32,23 +33,21 @@ const VISIBLE = 4
 // Each one links back along the same trail, and the trail ends with the open
 // document's own name.
 export function DocumentBreadcrumb({
-  project,
   projectName,
   trail,
   current,
 }: {
-  project: ProjectPath
   projectName: string
   trail: Crumb[]
   current: string
 }) {
+  const addresses = useProjectAddresses()
   const crumbs = [
-    { key: "project", title: projectName, href: `/${project.slug}/${project.projectId}` },
+    { key: "project", title: projectName, href: projectHref(addresses.project) },
     ...trail.map((crumb, index) => ({
       key: `${crumb.id}-${index}`,
       title: crumb.title,
-      href: documentHref(
-        project,
+      href: addresses.href(
         crumb.id,
         trail.slice(0, index).map((c) => c.id)
       ),

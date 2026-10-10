@@ -16,7 +16,7 @@ Subcanvas is a whiteboard where any box or arrow can hold a page, or a whole whi
 
 ## Read before you write
 
-1. Find the place. `list_workspaces` (your role in each: a viewer can only read), then `list_projects`, then `get_project` for the tree. Everything is addressed by id. A Subcanvas address ends in `/d/<id>`, and that id is the document's.
+1. Find the place. `list_workspaces` (your role in each: a viewer can only read), then `list_projects`, then `get_project` for the tree. Everything is addressed by id. Given a Subcanvas address (a link from the person's browser or from Share), `open_address` gives the ids behind it.
 2. Read what is there. `read_whiteboard` before changing a whiteboard, and `read_text_document` before changing a page. A node that holds a whiteboard has `doc_type: whiteboard` and its `doc_id`; read that too when the change reaches inside it.
 3. Change what exists rather than adding beside it. If a box for the thing is already there, update it with `update_nodes`; do not draw a second one.
 

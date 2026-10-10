@@ -1,13 +1,19 @@
+import { notFound } from "next/navigation"
+
 import { PageHeader } from "@/components/page-header"
-import { getOrgContext } from "@/lib/orgs"
+import { getProjectAccess } from "@/lib/project-access"
 
 import { TrashRow, type TrashedItem } from "./trash-row"
 
 export const metadata = { title: "Trash" }
 
 export default async function TrashPage({ params }: PageProps<"/[org]/[project]/trash">) {
-  const { org: slug, project: projectId } = await params
-  const { supabase, org, canEdit } = await getOrgContext(slug)
+  const { org: slug, project: projectParam } = await params
+  const access = await getProjectAccess(slug, projectParam)
+  // A visitor to a public project sees what is in it, not what was.
+  if (access.kind !== "member") notFound()
+  const { supabase, org, canEdit, path } = access
+  const projectId = access.project.id
 
   // What was put in the trash, not what went with it: a folder's documents
   // and a document's nested ones come back with it and are not listed.
@@ -56,7 +62,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
           {items.map((item) => (
             <TrashRow
               key={item.id}
-              project={{ slug: org.slug, orgId: org.id, projectId }}
+              project={{ ...path, orgId: org.id, projectId }}
               item={item}
               canEdit={canEdit}
             />

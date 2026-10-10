@@ -6,7 +6,7 @@ import { MAX_FILE_BYTES } from "@/lib/import/limits"
 import { isClutter, kindOf, safePath } from "@/lib/import/paths"
 import { planImport } from "@/lib/import/plan"
 import { checkImportAllowance, writeImportBatch } from "@/lib/import/write"
-import { documentHref } from "@/lib/navigation"
+import { documentPermalink } from "@/lib/navigation"
 import { applyBlockEdit, parseMarkdown } from "@/lib/text/blocks"
 
 import { editDocument } from "../edit-document"
@@ -136,7 +136,7 @@ export const documentTools = [
       const plan = planImport(sources, {
         intoDocument: where.kind === "document",
         newId: () => crypto.randomUUID(),
-        hrefFor: (documentId) => documentHref({ slug, projectId: project.id }, documentId),
+        hrefFor: (documentId) => documentPermalink({ slug, project: project.slug }, documentId),
       })
       if (!plan.documents.length)
         return { error: "None of these files can be imported. Paths must end in .md, .markdown, .txt, or .csv, and stay inside the import." }

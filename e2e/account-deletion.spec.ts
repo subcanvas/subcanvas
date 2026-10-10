@@ -68,7 +68,7 @@ test("deleting an account deletes its workspaces and files, and a shared workspa
 
   // A team workspace nobody else is in, with a public project too.
   const soloId = freshId()
-  await createOrg(page, soloId)
+  const solo = await createOrg(page, soloId)
   const soloProject = await createProject(page, "Solo project", "public")
 
   // A team workspace shared with a partner, who is made an owner too.
@@ -104,9 +104,10 @@ test("deleting an account deletes its workspaces and files, and a shared workspa
     await page.waitForURL("/")
     await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toBeVisible()
 
-    // Its workspaces are gone, with their projects and the picture's file.
-    for (const project of [own, soloProject])
-      expect((await page.request.get(`/p/${project}`)).status()).toBe(404)
+    // Its workspaces are gone, with their projects and the picture's file:
+    // what was public now asks a visitor to sign in, like anything private.
+    for (const project of [`/${personal}/${own}`, `/${solo}/${soloProject}`])
+      expect(new URL((await page.request.get(project)).url()).pathname).toBe("/login")
     expect((await page.request.get(picture)).ok()).toBe(false)
 
     // And the account itself: its password no longer signs anyone in.

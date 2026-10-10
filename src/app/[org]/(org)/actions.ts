@@ -6,7 +6,9 @@ import { redirect } from "next/navigation"
 import { recordStep } from "@/lib/activity"
 import * as operations from "@/lib/documents/operations"
 import { importFromReference } from "@/lib/github/import-reference"
+import { projectHref } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
+import { addressOfDocument } from "@/lib/project-access"
 import { createClient } from "@/lib/supabase/server"
 
 export type FormState = { error: string } | null
@@ -32,7 +34,8 @@ export async function createProject(
   })
   if ("error" in result) return { error: result.error }
 
-  redirect(`/${slug}/${result.id}`)
+  const { data: created } = await supabase.from("projects").select("slug").eq("id", result.id).maybeSingle()
+  redirect(projectHref({ slug, project: created?.slug ?? result.id }))
 }
 
 // `limit` marks the free-tier limit, so the dialog can say what to do.
@@ -58,7 +61,9 @@ export async function importFromGitHub(
   })
   if ("error" in outcome) return outcome
 
-  const href = `/${slug}/${outcome.projectId}/d/${outcome.documentId}`
+  const href =
+    (await addressOfDocument(supabase, outcome.documentId, undefined)) ??
+    `/${slug}/${outcome.projectId}/d/${outcome.documentId}`
   if (!outcome.warnings.length) {
     revalidatePath(`/${slug}`)
     redirect(href)

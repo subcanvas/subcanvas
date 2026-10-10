@@ -15,7 +15,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 
 <!-- Share, then Copy embed, on the whiteboard at subcanvas.app. -->
 <p align="center">
-  <a href="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff">
+  <a href="https://subcanvas.app/trevin-lee/subcanvas">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg?theme=dark">
       <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg" width="880">
@@ -109,7 +109,7 @@ Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web as
 
 ## Public projects and moderation
 
-An admin or owner can make a project public, when creating it or later: anyone with the link (`/p/<project id>`) can then read every document in it, and nobody outside the workspace can edit. Public pages are not indexed by search engines, and each carries a Report button.
+An admin or owner can make a project public, when creating it or later: anyone with the link can then read every document in it, and nobody outside the workspace can edit. The link is the project's own address (`/<workspace>/<project>`), the one its members use, and each whiteboard and page in it has one too (`/<workspace>/<project>/<title>-<code>`). Public pages are not indexed by search engines, and each carries a Report button.
 
 Reports land in the `abuse_reports` table, readable only by the operator (the Supabase dashboard or SQL), and are emailed to `ABUSE_EMAIL` (or `LEGAL_CONTACT`) when the server sends email. To take a project offline, whatever its workspace sets:
 

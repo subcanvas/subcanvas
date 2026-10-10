@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { idsOf } from "./support/admin"
 import { addNode, createProject, createWhiteboard, expectSaved, freshId, signUpWithOrg } from "./support/app"
 import { takeDown } from "./support/database"
 import { abuseContact, emailConfigured } from "./support/email"
@@ -16,8 +17,9 @@ test("a visitor with no account can report a public project, and the operator is
   browser,
 }) => {
   const id = freshId()
-  await signUpWithOrg(page)
-  const projectId = await createProject(page, `Proj ${id}`, "public")
+  const { slug } = await signUpWithOrg(page)
+  const project = `/${slug}/${await createProject(page, `Proj ${id}`, "public")}`
+  const { projectId } = await idsOf(project)
   await createWhiteboard(page, "Board")
   await addNode(page, `Alpha ${id}`)
   await expectSaved(page)
@@ -26,7 +28,7 @@ test("a visitor with no account can report a public project, and the operator is
   const visitorContext = await browser.newContext()
   const visitor = await visitorContext.newPage()
   try {
-    await visitor.goto(`${origin}/p/${projectId}`)
+    await visitor.goto(`${origin}${project}`)
     await expect(visitor.getByText("Public project")).toBeVisible()
 
     await visitor.getByRole("button", { name: "Report" }).click()
@@ -69,18 +71,20 @@ test("a visitor with no account can report a public project, and the operator is
 test("a project taken down by the operator tells its members so, and whom to write to", async ({ page, browser }) => {
   const id = freshId()
   const { slug } = await signUpWithOrg(page)
-  const projectId = await createProject(page, `Proj ${id}`, "public")
+  const project = `/${slug}/${await createProject(page, `Proj ${id}`, "public")}`
+  const { projectId } = await idsOf(project)
   await createWhiteboard(page, "Board")
   const boardURL = page.url()
 
   takeDown(projectId)
 
-  // Gone for everyone else.
+  // Gone for everyone else, who is asked to sign in as for anything private.
   const origin = new URL(page.url()).origin
   const visitorContext = await browser.newContext()
   try {
-    const response = await visitorContext.request.get(`${origin}/p/${projectId}`)
-    expect(response.status()).toBe(404)
+    const response = await visitorContext.request.get(`${origin}${project}`)
+    expect(new URL(response.url()).pathname).toBe("/login")
+    expect((await visitorContext.request.get(`${origin}/p/${projectId}`)).status()).toBe(404)
   } finally {
     await visitorContext.close()
   }
@@ -111,8 +115,8 @@ test("a project taken down by the operator tells its members so, and whom to wri
 
 test("once a project is no longer public, a report is refused and the page is gone", async ({ page, browser }) => {
   const id = freshId()
-  await signUpWithOrg(page)
-  const projectId = await createProject(page, "Proj", "public")
+  const { slug } = await signUpWithOrg(page)
+  const project = `/${slug}/${await createProject(page, "Proj", "public")}`
   await createWhiteboard(page, "Board")
   await addNode(page, `Alpha ${id}`)
   await expectSaved(page)
@@ -122,7 +126,7 @@ test("once a project is no longer public, a report is refused and the page is go
   const visitor = await visitorContext.newPage()
   try {
     // The visitor has the page open, with the report form filled in.
-    await visitor.goto(`${origin}/p/${projectId}`)
+    await visitor.goto(`${origin}${project}`)
     await expect(visitor.getByText("Public project")).toBeVisible()
     await visitor.getByRole("button", { name: "Report" }).click()
     const dialog = visitor.getByRole("dialog")
@@ -141,9 +145,10 @@ test("once a project is no longer public, a report is refused and the page is go
     await expect(visitor.getByText("The report could not be sent. Try again.")).toBeVisible()
     await expect(dialog).toBeVisible()
 
-    // And the page itself is not found any more, signed in or not.
-    const response = await visitorContext.request.get(`${origin}/p/${projectId}`)
-    expect(response.status()).toBe(404)
+    // And the page itself is not there any more: a visitor is asked to sign
+    // in, as for anything private.
+    const response = await visitorContext.request.get(`${origin}${project}`)
+    expect(new URL(response.url()).pathname).toBe("/login")
     await visitor.reload()
     await expect(visitor.getByText("Public project")).toHaveCount(0)
     await expect(visitor.getByRole("button", { name: "Report" })).toHaveCount(0)

@@ -20,7 +20,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { MAX_MERMAID_LENGTH, parseMermaid } from "@/lib/mermaid/parse"
-import { documentHref } from "@/lib/navigation"
+import { documentPermalink } from "@/lib/navigation"
 
 import type { ImportTarget } from "./import-dialog"
 
@@ -49,7 +49,7 @@ export function PasteMermaidDialog({
       const result = await importMermaid(project, target.container, text)
       if ("error" in result) return setFailure(result)
       onClose()
-      router.push(documentHref(project, result.id!))
+      router.push(documentPermalink(project, result.id!))
     })
   }
 

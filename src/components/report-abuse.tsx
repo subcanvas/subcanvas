@@ -19,11 +19,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { reportAbuse } from "@/app/p/[projectId]/actions"
+import { useProjectAddresses } from "@/components/project-addresses"
+import { codeFromSegment } from "@/lib/navigation"
 
 // Every public page offers this (R6.7). Reports go to the operator, who is
 // emailed each one when the server sends email.
 export function ReportAbuse({ projectId }: { projectId: string }) {
-  const { docId } = useParams<{ docId?: string }>()
+  // The document on screen, if any, from its address.
+  const { doc } = useParams<{ doc?: string }>()
+  const addresses = useProjectAddresses()
+  const code = doc ? codeFromSegment(doc) : null
+  const docId = code ? addresses.idForCode(code) : null
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState("")
   const [email, setEmail] = useState("")
