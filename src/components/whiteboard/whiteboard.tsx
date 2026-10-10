@@ -41,15 +41,16 @@ import { drawDiagramBeside } from "@/lib/mermaid/draw"
 import { looksLikeMermaid } from "@/lib/mermaid/parse"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
+import { nearestBox, placeNext, type Direction } from "@/lib/whiteboard/keyboard-drawing"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
-import type { NodeKind, WbEdge, WbNode } from "@/lib/whiteboard/schema"
+import { DEFAULT_SIZE, type NodeKind, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 import {
   useWhiteboard,
   type FlowEdge,
   type FlowNode,
 } from "@/lib/whiteboard/use-whiteboard"
 
-import { WhiteboardActionsContext } from "./actions-context"
+import { WhiteboardActionsContext, type NameEnd } from "./actions-context"
 import { Cursors } from "./cursors"
 import { edgeTypes } from "./edge"
 import { HintBar, isModKey, KEYS, type HintState } from "./hint-bar"
@@ -131,6 +132,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   const [dismissed, setDismissed] = useState<string | null>(null)
   // Mermaid pasted here, waiting for the person to say it should be drawn.
   const [pastedMermaid, setPastedMermaid] = useState<string | null>(null)
+  // The node whose name is being typed on the canvas, and the box drawn with
+  // Tab a moment ago, which Escape takes away again while it has no name.
+  const [naming, setNaming] = useState<string | null>(null)
+  const drawn = useRef<string | null>(null)
   const panel = usePanelWidth(root)
 
   // React Flow's own fit on mount measures before every node has a size, so
@@ -190,7 +195,27 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     },
     [wb, router, context, addresses]
   )
-  const actions = useMemo(() => ({ openObject, repository }), [openObject, repository])
+  // Typing a name on the canvas (nodes.tsx, NameField).
+  const { updateNode } = wb
+  const rename = useCallback((nodeId: string, title: string) => updateNode(nodeId, { title }), [updateNode])
+  // The latest version of what ending a name does, which needs this
+  // render's nodes, behind one function the nodes can hold on to.
+  const endNaming = useRef<(nodeId: string, end: NameEnd) => void>(() => {})
+  useEffect(() => {
+    endNaming.current = (nodeId, end) => {
+      setNaming(null)
+      const fresh = drawn.current === nodeId
+      drawn.current = null
+      if (end === "cancel" && fresh && !wb.nodes.find((node) => node.id === nodeId)?.data.wb.title)
+        wb.removeObjects([nodeId])
+      else if (end === "right" || end === "below") drawNext(end, nodeId)
+    }
+  })
+  const finishNaming = useCallback((nodeId: string, end: NameEnd) => endNaming.current(nodeId, end), [])
+  const actions = useMemo(
+    () => ({ openObject, repository, naming, rename, finishNaming }),
+    [openObject, repository, naming, rename, finishNaming]
+  )
 
   // Keep the index of references in step with the content (R1.7). Debounced,
   // and keyed on the links alone so moving things around does not trigger it.
@@ -527,12 +552,102 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     )
   }
 
+  // A node's position and size, in the space of whatever it is inside.
+  const boxOf = (node: FlowNode) => ({
+    x: node.position.x,
+    y: node.position.y,
+    width: node.measured?.width ?? node.width ?? node.data.wb.width ?? DEFAULT_SIZE.plain.width!,
+    height: node.measured?.height ?? node.height ?? node.data.wb.height ?? DEFAULT_SIZE.plain.height!,
+  })
+  const canName = (node: FlowNode | undefined) =>
+    canEdit && !!node && (node.data.wb.kind === "plain" || node.data.wb.kind === "text")
+
+  // Tab and Shift+Tab (lib/whiteboard/keyboard-drawing.ts): the next box,
+  // to the right of `fromId` with an arrow from it, or below it with arrows
+  // from whatever points at it, so a column of alternatives fans out of one
+  // box. It looks like the box it came from, and its name is typed next.
+  function drawNext(direction: "right" | "below", fromId: string) {
+    const from = wb.nodes.find((node) => node.id === fromId)
+    if (!canEdit || !from || from.data.wb.kind === "group") return
+    const place = from.parentId ?? null
+    const near = wb.nodes.filter((node) => node.id !== from.id && (node.parentId ?? null) === place)
+    const size = { width: DEFAULT_SIZE.plain.width!, height: DEFAULT_SIZE.plain.height! }
+    const at = placeNext(boxOf(from), near.map(boxOf), direction, size)
+    const sources =
+      direction === "right"
+        ? [from]
+        : wb.edges.flatMap((edge) => {
+            const source = edge.target === from.id ? near.find((node) => node.id === edge.source) : undefined
+            return source ? [source] : []
+          })
+    const like = from.data.wb.kind === "plain" ? from.data.wb : ({ color: "default", shape: "rectangle" } as const)
+    const id = wb.addLinkedNode(
+      { ...at, ...size, parentId: place },
+      like,
+      sources.map((node) => ({ id: node.id, ...boxOf(node) }))
+    )
+    drawn.current = id
+    selectOnly([id])
+    setNaming(id)
+    bringIntoView(id, at, size)
+  }
+
+  // Pans, without zooming, when a box drawn from the keyboard would land
+  // off the canvas.
+  function bringIntoView(id: string, at: { x: number; y: number }, size: { width: number; height: number }) {
+    const parent = wb.nodes.find((node) => node.id === id)?.parentId
+    const offset = parent ? flow.getInternalNode(parent)?.internals.positionAbsolute : undefined
+    const middle = { x: at.x + (offset?.x ?? 0) + size.width / 2, y: at.y + (offset?.y ?? 0) + size.height / 2 }
+    const onScreen = flow.flowToScreenPosition(middle)
+    const area = wrapper.current?.getBoundingClientRect()
+    const margin = 80
+    if (
+      area &&
+      (onScreen.x < area.left + margin ||
+        onScreen.x > area.right - margin ||
+        onScreen.y < area.top + margin ||
+        onScreen.y > area.bottom - margin)
+    )
+      void flow.setCenter(middle.x, middle.y, { zoom: flow.getZoom(), duration: 200 })
+  }
+
+  // Alt with an arrow: the selection moves to the nearest box that way, or
+  // with nothing selected, to the box nearest the middle of the canvas.
+  function moveSelection(direction: Direction) {
+    const placed = flow
+      .getNodes()
+      .filter((node) => node.type !== "wb-group")
+      .map((node) => {
+        const internal = flow.getInternalNode(node.id)
+        const { x, y } = internal?.internals.positionAbsolute ?? node.position
+        return { id: node.id, x, y, width: internal?.measured.width ?? 0, height: internal?.measured.height ?? 0 }
+      })
+    const current = placed.find((box) => box.id === selectedNodes[0]?.id)
+    let next: { id: string } | null
+    if (current) next = nearestBox(current, placed.filter((box) => box.id !== current.id), direction)
+    else {
+      const area = wrapper.current!.getBoundingClientRect()
+      const middle = flow.screenToFlowPosition({ x: area.left + area.width / 2, y: area.top + area.height / 2 })
+      const distance = (box: (typeof placed)[number]) =>
+        Math.hypot(box.x + box.width / 2 - middle.x, box.y + box.height / 2 - middle.y)
+      next = placed.toSorted((a, b) => distance(a) - distance(b))[0] ?? null
+    }
+    if (!next) return
+    selectOnly([next.id])
+    const box = placed.find((candidate) => candidate.id === next.id)!
+    const onScreen = flow.flowToScreenPosition({ x: box.x + box.width / 2, y: box.y + box.height / 2 })
+    const area = wrapper.current!.getBoundingClientRect()
+    if (onScreen.x < area.left || onScreen.x > area.right || onScreen.y < area.top || onScreen.y > area.bottom)
+      void flow.setCenter(box.x + box.width / 2, box.y + box.height / 2, { zoom: flow.getZoom(), duration: 200 })
+  }
+
   // Enter goes into the selected object: to what it holds, or else to its
-  // name in the panel.
+  // name, typed on the box itself or, for an arrow, in the panel.
   function enterSelection() {
     if (!selection) return
     const object = "node" in selection ? selection.node : selection.edge
     if (object.docId) return openObject(object.id)
+    if ("node" in selection && canName(selectedNodes[0])) return setNaming(object.id)
     setDismissed(null)
     if (!canEdit) return
     // After the panel has rendered, if it was closed.
@@ -563,6 +678,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
       else if (key === "a") run(() => select(true))
       return
     }
+    if (event.altKey && !event.ctrlKey && !event.metaKey && key.startsWith("arrow"))
+      return run(() => moveSelection(key.slice(5) as Direction))
     if (event.altKey || event.ctrlKey || event.metaKey) return
 
     // Only when there is a selection to clear: Escape has other jobs too.
@@ -573,6 +690,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     else if (key === "backspace" || key === "delete") run(removeSelection)
     else if (target.closest(OWN_KEYS)) return
     else if (key === "enter") run(enterSelection)
+    else if (key === "tab" && canEdit && selectedNodes.length === 1 && !selectedEdges.length)
+      run(() => drawNext(event.shiftKey ? "below" : "right", selectedNodes[0].id))
     else if (key.startsWith("arrow") && canEdit && selectedNodes.length) {
       const step = event.shiftKey ? BIG_NUDGE : NUDGE
       run(() =>
@@ -627,7 +746,12 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   }, [])
 
   const hints: HintState = canEdit
-    ? { looking: false, nodes: selectedNodes.length, edges: selectedEdges.length }
+    ? {
+        looking: false,
+        nodes: selectedNodes.length,
+        edges: selectedEdges.length,
+        holds: selectedNodes.length === 1 && !!selectedNodes[0].data.wb.docId,
+      }
     : { looking: true, canSwitchToEdit: editable }
 
   return (
@@ -680,7 +804,9 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           onEdgesChange={wb.onEdgesChange}
           onConnect={wb.onConnect}
           onNodeDragStop={onNodeDragStop}
-          onNodeDoubleClick={(_, node) => openObject(node.id)}
+          onNodeDoubleClick={(_, node) =>
+            node.data.wb.docId || !canName(node) ? openObject(node.id) : setNaming(node.id)
+          }
           onEdgeDoubleClick={(_, edge) => openObject(edge.id)}
           zoomOnDoubleClick={false}
           onSelectionChange={onSelectionChange}

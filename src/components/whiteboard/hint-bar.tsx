@@ -3,8 +3,8 @@
 // Apple keyboards print symbols on these keys; the rest print words.
 const isApple = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 export const KEYS = isApple
-  ? { mod: "⌘", shift: "⇧", enter: "↵", remove: "⌫" }
-  : { mod: "Ctrl", shift: "Shift", enter: "Enter", remove: "Del" }
+  ? { mod: "⌘", shift: "⇧", alt: "⌥", enter: "↵", remove: "⌫" }
+  : { mod: "Ctrl", shift: "Shift", alt: "Alt", enter: "Enter", remove: "Del" }
 
 // True when the platform's command key is down, and the other one is not:
 // on a Mac, Ctrl+C is not copy.
@@ -13,7 +13,8 @@ export const isModKey = (event: KeyboardEvent) => (isApple ? event.metaKey : eve
 export type HintState =
   // Someone who may not edit, or who has switched editing off.
   | { looking: true; canSwitchToEdit: boolean }
-  | { looking: false; nodes: number; edges: number }
+  // `holds` is whether the one node selected holds something to open.
+  | { looking: false; nodes: number; edges: number; holds?: boolean }
 
 // `wide` hints are the first to go when the canvas is narrow, which it is
 // whenever the side panel is open.
@@ -41,7 +42,13 @@ function hintsFor(state: HintState): Hint[] {
       remove,
     ]
   if (state.nodes === 1 && state.edges === 0)
-    return [open, { text: "Drag from its edge to connect", wide: true }, duplicate, remove]
+    return [
+      { keys: ["Tab"], text: "draw the next box" },
+      state.holds ? open : { keys: [KEYS.enter], text: "rename" },
+      { keys: [KEYS.alt, "Arrows"], text: "go to the next box", wide: true },
+      { text: "Drag from its edge to connect", wide: true },
+      remove,
+    ]
   if (state.nodes === 0 && state.edges === 1)
     return [open, { text: "Label and style it in the panel", wide: true }, remove]
   if (state.nodes + state.edges > 0) return [remove, { keys: ["Esc"], text: "clear the selection" }]
