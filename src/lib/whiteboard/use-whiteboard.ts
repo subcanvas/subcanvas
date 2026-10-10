@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 
 import type { Arrangement } from "./arrange"
+import { edgeSides, type Box } from "./keyboard-drawing"
 import {
   COLORS,
   DEFAULT_SIZE,
@@ -353,6 +354,40 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     [transact, yNodes]
   )
 
+  // A box drawn from the keyboard (lib/whiteboard/keyboard-drawing.ts): one
+  // like `like` in look, with arrows to it from each of `from`, in one step
+  // to undo. Its name is typed next, so it starts with none.
+  const addLinkedNode = useCallback(
+    (
+      box: { x: number; y: number; width: number; height: number; parentId: string | null },
+      like: Pick<WbNode, "color" | "shape">,
+      from: ({ id: string } & Box)[]
+    ) => {
+      const id = crypto.randomUUID()
+      transactAsOneStep(() => {
+        yNodes.set(
+          id,
+          toYMap({ kind: "plain", ...box, title: "", description: "", color: like.color, shape: like.shape })
+        )
+        for (const source of from)
+          yEdges.set(
+            crypto.randomUUID(),
+            toYMap({
+              source: source.id,
+              target: id,
+              ...edgeSides(source, box),
+              shape: "spline",
+              stroke: "solid",
+              direction: "forward",
+              color: "default",
+            })
+          )
+      })
+      return id
+    },
+    [transactAsOneStep, yNodes, yEdges]
+  )
+
   const updateNode = useCallback(
     (id: string, patch: Partial<Omit<WbNode, "id">>) => {
       const map = yNodes.get(id)
@@ -507,6 +542,7 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     onEdgesChange,
     onConnect,
     addNode,
+    addLinkedNode,
     updateNode,
     updateNodes,
     updateEdge,

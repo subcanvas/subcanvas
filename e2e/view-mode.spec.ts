@@ -83,21 +83,25 @@ test("the shortcuts in the hint bar do what it says", async ({ page }) => {
   await addNode(page, alpha)
   await closePanel(page)
 
-  // Enter goes into the selected node: with nothing inside it, to its name.
+  // Enter goes into the selected node: with nothing inside it, to its name,
+  // typed on the box itself.
   await clickNode(page, alpha)
-  await expect(hint(page, "or double-click to open")).toBeVisible()
+  await expect(hint(page, "rename")).toBeVisible()
   await page.keyboard.press("Enter")
-  await expect(inspector(page).getByLabel("Title")).toBeFocused()
+  await expect(page.getByRole("textbox", { name: "Name" })).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("textbox", { name: "Name" })).toHaveCount(0)
 
   // Esc clears the selection, which closes the panel.
   await clickNode(page, alpha)
   await page.keyboard.press("Escape")
   await expect(inspector(page)).toBeHidden()
 
-  // The command key with D duplicates. The copy has the same name, and is
-  // the selection afterwards.
+  // With one box selected, the hint offers Tab, which draws the next box
+  // (keyboard-drawing.spec.ts). The command key with D duplicates; the copy
+  // has the same name, and is the selection afterwards.
   await clickNode(page, alpha)
-  await expect(hint(page, "duplicate")).toBeVisible()
+  await expect(hint(page, "draw the next box")).toBeVisible()
   await page.keyboard.press("ControlOrMeta+d")
   await expect(nodeLabelled(page, alpha)).toHaveCount(2)
 

@@ -2,7 +2,7 @@
 
 import { Handle, NodeResizer, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react"
 import { Code, FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { codeLinkOf, codeLinkText } from "@/lib/whiteboard/code-link"
 import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
@@ -13,7 +13,7 @@ import { linesThatFit, shapeGeometry, type Point, type Side } from "@/lib/whiteb
 import type { FlowNode, Upload } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
 
-import { useWhiteboardActions } from "./actions-context"
+import { useWhiteboardActions, type NameEnd } from "./actions-context"
 import { WhiteboardIcon } from "./icon"
 
 // One handle per side. The canvas runs in loose connection mode, so every
@@ -173,6 +173,60 @@ function Corner({ wb, at }: { wb: WbNode; at: Point }) {
   )
 }
 
+// A node's name, typed where it is drawn: after Enter or a double-click, or
+// in a box just drawn with Tab. Each keystroke is saved as it is typed, so
+// others see it. Enter keeps it, Tab and Shift+Tab keep it and draw the next
+// box, Escape puts back the name it had, and clicking away keeps it.
+function NameField({ id, title, className }: { id: string; title: string; className?: string }) {
+  const { rename, finishNaming } = useWhiteboardActions()
+  const [value, setValue] = useState(title)
+  const [before] = useState(title)
+  const field = useRef<HTMLTextAreaElement>(null)
+  const ended = useRef(false)
+  useEffect(() => {
+    field.current?.focus()
+    field.current?.select()
+  }, [])
+
+  function end(how: NameEnd) {
+    if (ended.current) return
+    ended.current = true
+    if (how === "cancel" && value !== before) rename(id, before)
+    finishNaming(id, how)
+  }
+
+  return (
+    <textarea
+      ref={field}
+      aria-label="Name"
+      placeholder="Name"
+      rows={1}
+      value={value}
+      maxLength={200}
+      className={cn(
+        "nodrag nopan nowheel pointer-events-auto field-sizing-content max-w-full resize-none bg-transparent text-center outline-none placeholder:text-graphite",
+        className
+      )}
+      onChange={(event) => {
+        // A name is one line; a pasted line break is a space.
+        const next = event.target.value.replace(/\s*\n\s*/g, " ")
+        setValue(next)
+        rename(id, next)
+      }}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return
+        const how: NameEnd | null =
+          event.key === "Enter" ? "keep" : event.key === "Tab" ? (event.shiftKey ? "below" : "right") : event.key === "Escape" ? "cancel" : null
+        if (!how) return
+        event.preventDefault()
+        event.stopPropagation()
+        end(how)
+      }}
+      onBlur={() => end("keep")}
+    />
+  )
+}
+
 // The box whose outline is the selection ring: the node's own, grown so the
 // ring runs three pixels outside the border. A diamond has no side that faces
 // straight out, so its box grows by more to move its edges out as far.
@@ -187,6 +241,7 @@ const PATH_ROOM = 14.5
 
 export function PlainNode({ id, data, selected, width, height }: NodeProps<FlowNode>) {
   const { wb } = data
+  const { naming } = useWhiteboardActions()
   const color = COLORS[wb.color]
   const tinted = wb.color !== "default"
   const stroke = tinted ? color.stroke : "color-mix(in oklch, var(--ink) 55%, var(--sheet))"
@@ -255,9 +310,13 @@ export function PlainNode({ id, data, selected, width, height }: NodeProps<FlowN
           height: geometry.text.height,
         }}
       >
-        <span className="line-clamp-3 max-w-full break-words" style={{ WebkitLineClamp: lines }}>
-          {wb.title || "Untitled"}
-        </span>
+        {naming === id ? (
+          <NameField id={id} title={wb.title} />
+        ) : (
+          <span className="line-clamp-3 max-w-full break-words" style={{ WebkitLineClamp: lines }}>
+            {wb.title || "Untitled"}
+          </span>
+        )}
         {wb.path && (
           // A node that stands for a repository folder says which one, under
           // its name.
@@ -275,8 +334,9 @@ export function PlainNode({ id, data, selected, width, height }: NodeProps<FlowN
   )
 }
 
-export function TextNode({ data, selected, width }: NodeProps<FlowNode>) {
+export function TextNode({ id, data, selected, width }: NodeProps<FlowNode>) {
   const { wb } = data
+  const { naming } = useWhiteboardActions()
   const color = COLORS[wb.color]
   return (
     <div
@@ -298,7 +358,7 @@ export function TextNode({ data, selected, width }: NodeProps<FlowNode>) {
         className="font-heading text-lg leading-tight font-semibold break-words"
         style={{ color: wb.color === "default" ? undefined : color.text }}
       >
-        {wb.title || "Untitled"}
+        {naming === id ? <NameField id={id} title={wb.title} className="text-left" /> : wb.title || "Untitled"}
       </h3>
       {wb.description ? (
         <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words text-graphite">

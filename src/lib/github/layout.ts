@@ -6,7 +6,6 @@ import dagre from "@dagrejs/dagre"
 export type LayoutNode = { id: string; width: number; height: number }
 export type LayoutEdge = { source: string; target: string; label: string }
 export type Position = { x: number; y: number }
-type Side = "top" | "right" | "bottom" | "left"
 
 const NODE_GAP = 36
 // Between columns of a flow: room for an arrow and its label.
@@ -188,22 +187,9 @@ export function layoutDiagram({
   return { nodes: placed, clusters: frames }
 }
 
-// The sides an arrow leaves and enters by, so it takes the short way
-// between two nodes wherever the layout put them.
-export function edgeSides(
-  source: Position & { width: number; height: number },
-  target: Position & { width: number; height: number }
-): { sourceHandle: Side; targetHandle: Side } {
-  const dx = target.x + target.width / 2 - (source.x + source.width / 2)
-  const dy = target.y + target.height / 2 - (source.y + source.height / 2)
-  if (Math.abs(dx) >= Math.abs(dy))
-    return dx >= 0
-      ? { sourceHandle: "right", targetHandle: "left" }
-      : { sourceHandle: "left", targetHandle: "right" }
-  return dy >= 0
-    ? { sourceHandle: "bottom", targetHandle: "top" }
-    : { sourceHandle: "top", targetHandle: "bottom" }
-}
+// The sides an arrow leaves and enters by, the same as for a box drawn from
+// the keyboard.
+export { edgeSides } from "@/lib/whiteboard/keyboard-drawing"
 
 const MIN_NODE_WIDTH = 160
 const MAX_NODE_WIDTH = 260
