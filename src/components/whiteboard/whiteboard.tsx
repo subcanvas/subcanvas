@@ -60,6 +60,7 @@ import { mediaOnClipboard } from "./media-release"
 import { ModeToggle, storedMode, storeMode, type Mode } from "./mode-toggle"
 import { nodeTypes } from "./nodes"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
+import { ShortcutSheet, useShortcutsOpen } from "./shortcuts"
 import { useHeldContent } from "./use-held-content"
 import { useMediaUploads } from "./use-media-uploads"
 
@@ -140,6 +141,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   // Tab a moment ago, which Escape takes away again while it has no name.
   const [naming, setNaming] = useState<string | null>(null)
   const drawn = useRef<string | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = useShortcutsOpen()
   const panel = usePanelWidth(root)
 
   // React Flow's own fit on mount measures before every node has a size, so
@@ -724,6 +726,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     if (key === "escape" && selectedNodes.length + selectedEdges.length) run(() => select(false))
     else if (key === "escape") return
     else if (key === "e" && editable) run(() => changeMode(mode === "edit" ? "view" : "edit"))
+    else if (key === "?") run(() => setShortcutsOpen(!shortcutsOpen))
     else if (key === "a" && event.shiftKey) run(arrangeSelection)
     else if (key === "backspace" || key === "delete") run(removeSelection)
     else if (target.closest(OWN_KEYS)) return
@@ -874,6 +877,12 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           {/* Drafting paper: a non-photo blue grid that never competes with the ink. */}
           <Background variant={BackgroundVariant.Dots} gap={GRID} size={1.5} color="var(--blueline)" bgColor="var(--paper)" />
           <Controls showInteractive={false} fitViewOptions={FIT_VIEW} />
+          {shortcutsOpen && (
+            // Beside the zoom buttons, clear of the tools and the panel.
+            <Panel position="bottom-left" className="!ml-14">
+              <ShortcutSheet onClose={() => setShortcutsOpen(false)} />
+            </Panel>
+          )}
           <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
 
           {breadcrumb && (
