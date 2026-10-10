@@ -6,6 +6,8 @@ import { unzipSync } from "fflate"
 
 import {
   addNode,
+  clickNode,
+  closePanel,
   createProject,
   createWhiteboard,
   expectSaved,
@@ -220,4 +222,36 @@ test("a project exports as a zip of pages, whiteboards and pictures, and Import 
   await expect(pageEditor(page)).toContainText(`Before the picture ${id}`)
   await expectPictureLoaded(page)
   await expect(treeFolder(page, "Board")).toBeVisible()
+})
+
+test.describe("Mermaid", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] })
+
+  test("a whiteboard is copied and downloaded as Mermaid, and pastes back as the same diagram", async ({ page }) => {
+    const id = freshId().slice(0, 6)
+    await signUpWithOrg(page)
+    await createProject(page, "Proj")
+    await createWhiteboard(page, "Board")
+    // Two boxes and an arrow, drawn from the keyboard.
+    await addNode(page, `Web ${id}`)
+    await closePanel(page)
+    await clickNode(page, `Web ${id}`)
+    await page.keyboard.press("Tab")
+    await page.keyboard.type(`API ${id}`)
+    await page.keyboard.press("Enter")
+    await expectSaved(page)
+
+    await page.getByRole("button", { name: "Actions for Board" }).click()
+    await page.getByRole("menuitem", { name: "Copy as Mermaid" }).click()
+    await expect(page.getByText("Copied as Mermaid.")).toBeVisible()
+    const copied = await page.evaluate(() => navigator.clipboard.readText())
+    expect(copied).toContain("flowchart LR")
+    expect(copied).toContain(`n1["Web ${id}"]`)
+    expect(copied).toContain(`n2["API ${id}"]`)
+    expect(copied).toContain("n1 --> n2")
+
+    const file = await download(page, "Board", "Download as Mermaid")
+    expect(file.suggestedFilename()).toBe("Board.mmd")
+    expect((await contentsOf(file)).toString("utf8")).toBe(copied)
+  })
 })

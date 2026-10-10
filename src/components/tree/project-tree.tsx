@@ -632,14 +632,47 @@ function CreateItems({
   )
 }
 
-// The document as a file: a page as Markdown, a whiteboard as a picture.
+// The document as a file: a page as Markdown, a whiteboard as a picture or
+// as Mermaid, which GitHub draws and any AI reads (lib/mermaid/export.ts).
 function DownloadItem({ id, type }: { id: string; type: DocumentType }) {
+  if (type === "text")
+    return (
+      <DropdownMenuItem render={<a href={`/api/documents/${id}/markdown`} download />}>
+        <Download />
+        Download as Markdown
+      </DropdownMenuItem>
+    )
   return (
-    <DropdownMenuItem render={<a href={`/api/documents/${id}/${type === "text" ? "markdown" : "svg"}`} download />}>
-      <Download />
-      {type === "text" ? "Download as Markdown" : "Download as SVG"}
-    </DropdownMenuItem>
+    <>
+      <DropdownMenuItem render={<a href={`/api/documents/${id}/svg`} download />}>
+        <Download />
+        Download as SVG
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => copyMermaid(id)}>
+        <Waypoints />
+        Copy as Mermaid
+      </DropdownMenuItem>
+      <DropdownMenuItem render={<a href={`/api/documents/${id}/mermaid?download`} download />}>
+        <Download />
+        Download as Mermaid
+      </DropdownMenuItem>
+    </>
   )
+}
+
+// The text is fetched after the click; a ClipboardItem given the promise
+// keeps the click's permission to write while it comes, which Safari asks.
+async function copyMermaid(id: string) {
+  const text = fetch(`/api/documents/${id}/mermaid`).then(async (response) => {
+    if (!response.ok) throw new Error(`${response.status}`)
+    return new Blob([await response.text()], { type: "text/plain" })
+  })
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "text/plain": text })])
+    toast.success("Copied as Mermaid.")
+  } catch {
+    toast.error("Could not copy it. Download it as Mermaid instead.")
+  }
 }
 
 function RenameInput({

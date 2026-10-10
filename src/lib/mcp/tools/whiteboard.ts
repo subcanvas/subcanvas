@@ -3,6 +3,7 @@ import { z } from "zod"
 import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
 import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
 import { readProjectSource } from "@/lib/github/source"
+import { readWhiteboard } from "@/lib/export/whiteboard"
 import { loadDocument } from "@/lib/sync/server-document"
 import { codeLinkOf, parseCodeUrl } from "@/lib/whiteboard/code-link"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
@@ -12,6 +13,7 @@ import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
 import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
 
+import { whiteboardMermaid } from "@/lib/mermaid/export"
 import { MAX_MERMAID_LENGTH, SUPPORTED } from "@/lib/mermaid/parse"
 import { addMermaidToWhiteboard, createMermaidWhiteboard, type MermaidOutcome } from "@/lib/mermaid/write"
 
@@ -448,6 +450,27 @@ export const whiteboardTools = [
         (doc) => edits.arrangeNodes(doc, group_id ?? null),
         ({ ids }) => ({ text: `Arranged ${ids.length} node${ids.length === 1 ? "" : "s"}.`, data: { node_ids: ids } })
       ),
+  }),
+
+  defineTool({
+    name: "export_mermaid",
+    title: "Write a whiteboard as Mermaid",
+    group: "Whiteboards",
+    description:
+      "Returns a whiteboard as a Mermaid flowchart: its boxes with their names, shapes and colors, its groups as subgraphs, and its arrows with their labels, dotted lines and directions. GitHub draws it in a README, an issue or a pull request, and it is the quickest way to show a person a diagram in a chat. Mermaid cannot nest, so a box that opens into a whiteboard of its own is drawn as a box, with a comment saying so; export that whiteboard too to show what is inside. Headings become comments. `import_mermaid` reads the text back. The same as Copy as Mermaid in the app.",
+    input: { whiteboard_id: whiteboardId },
+    kind: "read",
+    run: async (context, { whiteboard_id }) => {
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard", { read: true })
+      if ("error" in whiteboard) return whiteboard
+      const doc = await loadDocument(context.supabase, whiteboard.id)
+      if (!doc) return { error: "This document could not be read." }
+      const mermaid = whiteboardMermaid(readWhiteboard(doc), whiteboard.title)
+      return {
+        text: `${whiteboard.in_trash ? `${READ_FROM_TRASH}\n\n` : ""}\`\`\`mermaid\n${mermaid}\`\`\``,
+        data: { mermaid },
+      }
+    },
   }),
 
   defineTool({
