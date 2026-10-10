@@ -27,11 +27,12 @@ function hintsFor(state: HintState): Hint[] {
   const duplicate: Hint = { keys: [KEYS.mod, "D"], text: "duplicate" }
   const remove: Hint = { keys: [KEYS.remove], text: "delete" }
   const navigate: Hint[] = [pan, zoom, { text: "Drag to select" }, { keys: ["Space"], text: "drag to pan", wide: true }]
+  const all: Hint = { keys: ["?"], text: "all shortcuts", wide: true }
 
   if (state.looking)
     return state.canSwitchToEdit
-      ? [{ keys: ["E"], text: "to edit" }, pan, zoom, { text: "Double-click to open", wide: true }]
-      : [...navigate, { text: "Double-click to open", wide: true }]
+      ? [{ keys: ["E"], text: "to edit" }, pan, zoom, { text: "Double-click to open", wide: true }, all]
+      : [...navigate, { text: "Double-click to open", wide: true }, all]
 
   if (state.nodes > 1)
     return [
@@ -53,7 +54,7 @@ function hintsFor(state: HintState): Hint[] {
     return [open, { text: "Label and style it in the panel", wide: true }, remove]
   if (state.nodes + state.edges > 0) return [remove, { keys: ["Esc"], text: "clear the selection" }]
   // Nothing selected: the first thing to learn is that boxes open.
-  return [{ text: "Double-click a box to open what's inside" }, ...navigate, { keys: ["E"], text: "view mode", wide: true }]
+  return [{ text: "Double-click a box to open what's inside" }, ...navigate, { keys: ["E"], text: "view mode", wide: true }, all]
 }
 
 // What the keyboard and pointer do right now, given what is selected.

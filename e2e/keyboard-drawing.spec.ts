@@ -86,3 +86,24 @@ test("a chain of boxes is drawn and named from the keyboard, and a column fans o
   await expect(edgeBetween(page, start, fork)).toHaveCount(1)
   await expect(edgeBetween(page, second, third)).toHaveCount(1)
 })
+
+test("? shows every shortcut beside the canvas, and it stays until it is hidden", async ({ page }) => {
+  await signUpWithOrg(page)
+  await createProject(page, "Proj")
+  await createWhiteboard(page, "Board")
+  const sheet = page.getByRole("region", { name: "Keyboard shortcuts" })
+  await expect(sheet).toHaveCount(0)
+
+  await page.locator("body").press("?")
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByText("Draw the next box to the right")).toBeVisible()
+
+  // Kept open, from one visit to the next.
+  await page.reload()
+  await expect(sheet).toBeVisible()
+  await sheet.getByRole("button", { name: "Hide the shortcuts" }).click()
+  await expect(sheet).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole("toolbar", { name: "Whiteboard tools" })).toBeVisible()
+  await expect(sheet).toHaveCount(0)
+})
