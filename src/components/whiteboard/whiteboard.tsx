@@ -23,6 +23,7 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import { toast } from "sonner"
 
 import { writeMermaidPages } from "@/app/[org]/[project]/import-actions"
+import { readLinkCard } from "@/app/[org]/[project]/link-actions"
 import type { EditorUser } from "@/components/editor/text-editor"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
@@ -44,7 +45,7 @@ import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whi
 import { nearestBox, placeNext, type Direction } from "@/lib/whiteboard/keyboard-drawing"
 import { sidesOf } from "@/lib/whiteboard/sides"
 import { copyMediaTo } from "@/lib/whiteboard/media-upload"
-import { DEFAULT_SIZE, type NodeKind, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
+import { DEFAULT_SIZE, LINK_PLAIN_HEIGHT, parseLinkUrl, type NodeKind, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 import {
   useWhiteboard,
   type FlowEdge,
@@ -141,6 +142,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   // Tab a moment ago, which Escape takes away again while it has no name.
   const [naming, setNaming] = useState<string | null>(null)
   const drawn = useRef<string | null>(null)
+  // Link cards whose page is still being read.
+  const [pendingLinks, setPendingLinks] = useState<ReadonlySet<string>>(new Set())
   const [shortcutsOpen, setShortcutsOpen] = useShortcutsOpen()
   const panel = usePanelWidth(root)
 
@@ -247,8 +250,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   })
   const finishNaming = useCallback((nodeId: string, end: NameEnd) => endNaming.current(nodeId, end), [])
   const actions = useMemo(
-    () => ({ openObject, repository, naming, rename, finishNaming }),
-    [openObject, repository, naming, rename, finishNaming]
+    () => ({ openObject, repository, naming, rename, finishNaming, pendingLinks }),
+    [openObject, repository, naming, rename, finishNaming, pendingLinks]
   )
 
   // Keep the index of references in step with the content (R1.7). Debounced,
@@ -632,6 +635,41 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     bringIntoView(id, at, size)
   }
 
+  // A pasted link becomes a card (lib/links): drawn at once with the link's
+  // site, then filled in with the page's title, description and picture
+  // once the server has read it.
+  async function addLink(url: string, at: { x: number; y: number } | null) {
+    const spot = at ? flow.screenToFlowPosition(at) : nextSpot()
+    const width = DEFAULT_SIZE.link.width!
+    const snap = (value: number) => Math.round(value / GRID) * GRID
+    const site = new URL(url).hostname.replace(/^www\./, "")
+    const id = wb.addLinkNode(
+      { x: snap(spot.x - width / 2), y: snap(spot.y - LINK_PLAIN_HEIGHT / 2), width, height: LINK_PLAIN_HEIGHT },
+      url,
+      site
+    )
+    selectOnly([id])
+    setPendingLinks((current) => new Set(current).add(id))
+    const card = await readLinkCard(
+      { orgId: context.orgId, projectId: context.projectId, documentId: context.whiteboardId },
+      url
+    ).catch(() => ({ error: "The page could not be read." }))
+    setPendingLinks((current) => {
+      const next = new Set(current)
+      next.delete(id)
+      return next
+    })
+    if ("error" in card) return
+    wb.fillLinkNode(id, {
+      linkUrl: card.url,
+      title: card.title,
+      description: card.description,
+      linkSite: card.site,
+      mediaPath: card.mediaPath,
+      height: card.mediaPath ? DEFAULT_SIZE.link.height : LINK_PLAIN_HEIGHT,
+    })
+  }
+
   // Tab on an empty selection: a box in the middle of the view, named next.
   function drawFirst() {
     const spot = nextSpot()
@@ -777,8 +815,12 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     event.preventDefault()
     const files = [...(event.clipboardData?.files ?? [])]
     const text = event.clipboardData?.getData("text/plain") ?? ""
+    const link = /^\S+$/.test(text.trim()) ? parseLinkUrl(text.trim()) : null
     if (files.length) addFiles(files, pointer.current)
-    else if (looksLikeMermaid(text)) {
+    else if (link) {
+      if (canEdit) void addLink(link, pointer.current)
+      else if (editable) toast.message("Switch to edit mode to add a link.")
+    } else if (looksLikeMermaid(text)) {
       if (canEdit) setPastedMermaid(text)
       else if (editable) toast.message("Switch to edit mode to add a Mermaid diagram.")
     } else void paste()
@@ -863,9 +905,13 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           onNodeDragStop={onNodeDragStop}
           snapToGrid
           snapGrid={[GRID, GRID]}
-          onNodeDoubleClick={(_, node) =>
-            node.data.wb.docId || !canName(node) ? openObject(node.id) : setNaming(node.id)
-          }
+          onNodeDoubleClick={(_, node) => {
+            const { wb: object } = node.data
+            if (object.kind === "link" && object.linkUrl && !object.docId)
+              return void window.open(object.linkUrl, "_blank", "noopener,noreferrer")
+            if (object.docId || !canName(node)) openObject(node.id)
+            else setNaming(node.id)
+          }}
           onEdgeDoubleClick={(_, edge) => openObject(edge.id)}
           zoomOnDoubleClick={false}
           onSelectionChange={onSelectionChange}

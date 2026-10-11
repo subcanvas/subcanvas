@@ -123,6 +123,8 @@ Its members then see that it was taken down and whom to write to. Reviewing repo
 
 Whiteboards take pictures and videos: drop files on the canvas, paste a screenshot, or use **Media** in the toolbar, and point arrows at them like at any other node (PNG, JPEG, WebP, GIF, AVIF up to 10 MB; MP4, WebM, MOV up to 100 MB).
 
+Paste a link on a whiteboard and it becomes a card: the page's title, a line of its description, its site and its picture, read once when you paste it and kept with the whiteboard, so nobody who looks at the card later loads anything from the page's site. A YouTube link plays on the card once you press play, through YouTube's no-cookie player. Double-click a card, or use its corner mark, to open the page.
+
 Any whiteboard in a public project is also served as a picture at `/p/<project id>/d/<document id>/embed.svg` (add `?theme=dark` for the dark version). On the whiteboard's page, Share has **Copy embed**, which copies a snippet for a README or a docs site: the picture, in the reader's light or dark theme, linked to the live whiteboard. The picture is drawn from the whiteboard on request, so it follows edits within a few minutes with no change to the README. A whiteboard that is private, in the trash, or missing gets a picture that says so. Pictures and videos on the whiteboard show in the embed as captioned frames: the embed is one standalone image and never loads another file.
 
 ## Plans and billing

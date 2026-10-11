@@ -78,3 +78,14 @@ describe("a whiteboard as Mermaid", () => {
     expect(text).toContain("  n2 --> n1")
   })
 })
+
+it("writes a link card as a box with its title, and its address as a comment", () => {
+  const drawn = drawDiagram(diagramOf("flowchart LR\n  A[Docs] --> B[API]"), { newId })
+  const [docs, api] = drawn.nodes
+  const text = whiteboardMermaid(
+    { nodes: [{ ...docs, kind: "link", linkUrl: "https://docs.example.com/", linkSite: "docs.example.com" }, api], edges: drawn.edges },
+    "T"
+  )
+  expect(text).toContain('%% "Docs" links to https://docs.example.com/')
+  expect(text).toContain('n1["Docs"]')
+})

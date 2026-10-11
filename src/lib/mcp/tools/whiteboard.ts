@@ -3,6 +3,7 @@ import { z } from "zod"
 import { releasedWords, releaseHeldDocument, trashHeldDocuments } from "@/lib/documents/held"
 import { logMediaFailure, removeMedia } from "@/lib/documents/media-cleanup"
 import { readProjectSource } from "@/lib/github/source"
+import { previewLink } from "@/lib/links/preview"
 import { readWhiteboard } from "@/lib/export/whiteboard"
 import { loadDocument } from "@/lib/sync/server-document"
 import { codeLinkOf, parseCodeUrl } from "@/lib/whiteboard/code-link"
@@ -10,7 +11,17 @@ import { ICON_CHOICES } from "@/lib/whiteboard/icons"
 import { MAX_ALT, MAX_BODY_TEXT, MAX_CODE_URL, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { mediaHref } from "@/lib/whiteboard/media"
 import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
-import { COLOR_KEYS, edgesMap, nodesMap, readEdge, readNode, singleEmoji } from "@/lib/whiteboard/schema"
+import {
+  COLOR_KEYS,
+  DEFAULT_SIZE,
+  edgesMap,
+  LINK_PLAIN_HEIGHT,
+  nodesMap,
+  parseLinkUrl,
+  readEdge,
+  readNode,
+  singleEmoji,
+} from "@/lib/whiteboard/schema"
 import { NODE_SHAPES, SHAPE_SIZE } from "@/lib/whiteboard/shapes"
 
 import { whiteboardMermaid } from "@/lib/mermaid/export"
@@ -118,7 +129,7 @@ export const whiteboardTools = [
     title: "Read a whiteboard",
     group: "Whiteboards",
     description:
-      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
+      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption, `link` is a card for a web page, with its `link` url and site and the page's `description`), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
@@ -142,7 +153,10 @@ export const whiteboardTools = [
           title: node.title,
           // What the app shows: a text node's body text, and a folder's
           // summary in its box's panel. Nothing else it holds is drawn.
-          ...(node.description && (node.kind === "text" || node.path) ? { description: node.description } : {}),
+          ...(node.description && (node.kind === "text" || node.kind === "link" || node.path)
+            ? { description: node.description }
+            : {}),
+          ...(node.kind === "link" && node.linkUrl ? { link: { url: node.linkUrl, site: node.linkSite } } : {}),
           x: node.x,
           y: node.y,
           width: node.width,
@@ -245,6 +259,61 @@ export const whiteboardTools = [
           data: { node_ids: ids },
         })
       ),
+  }),
+
+  defineTool({
+    name: "add_link",
+    title: "Add a link card to a whiteboard",
+    group: "Whiteboards",
+    description:
+      "Adds a card for a web page, as pasting a link on the canvas does: the server reads the page once and the card shows its title, a line of description, its site, and its picture, which is copied into the whiteboard so the card stays as it was. A YouTube link becomes a card with the video's thumbnail that plays the video on the whiteboard. People open the page from the card in one click. Use it for the docs, dashboards, designs, tickets or videos a diagram refers to; for the code a box stands for, give the box a `code_url` instead. Placed like `add_nodes`: in free space, beside `near_node_id` when given. Returns the card's node id, ready for `connect_nodes`. A page that cannot be read still gets a card, named after its site.",
+    input: {
+      whiteboard_id: whiteboardId,
+      url: z.string().url().max(2000).describe("The page, an http or https address."),
+      title: title.optional().describe("A title for the card, instead of the page's own."),
+      x: coordinate("x").optional(),
+      y: coordinate("y").optional(),
+      group_id: nodeId("The group to put the card in.").optional(),
+      near_node_id: nodeId("Place the card in free space next to this one.").optional(),
+    },
+    kind: "write",
+    openWorld: true,
+    covers: ["[org]/[project]/link-actions.readLinkCard"],
+    run: async (context, { whiteboard_id, url, title: chosen, group_id, near_node_id, x, y }) => {
+      const address = parseLinkUrl(url)
+      if (!address) return { error: "Only an http or https address can be a link card." }
+      const whiteboard = await findTypedDocument(context, whiteboard_id, "whiteboard")
+      if ("error" in whiteboard) return whiteboard
+      const card = await previewLink(
+        context.supabase,
+        { orgId: whiteboard.org_id, projectId: whiteboard.project_id, documentId: whiteboard.id },
+        address
+      )
+      return change(
+        context,
+        whiteboard.id,
+        (doc) =>
+          edits.addNodes(doc, [
+            {
+              kind: "link",
+              title: chosen?.trim() || card.title,
+              description: card.description,
+              linkUrl: card.url,
+              linkSite: card.site,
+              mediaPath: card.mediaPath,
+              height: card.mediaPath ? DEFAULT_SIZE.link.height! : LINK_PLAIN_HEIGHT,
+              x,
+              y,
+              groupId: group_id,
+              nearNodeId: near_node_id,
+            },
+          ]),
+        ({ ids }) => ({
+          text: `Added a card for "${chosen?.trim() || card.title}" (${ids[0]})${card.mediaPath ? ", with its picture" : ""}.`,
+          data: { node_id: ids[0], title: chosen?.trim() || card.title, site: card.site, has_picture: Boolean(card.mediaPath) },
+        })
+      )
+    },
   }),
 
   defineTool({

@@ -122,6 +122,18 @@ test("signs an agent in through the consent page, and it works as that person", 
   )
   expect(await refusedTool(client, "open_address", { address: `/${slug}/no-such-project` })).toMatch(/Nothing at that address/)
 
+  // A link card, read by the server the way a paste is.
+  const { node_id: linkCard } = (await callTool(client, "add_link", { whiteboard_id: board, url: "https://example.com/" })) as {
+    node_id: string
+  }
+  const readBack = (await callTool(client, "read_whiteboard", { whiteboard_id: board })) as {
+    nodes: { id: string; kind: string; title: string; link?: { url: string } }[]
+  }
+  expect(readBack.nodes.find((node) => node.id === linkCard)).toEqual(
+    expect.objectContaining({ kind: "link", title: "Example Domain", link: expect.objectContaining({ url: "https://example.com/" }) })
+  )
+  expect(await refusedTool(client, "add_link", { whiteboard_id: board, url: "ftp://example.com/" })).toMatch(/http or https/)
+
   // A node deleted by an agent takes what it held to the trash, as on the canvas.
   const inside = `Inside ${id}`
   const { node_ids } = (await callTool(client, "add_nodes", { whiteboard_id: board, nodes: [{ title: inside }] })) as {

@@ -1,14 +1,15 @@
 "use client"
 
 import { Handle, NodeResizer, Position, useStore, useUpdateNodeInternals, type NodeProps } from "@xyflow/react"
-import { Code, FileText, ImageIcon, ImageOff, Video, Workflow } from "lucide-react"
+import { Code, ExternalLink, FileText, Globe, ImageIcon, ImageOff, Play, Video, Workflow } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
+import { youtubeId } from "@/lib/links/page"
 import { codeLinkOf, codeLinkText } from "@/lib/whiteboard/code-link"
 import { iconLabel, iconNode } from "@/lib/whiteboard/icons"
 import { MAX_NODE_SIDE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
 import { useMediaUrl } from "@/lib/whiteboard/media-urls"
-import { COLORS, DEFAULT_SIZE, type DocType, type WbNode } from "@/lib/whiteboard/schema"
+import { COLORS, DEFAULT_SIZE, linkPictureHeight, type DocType, type WbNode } from "@/lib/whiteboard/schema"
 import { linesThatFit, shapeGeometry, type Point, type Side } from "@/lib/whiteboard/shapes"
 import type { FlowNode, Upload } from "@/lib/whiteboard/use-whiteboard"
 import { cn } from "@/lib/utils"
@@ -55,7 +56,7 @@ function Resizer({
   keepAspectRatio = false,
 }: {
   selected: boolean
-  kind: "plain" | "group" | "media"
+  kind: "plain" | "group" | "media" | "link"
   keepAspectRatio?: boolean
 }) {
   return (
@@ -561,4 +562,113 @@ function Media({ wb }: { wb: WbNode }) {
   )
 }
 
-export const nodeTypes = { "wb-plain": PlainNode, "wb-text": TextNode, "wb-group": GroupNode, "wb-media": MediaNode }
+// A link card (lib/links): the page's picture, its title and its site. A
+// YouTube video plays on the card once its play button is pressed; nothing
+// is loaded from YouTube before that, and then from its no-cookie player.
+// The picture is the card's own copy, so the card shows the same to everyone
+// whatever becomes of the page.
+export function LinkNode({ id, data, selected, width, height }: NodeProps<FlowNode>) {
+  const { wb } = data
+  const { pendingLinks } = useWhiteboardActions()
+  const [playing, setPlaying] = useState(false)
+  const size = {
+    width: width ?? wb.width ?? DEFAULT_SIZE.link.width!,
+    height: height ?? wb.height ?? DEFAULT_SIZE.link.height!,
+  }
+  const picture = linkPictureHeight(wb, size.width, size.height)
+  const video = youtubeId(wb.linkUrl ?? "")
+  const host = hostOf(wb.linkUrl)
+  const pending = pendingLinks.has(id)
+
+  return (
+    <div className="group/node relative size-full">
+      <Resizer selected={selected} kind="link" />
+      <div
+        className={cn(
+          "flex size-full flex-col overflow-hidden rounded-lg border border-rule bg-sheet shadow-xs",
+          selected && "outline-2 outline-offset-2 outline-cobalt"
+        )}
+      >
+        {picture > 0 && (
+          <div className="relative shrink-0 overflow-hidden bg-paper" style={{ height: picture }}>
+            {playing && video ? (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${video}?autoplay=1&rel=0`}
+                title={wb.title || "YouTube video"}
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="nodrag nowheel size-full border-0"
+              />
+            ) : (
+              <LinkPicture path={wb.mediaPath} />
+            )}
+            {video && !playing && (
+              <button
+                type="button"
+                aria-label={`Play ${wb.title || "the video"}`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setPlaying(true)
+                }}
+                onDoubleClick={(event) => event.stopPropagation()}
+                className="nodrag absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full bg-black/70 text-white outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Play aria-hidden className="size-5 fill-current" />
+              </button>
+            )}
+          </div>
+        )}
+        <div className="flex min-h-0 flex-1 flex-col gap-1 p-3 text-left">
+          <p className={cn("line-clamp-2 text-[13px] leading-snug font-semibold break-words", pending && "text-graphite")}>
+            {pending ? "Reading the page…" : wb.title || host}
+          </p>
+          {!picture && wb.description && (
+            <p className="line-clamp-1 text-xs leading-snug text-graphite">{wb.description}</p>
+          )}
+          <p className="mt-auto flex min-w-0 items-center gap-1 text-[11px] text-graphite">
+            <Globe aria-hidden className="size-3 shrink-0" />
+            <span className="truncate">{wb.linkSite || host}</span>
+          </p>
+        </div>
+      </div>
+      {wb.linkUrl && (
+        <a
+          href={wb.linkUrl}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${wb.title || host} (opens in a new tab)`}
+          title={wb.linkUrl}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          className={cn(MARK, "absolute -top-2.5 -right-2.5")}
+        >
+          <ExternalLink aria-hidden className="size-3" />
+        </a>
+      )}
+      <Handles visible={selected} />
+    </div>
+  )
+}
+
+function LinkPicture({ path }: { path: string | null }) {
+  const { url, failed } = useMediaUrl(path)
+  if (!url || failed) return <ImageIcon aria-hidden className="absolute inset-0 m-auto size-6 text-graphite" />
+  // eslint-disable-next-line @next/next/no-img-element -- a signed Storage address, which next/image would fetch again
+  return <img src={url} alt="" draggable={false} className="size-full object-cover" />
+}
+
+const hostOf = (url: string | null) => {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, "") : ""
+  } catch {
+    return ""
+  }
+}
+
+export const nodeTypes = {
+  "wb-plain": PlainNode,
+  "wb-text": TextNode,
+  "wb-group": GroupNode,
+  "wb-media": MediaNode,
+  "wb-link": LinkNode,
+}

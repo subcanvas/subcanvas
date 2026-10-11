@@ -79,6 +79,8 @@ const blankNode = (fields: Partial<WbNode> & Pick<WbNode, "id" | "kind" | "x" | 
   mediaWidth: null,
   mediaHeight: null,
   alt: "",
+  linkUrl: null,
+  linkSite: "",
   ...fields,
 })
 
