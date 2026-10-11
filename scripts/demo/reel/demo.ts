@@ -130,16 +130,6 @@ const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
 const workspaceName = process.env.DEMO_WORKSPACE_NAME ?? "Acme"
 const stageSlug = process.env.DEMO_STAGE_WORKSPACE ?? "reel-demo"
 const sketchTitle = process.env.DEMO_SKETCH_TITLE ?? "Checkout"
-// Scene 0's sketch: names typed one after another, each drawn with the key
-// before it ("Tab" to the right, "Shift+Tab" below).
-// Two columns, so it sits in the middle from its first box there: a
-// gateway, and a fan of three services out of it.
-const sketchSteps: [string, string][] = [
-  ["Tab", "API gateway"],
-  ["Tab", "Orders"],
-  ["Shift+Tab", "Payments"],
-  ["Shift+Tab", "Inventory"],
-]
 // What the agent in scene 5 is asked, as Claude Code shows it on camera.
 const agentPrompt =
   process.env.DEMO_AGENT_PROMPT ??
@@ -583,9 +573,8 @@ await demo.press("Control+Backslash")
 await demo.wait(300)
 await move(OFF, 100)
 await open(sketch, EMPTY)
-// On where the sketch will be: its first box is drawn in the middle of the
-// canvas and the rest to the right of it and below.
-zoom(SKETCH, 1.35, 0)
+// The whole window: the panel the boxes are colored in opens on the right.
+zoom(SKETCH, 1.1, 0)
 const preludeActions = demo.getTimeline().length
 
 // The pace: each caption stays up at least a second and a half plus a
@@ -595,23 +584,52 @@ const preludeActions = demo.getTimeline().length
 // the first five seconds.
 
 // 0. A sketch from the keyboard: Tab draws the first box, and the next to
-// the right of it, Shift+Tab one below, each named as it is drawn, with no
-// mouse. The view follows the newest box.
+// the right of it, Shift+Tab one below, each named as it is drawn. A box
+// drawn with Tab looks like the one it came from, so the gateway is made a
+// blue hexagon and Orders a teal box in the panel, and the services fanned
+// out below Orders come out teal by themselves. The view follows the
+// newest box.
 mark("Sketch from the keyboard")
 caption("Sketch from the keyboard. Tab draws the next box.")
-await demo.wait(700)
-for (const [key, name] of sketchSteps) {
+const SHAPE = (name: string) => `[role="radiogroup"][aria-label="Shape"] [aria-label="${name}"]`
+const COLOR = (name: string) => `[role="radiogroup"][aria-label="Color"] [aria-label="${name}"]`
+async function name(key: string, text: string) {
   await demo.press(key)
   await demo.wait(150)
-  await demo.type(NAME_FIELD, name, { wpm: 200 })
-  await demo.wait(200)
+  await demo.type(NAME_FIELD, text, { wpm: 200 })
+  await demo.wait(150)
 }
+// In the panel: a shape and a color, then back to the box, which keeps it
+// selected and the keys on the canvas.
+async function style(box: string, shape: string, color: string) {
+  await demo.press("Enter")
+  await move(SHAPE(shape), 600)
+  await demo.cursor.click()
+  await move(COLOR(color), 450)
+  await demo.cursor.click()
+  await demo.wait(250)
+  await move(NODE(box), 600)
+  await demo.cursor.click()
+  await move(REST, 400)
+}
+await demo.wait(600)
+await name("Tab", "API gateway")
+caption("Give each kind of box its own color and shape.")
+await style("API gateway", "Hexagon", "Blue")
+await name("Tab", "Orders")
+await style("Orders", "Rectangle", "Teal")
+caption("Shift+Tab fans out more of the same.")
+await name("Shift+Tab", "Payments")
+await name("Shift+Tab", "Inventory")
 // Enter keeps the last name; Escape lets go of the box, so the finished
 // sketch is shown with nothing selected and no panel.
 await demo.press("Enter")
 await demo.wait(150)
 await demo.press("Escape")
-await demo.wait(2200)
+// In on the finished sketch, which sits left of the middle now the panel
+// has closed: Payments is the middle of its two columns.
+zoom(NODE("Payments"), 1.45, 900)
+await demo.wait(2000)
 // The rest is looked at, not drawn on.
 await setMode("view")
 
