@@ -23,6 +23,7 @@ export const MIN_NODE_SIZE: Record<NodeKind, { width: number; height: number }> 
   text: { width: 120, height: 0 },
   group: { width: 160, height: 100 },
   media: { width: MEDIA_MIN_SIDE, height: MEDIA_MIN_SIDE },
+  link: { width: 200, height: 80 },
 }
 
 // A size someone asked for, kept within what the canvas lets a node of this

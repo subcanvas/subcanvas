@@ -74,6 +74,7 @@ function parentsFirst(nodes: WbNode[]) {
 // What a node is called, in the panel and to a screen reader.
 export function nodeLabel(wb: WbNode) {
   if (wb.kind === "media") return wb.mediaType === "video" ? "Video" : "Picture"
+  if (wb.kind === "link") return "Link"
   return wb.kind === "plain" ? "Box" : wb.kind === "text" ? "Text" : "Group"
 }
 
@@ -389,6 +390,32 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     [transactAsOneStep, yNodes, yEdges]
   )
 
+  // A link card (lib/links) for `url`, named after its site until the page
+  // has been read.
+  const addLinkNode = useCallback(
+    (box: { x: number; y: number; width: number; height: number }, url: string, site: string) => {
+      const id = crypto.randomUUID()
+      transact(() =>
+        yNodes.set(
+          id,
+          toYMap({ kind: "link", ...box, title: site, description: "", color: "default", linkUrl: url, linkSite: site })
+        )
+      )
+      return id
+    },
+    [transact, yNodes]
+  )
+
+  // What a link card says once its page has been read. Not a step of its
+  // own to undo: undoing the paste takes the card away, contents and all.
+  const fillLinkNode = useCallback(
+    (id: string, patch: Partial<Omit<WbNode, "id">>) => {
+      const map = yNodes.get(id)
+      if (map && editable) doc.transact(() => patchYMap(map, patch), "link-preview")
+    },
+    [doc, editable, yNodes]
+  )
+
   const updateNode = useCallback(
     (id: string, patch: Partial<Omit<WbNode, "id">>) => {
       const map = yNodes.get(id)
@@ -544,6 +571,8 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
     onConnect,
     addNode,
     addLinkedNode,
+    addLinkNode,
+    fillLinkNode,
     updateNode,
     updateNodes,
     updateEdge,

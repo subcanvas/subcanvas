@@ -61,9 +61,11 @@ export function whiteboardMermaid(contents: { nodes: WbNode[]; edges: WbEdge[] }
   lines.push("---", `title: ${JSON.stringify(comment(title) || "Untitled")}`, "---", `flowchart ${direction}`)
   for (const heading of headings)
     lines.push(`  %% ${comment([heading.title, heading.description].filter(Boolean).join(": "))}`)
-  for (const node of nodes)
+  for (const node of nodes) {
     if (node.docType === "whiteboard")
       lines.push(`  %% "${comment(node.title)}" opens into a whiteboard of its own, not drawn here.`)
+    if (node.kind === "link" && node.linkUrl) lines.push(`  %% "${comment(node.title || node.linkSite)}" links to ${node.linkUrl}`)
+  }
 
   const childrenOf = (parent: string | null) =>
     nodes.filter((node) => (node.parentId && keys.has(node.parentId) ? node.parentId : null) === parent)
@@ -76,7 +78,12 @@ export function whiteboardMermaid(contents: { nodes: WbNode[]; edges: WbEdge[] }
         lines.push(`${indent}end`)
         continue
       }
-      const name = node.kind === "media" ? node.title || node.alt || "Picture" : node.title || "Untitled"
+      const name =
+        node.kind === "media"
+          ? node.title || node.alt || "Picture"
+          : node.kind === "link"
+            ? node.title || node.linkSite || "Link"
+            : node.title || "Untitled"
       const [open, close] = BRACKETS[node.kind === "plain" ? node.shape : "rectangle"]
       lines.push(`${indent}${key}${open}${label(name)}${close}`)
     }

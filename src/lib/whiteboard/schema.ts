@@ -8,7 +8,7 @@ import { NODE_SHAPES, type NodeShape } from "./shapes"
 // section 3. Every object is a Y.Map of flat scalar fields, so two people
 // changing different properties of the same object merge cleanly.
 
-export type NodeKind = "plain" | "text" | "group" | "media"
+export type NodeKind = "plain" | "text" | "group" | "media" | "link"
 export type EdgeShape = "spline" | "step"
 export type EdgeStroke = "solid" | "dotted"
 export type EdgeDirection = "none" | "forward" | "reverse" | "both"
@@ -56,6 +56,12 @@ export type WbNode = {
   mediaHeight: number | null
   // What a picture shows, for someone who cannot see it.
   alt: string
+  // A link node: the web page it is a card for (lib/links). Its title and
+  // description are the page's, read when the card was made and editable
+  // after; its picture is a mediaPath like a media node's; `linkSite` is
+  // the site's name ("YouTube · Fireship").
+  linkUrl: string | null
+  linkSite: string
 }
 
 export type WbEdge = {
@@ -100,6 +106,28 @@ export const DEFAULT_SIZE: Record<NodeKind, { width: number | null; height: numb
   group: { width: 360, height: 240 },
   // Only a fallback: a media node is created at its file's proportions.
   media: { width: 320, height: 240 },
+  // A card with a picture; one without is LINK_PLAIN_HEIGHT tall.
+  link: { width: 320, height: 268 },
+}
+
+export const LINK_PLAIN_HEIGHT = 92
+
+// How tall a link card's picture is drawn: 16:9 across the card, leaving
+// room under it for the title and the site.
+export const linkPictureHeight = (node: Pick<WbNode, "mediaPath">, width: number, height: number) =>
+  node.mediaPath ? Math.max(0, Math.min(width * (9 / 16), height - 64)) : 0
+
+const MAX_LINK_URL = 2000
+
+// A link node's address: a web page, and nothing a click could run.
+export function parseLinkUrl(value: unknown) {
+  if (typeof value !== "string" || value.length > MAX_LINK_URL) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null
+  } catch {
+    return null
+  }
 }
 
 // Transactions made by this client's UI carry this origin, which is what
@@ -162,7 +190,7 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
   const mediaPath = parseMediaPath(map.get("mediaPath"))
   return {
     id,
-    kind: pick(map, "kind", ["plain", "text", "group", "media"] as const, "plain"),
+    kind: pick(map, "kind", ["plain", "text", "group", "media", "link"] as const, "plain"),
     x: number(map, "x", 0),
     y: number(map, "y", 0),
     width: numberOrNull(map, "width"),
@@ -186,6 +214,8 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
     mediaWidth: numberOrNull(map, "mediaWidth"),
     mediaHeight: numberOrNull(map, "mediaHeight"),
     alt: text(map, "alt"),
+    linkUrl: parseLinkUrl(map.get("linkUrl")),
+    linkSite: text(map, "linkSite"),
   }
 }
 
@@ -210,6 +240,8 @@ export function newMediaNode(
     emoji: null,
     mediaType: mediaTypeOf(fields.mediaPath),
     alt: "",
+    linkUrl: null,
+    linkSite: "",
     ...fields,
   }
 }

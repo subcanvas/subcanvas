@@ -180,6 +180,7 @@ function NodeFields({
   )
 
   if (node.kind === "media") return <MediaFields node={node} code={code} onChange={onChange} />
+  if (node.kind === "link") return <LinkFields node={node} onChange={onChange} />
 
   return (
     <>
@@ -225,6 +226,45 @@ function NodeFields({
       <ColorField value={node.color} onChange={(color) => onChange({ color })} />
       <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
       <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+    </>
+  )
+}
+
+// A link card (lib/links): the page's title and description, read when it
+// was pasted and the card's own to change, and the address it opens.
+function LinkFields({ node, onChange }: { node: WbNode; onChange: (patch: Partial<Omit<WbNode, "id">>) => void }) {
+  return (
+    <>
+      <Field label="Title" htmlFor="wb-title">
+        <Input
+          id="wb-title"
+          value={node.title}
+          maxLength={MAX_TITLE}
+          onChange={(event) => onChange({ title: event.target.value })}
+        />
+      </Field>
+      <Field label="Description" htmlFor="wb-description" hint="Shown on the card when it has no picture.">
+        <Textarea
+          id="wb-description"
+          value={node.description}
+          rows={3}
+          maxLength={MAX_BODY_TEXT}
+          onChange={(event) => onChange({ description: event.target.value })}
+        />
+      </Field>
+      {node.linkUrl && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs text-graphite">Link</span>
+          <a
+            href={node.linkUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-rule bg-paper px-2.5 py-1.5 font-mono text-xs break-all text-cobalt underline-offset-2 hover:underline"
+          >
+            {node.linkUrl}
+          </a>
+        </div>
+      )}
     </>
   )
 }

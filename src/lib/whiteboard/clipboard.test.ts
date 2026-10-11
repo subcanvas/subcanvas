@@ -27,6 +27,8 @@ const wbNode = (id: string, x: number, y: number, parentId: string | null = null
   mediaWidth: null,
   mediaHeight: null,
   alt: "",
+  linkUrl: null,
+  linkSite: "",
 })
 
 const source = (wb: WbNode, absolute = { x: wb.x, y: wb.y }): ClipSource => ({

@@ -19,6 +19,8 @@ export type WhiteboardActions = {
   // The node whose name is being typed on the canvas, if any.
   naming: string | null
   rename: (nodeId: string, title: string) => void
+  // Link cards whose page is still being read (lib/links).
+  pendingLinks: ReadonlySet<string>
   finishNaming: (nodeId: string, end: NameEnd) => void
 }
 
@@ -27,6 +29,7 @@ export const WhiteboardActionsContext = createContext<WhiteboardActions>({
   repository: null,
   naming: null,
   rename: () => {},
+  pendingLinks: new Set(),
   finishNaming: () => {},
 })
 

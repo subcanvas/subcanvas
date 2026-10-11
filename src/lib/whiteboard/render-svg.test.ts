@@ -28,6 +28,8 @@ const node = (fields: Partial<WbNode> & { id: string }): WbNode => ({
   mediaWidth: null,
   mediaHeight: null,
   alt: "",
+  linkUrl: null,
+  linkSite: "",
   ...fields,
 })
 
@@ -465,5 +467,28 @@ describe("repository nodes", () => {
     expect(svg).toContain("services/&lt;payments&gt;")
     expect(svg.match(/font-family="ui-monospace/g)?.length).toBe(1)
     expect(new DOMParser().parseFromString(svg, "image/svg+xml").documentElement?.nodeName).toBe("svg")
+  })
+})
+
+describe("link cards", () => {
+  it("draws a card with its title and site, and where its picture is without loading it", () => {
+    const svg = render(
+      [
+        node({
+          id: "a",
+          kind: "link",
+          width: 320,
+          height: 268,
+          title: "Example Domain",
+          linkUrl: "https://example.com/",
+          linkSite: "example.com",
+          mediaPath: "00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/00000000-0000-4000-8000-000000000003/00000000-0000-4000-8000-000000000004.png",
+        }),
+      ],
+      []
+    )
+    expect(svg).toContain("Example Domain")
+    expect(svg).toContain("example.com")
+    expect(svg).not.toContain("<image")
   })
 })

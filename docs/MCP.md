@@ -70,6 +70,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `delete_block` | Delete a block | destructive |
 | `read_whiteboard` | Read a whiteboard | reads |
 | `add_nodes` | Add nodes to a whiteboard | writes |
+| `add_link` | Add a link card to a whiteboard | writes |
 | `update_nodes` | Update nodes | writes |
 | `delete_nodes` | Delete nodes | destructive |
 | `connect_nodes` | Connect nodes with arrows | writes |

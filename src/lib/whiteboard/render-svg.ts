@@ -4,7 +4,7 @@ import { codeLinkOf, parseCodeUrl } from "./code-link"
 import { COLORS } from "./colors"
 import { iconNode } from "./icons"
 import { MAX_NODE_SIDE } from "./limits"
-import { DEFAULT_SIZE, singleEmoji, type ColorKey, type WbEdge, type WbNode } from "./schema"
+import { DEFAULT_SIZE, linkPictureHeight, singleEmoji, type ColorKey, type WbEdge, type WbNode } from "./schema"
 import { linesThatFit, shapeGeometry, type Box, type Point, type Side } from "./shapes"
 import { sidesOf } from "./sides"
 
@@ -513,6 +513,49 @@ function mediaNode(placed: Placed, palette: Palette) {
   )
 }
 
+// A link card: where its picture is (the picture itself is not in the
+// image, as for media: see the top of this file), then the page's title and
+// its site, as the canvas lays them out (nodes.tsx, LinkNode).
+const LINK = { padding: 12, title: { fontSize: 13, lineHeight: 17.875 }, site: { fontSize: 11, lineHeight: 15 } }
+function linkNode(placed: Placed, palette: Palette) {
+  const { node, box } = placed
+  const picture = linkPictureHeight(node, box.width, box.height)
+  const inner = box.width - LINK.padding * 2
+  const title = clampLines(wrap(node.title || node.linkSite || "Link", inner, LINK.title.fontSize), 2, inner, LINK.title.fontSize)
+  const icon = Math.min(24, box.width / 3, picture / 2)
+  const video = node.linkSite.startsWith("YouTube")
+  return (
+    `<rect x="${n(box.x + 0.5)}" y="${n(box.y + 0.5)}" width="${n(box.width - 1)}" height="${n(box.height - 1)}" rx="8" fill="${palette.sheet}" stroke="${palette.rule}"/>` +
+    (picture
+      ? `<rect x="${n(box.x + 1)}" y="${n(box.y + 1)}" width="${n(box.width - 2)}" height="${n(picture)}" rx="7" fill="${palette.paper}"/>` +
+        drawIcon(video ? "video" : "image", box.x + box.width / 2 - icon / 2, box.y + picture / 2 - icon / 2, icon, palette.graphite)
+      : "") +
+    textLines(title, {
+      x: box.x + LINK.padding,
+      top: box.y + picture + LINK.padding - 2,
+      lineHeight: LINK.title.lineHeight,
+      fontSize: LINK.title.fontSize,
+      attributes: `font-weight="600" fill="${palette.ink}"`,
+    }) +
+    textLines([truncate(node.linkSite || hostOf(node.linkUrl), inner, LINK.site.fontSize)], {
+      x: box.x + LINK.padding,
+      top: box.y + box.height - LINK.padding - LINK.site.lineHeight + 2,
+      lineHeight: LINK.site.lineHeight,
+      fontSize: LINK.site.fontSize,
+      attributes: `fill="${palette.graphite}"`,
+    }) +
+    cornerBadges(placed, boxCorner(box), palette)
+  )
+}
+
+const hostOf = (url: string | null) => {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, "") : ""
+  } catch {
+    return ""
+  }
+}
+
 const TAB = { fontSize: 10, height: 17, paddingX: 6, inset: 12, tracking: 0.25 }
 
 function groupNode(placed: Placed, palette: Palette) {
@@ -848,7 +891,7 @@ export function renderWhiteboardSvg({
   // then lines, then nodes, then the labels that ride on the lines.
   const groups = all.filter(({ node }) => node.kind === "group").sort((a, b) => a.depth - b.depth)
   const others = all.filter(({ node }) => node.kind !== "group")
-  const draw = { plain: plainNode, text: textNode, media: mediaNode, group: groupNode }
+  const draw = { plain: plainNode, text: textNode, media: mediaNode, group: groupNode, link: linkNode }
   const body =
     groups.map((group) => groupNode(group, palette)).join("") +
     drawn.map((edge) => edge.line).join("") +

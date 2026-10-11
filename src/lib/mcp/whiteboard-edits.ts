@@ -54,7 +54,13 @@ const missing = (what: string, ids: string[]) => ({
   error: `No ${what} with id ${ids.join(", ")} on this whiteboard. Read the whiteboard again for current ids.`,
 })
 
-const KIND_NAMES: Record<NodeKind, string> = { plain: "a box", text: "a text node", group: "a group", media: "a picture or video" }
+const KIND_NAMES: Record<NodeKind, string> = {
+  plain: "a box",
+  text: "a text node",
+  group: "a group",
+  media: "a picture or video",
+  link: "a link card",
+}
 
 // A field the canvas does not show on a node of this kind is refused, not
 // stored where nobody would see it: what an agent writes is what people see.
@@ -64,11 +70,11 @@ function unshown(
   name: string
 ) {
   const node = `${name} is ${KIND_NAMES[kind]}`
-  if (fields.description !== undefined && kind !== "text")
+  if (fields.description !== undefined && kind !== "text" && kind !== "link")
     return `${node}, and only a text node shows body text (\`description\`). To give it a description, put a page inside it with \`attach_document\`.`
   if (fields.shape !== undefined && kind !== "plain") return `${node}, and only a box has a shape.`
   if (fields.alt !== undefined && kind !== "media") return `${node}, and only a picture or video has alt text.`
-  if (fields.color !== undefined && kind === "media") return `${node}, which has no color.`
+  if (fields.color !== undefined && (kind === "media" || kind === "link")) return `${node}, which has no color.`
   return null
 }
 
@@ -105,6 +111,10 @@ export type NewNode = {
   emoji?: string
   // A code link, already checked (code-link.ts).
   codeUrl?: string
+  // A link card's page and picture, already read (lib/links/preview.ts).
+  linkUrl?: string
+  linkSite?: string
+  mediaPath?: string | null
   x?: number
   y?: number
   width?: number
@@ -172,6 +182,9 @@ export function addNodes(doc: Y.Doc, nodes: NewNode[]): EditResult<{ ids: string
         icon: node.icon,
         emoji: node.emoji,
         codeUrl: node.codeUrl,
+        linkUrl: node.linkUrl,
+        linkSite: node.linkSite,
+        mediaPath: node.mediaPath,
       })
     )
     ids.push(id)
