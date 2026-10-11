@@ -44,10 +44,12 @@ test("a chain of boxes is drawn and named from the keyboard, and a column fans o
   // they are looked for, not looked at.
   await expect(edgeBetween(page, start, second)).toHaveCount(1)
   await expect(edgeBetween(page, second, third)).toHaveCount(1)
-  const [a, b, c] = await Promise.all([start, second, third].map((title) => boxOf(nodeNamed(page, title))))
-  expect(b.x).toBeGreaterThan(a.x + a.width)
-  expect(c.x).toBeGreaterThan(b.x + b.width)
-  expect(Math.abs(b.y - a.y)).toBeLessThan(2)
+  await expect(async () => {
+    const [a, b, c] = await Promise.all([start, second, third].map((title) => boxOf(nodeNamed(page, title))))
+    expect(b.x).toBeGreaterThan(a.x + a.width)
+    expect(c.x).toBeGreaterThan(b.x + b.width)
+    expect(Math.abs(b.y - a.y)).toBeLessThan(2)
+  }).toPass()
 
   // Alt+Left goes back to Second; Shift+Tab draws below it, fed by what
   // feeds it, so Start now branches to two.
@@ -57,10 +59,12 @@ test("a chain of boxes is drawn and named from the keyboard, and a column fans o
   await page.keyboard.type(fork)
   await page.keyboard.press("Enter")
   await expect(edgeBetween(page, start, fork)).toHaveCount(1)
-  // Measured together: the view may have moved to follow the new box.
-  const [above, d] = await Promise.all([second, fork].map((title) => boxOf(nodeNamed(page, title))))
-  expect(d.y).toBeGreaterThan(above.y + above.height)
-  expect(Math.abs(d.x - above.x)).toBeLessThan(2)
+  // Measured again until the view, sliding to follow the new box, is still.
+  await expect(async () => {
+    const [above, d] = await Promise.all([second, fork].map((title) => boxOf(nodeNamed(page, title))))
+    expect(d.y).toBeGreaterThan(above.y + above.height)
+    expect(Math.abs(d.x - above.x)).toBeLessThan(2)
+  }).toPass()
 
   // Tab, then Escape before typing: the box drawn a moment ago is taken
   // away again, with its arrow.
@@ -106,4 +110,20 @@ test("? shows every shortcut beside the canvas, and it stays until it is hidden"
   await page.reload()
   await expect(page.getByRole("toolbar", { name: "Whiteboard tools" })).toBeVisible()
   await expect(sheet).toHaveCount(0)
+})
+
+test("an empty whiteboard is started from the keyboard: Tab draws the first box", async ({ page }) => {
+  const id = freshId().slice(0, 6)
+  await signUpWithOrg(page)
+  await createProject(page, "Proj")
+  await createWhiteboard(page, "Board")
+  await expect(page.getByText("Press Tab to draw a box")).toBeVisible()
+
+  await page.locator("body").press("Tab")
+  await expect(nameField(page)).toBeFocused()
+  await page.keyboard.type(`First ${id}`)
+  await page.keyboard.press("Tab")
+  await page.keyboard.type(`Second ${id}`)
+  await page.keyboard.press("Enter")
+  await expect(edgeBetween(page, `First ${id}`, `Second ${id}`)).toHaveCount(1)
 })

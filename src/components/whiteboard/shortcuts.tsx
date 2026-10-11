@@ -35,7 +35,7 @@ function shortcuts(): { heading: string; items: Shortcut[] }[] {
     {
       heading: "Drawing",
       items: [
-        { keys: [["Tab"]], does: "Draw the next box to the right" },
+        { keys: [["Tab"]], does: "Draw the next box to the right, or a first one" },
         { keys: [[shift, "Tab"]], does: "Draw a box below" },
         { keys: [[enter]], does: "Rename a box, or open what it holds" },
         { keys: [["Esc"]], does: "Stop renaming, or clear the selection" },
