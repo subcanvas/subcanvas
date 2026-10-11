@@ -64,8 +64,11 @@
  * There is no narration; music, if any, is laid under it afterwards
  * (render.sh, DEMO_MUSIC):
  *
+ *   0. A diagram sketched from the keyboard on an empty whiteboard: Tab
+ *      draws the next box and Shift+Tab one below, each named as it is
+ *      drawn.
  *   1. A repository with no .subcanvas files imported on camera, so a
- *      repository becomes a diagram in the first five seconds: its main
+ *      repository becomes a diagram in the first fifteen seconds: its main
  *      folders become boxes automatically.
  *   2. One of them opens onto the diagram inside it.
  *   3. Subcanvas's own diagram, whose .subcanvas files name the boxes and
@@ -78,8 +81,9 @@
  *   6. Share and Copy embed; against production, the embed in a README.
  *   7. The end card.
  *
- * Canvas shots are in view mode with the sidebar collapsed, both set in the
- * prelude: no editing tools, and nothing from the demo account on screen.
+ * The sidebar is collapsed in the prelude, so nothing from the demo account
+ * is on screen. The sketch is drawn in edit mode, where the keys work; the
+ * canvas shots after it are in view mode, with no editing tools.
  *
  * Two workspaces: the import in scene 1 is real and lands in an empty
  * workspace (the account's personal one, the first time), but the page it
@@ -125,6 +129,7 @@ const email = process.env.DEMO_EMAIL ?? "reel-demo@subcanvas.test"
 const password = process.env.DEMO_PASSWORD ?? "demo-reel-password"
 const workspaceName = process.env.DEMO_WORKSPACE_NAME ?? "Acme"
 const stageSlug = process.env.DEMO_STAGE_WORKSPACE ?? "reel-demo"
+const sketchTitle = process.env.DEMO_SKETCH_TITLE ?? "Checkout"
 // What the agent in scene 5 is asked, as Claude Code shows it on camera.
 const agentPrompt =
   process.env.DEMO_AGENT_PROMPT ??
@@ -133,7 +138,8 @@ const importWait = Number(process.env.DEMO_IMPORT_WAIT ?? 600)
 const publicSite = (process.env.DEMO_PUBLIC_SITE ?? "https://subcanvas.app").replace(/\/$/, "")
 
 const nameOf = (repo: string) => repo.split("/").pop()!.replace(/[^a-z0-9]+/gi, "-").toLowerCase()
-const docIdOf = (url: string) => url.match(/\/d\/([0-9a-f-]{36})/)![1]
+// A whiteboard's or page's address: /<workspace>/<project>/<title>-<code>.
+const DOCUMENT_ADDRESS = /\/[^/?#]+\/[^/?#]+\/(?:[a-z0-9-]+-)?[0-9a-f]{8,32}(?:[?#]|$)/
 const here = dirname(new URL(import.meta.url).pathname)
 const outDir = resolve(here, "..", "out")
 const card = (name: string) => new URL(`./cards/${name}.html`, import.meta.url).href
@@ -218,10 +224,10 @@ async function importInto(page: Page, slug: string, repo: string): Promise<strin
   // show them first.
   const opened = dialog.getByRole("button", { name: "Open the diagram" })
   await Promise.race([
-    page.waitForURL(/\/d\/[0-9a-f-]{36}/).catch(() => {}),
+    page.waitForURL(DOCUMENT_ADDRESS).catch(() => {}),
     opened.waitFor().then(() => opened.click()).catch(() => {}),
   ])
-  await page.waitForURL(/\/d\/[0-9a-f-]{36}/)
+  await page.waitForURL(DOCUMENT_ADDRESS)
   await drawn(page).waitFor()
   return page.url()
 }
@@ -276,7 +282,7 @@ async function accessToken(page: Page): Promise<string> {
   return session.access_token
 }
 
-async function prepare(): Promise<{ slug: string; stage: Stage; token: string; agent: AgentRun }> {
+async function prepare(): Promise<{ slug: string; stage: Stage; token: string; agent: AgentRun; sketch: string }> {
   const browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1440, height: 768 } })
   page.setDefaultTimeout(120_000)
@@ -354,8 +360,22 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
     // and agent scenes play on.
     const token = await accessToken(page)
     const mcp = mcpClient(base, token)
-    const arrowsId = docIdOf(stage.self.arrows)
-    const agentId = docIdOf(stage.self.agent)
+    const idOf = async (address: string) => String((await mcp("open_address", { address })).data.document_id)
+    const arrowsId = await idOf(stage.self.arrows)
+    const agentId = await idOf(stage.self.agent)
+
+    // Scene 0's empty whiteboard: a new one each render, in a "Sketches"
+    // project of the staging workspace.
+    const { workspaces } = (await mcp("list_workspaces", {})).data as { workspaces: { id: string; slug: string }[] }
+    const stageId = workspaces.find((workspace) => workspace.slug === stageSlug)?.id
+    if (!stageId) throw new Error(`demo: the account is not in /${stageSlug}`)
+    const { projects } = (await mcp("list_projects", { workspace_id: stageId })).data as { projects: { id: string; name: string }[] }
+    const sketches =
+      projects.find((project) => project.name === "Sketches")?.id ??
+      String((await mcp("create_project", { workspace_id: stageId, name: "Sketches" })).data.project_id)
+    const sketch = String(
+      (await mcp("create_document", { project_id: sketches, type: "whiteboard", title: sketchTitle })).data.url
+    )
 
     // An edit a render replayed and did not get to undo (it stopped halfway).
     const replayedFile = resolve(outDir, "agent-replayed.json")
@@ -420,7 +440,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
         await createWorkspace(page, slug)
       }
     }
-    return { slug, stage, token, agent }
+    return { slug, stage, token, agent, sketch }
   } catch (error) {
     // What the page looked like when it went wrong, beside the renders.
     mkdirSync(outDir, { recursive: true })
@@ -433,7 +453,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
 }
 
 process.stderr.write(`demo: preparing ${base} (${selfRepository}, ${repository})\n`)
-const { slug, stage, token, agent } = await prepare()
+const { slug, stage, token, agent, sketch } = await prepare()
 process.stderr.write(`demo: importing into /${slug}, staging /${stageSlug}\n`)
 
 // --- The address bar ------------------------------------------------------------
@@ -499,6 +519,9 @@ const OFF = { x: 1700, y: 1000 }
 // wide, centred on x 744, with the title from y 95 and a code block under
 // one paragraph from y 206.
 const PAGE_TOP = { x: 744, y: 360 }
+// The middle of the keyboard sketch: two columns from the canvas's middle
+// rightward, and three rows down.
+const SKETCH = { x: MIDDLE.x + 120, y: MIDDLE.y + 100 }
 // Opens a page with it drawn on camera, not its loading: `drawn` is
 // something that is only there once it is.
 async function open(url: string, drawn: string) {
@@ -527,26 +550,31 @@ function paced(events: [number, string][], from: number, to: number, ms: number)
   return part.map(([at, text]) => [Math.round((at - from) / speed), text])
 }
 
-// The prelude, cut from the video: reelscript's browser signs in, puts the
-// canvas in view mode and collapses the sidebar (both kept for the rest of
-// the session), then opens the empty workspace the import lands in, so the video
-// starts on its Import button.
+// The prelude, cut from the video: reelscript's browser signs in, collapses
+// the sidebar (kept for the rest of the session), then opens the empty
+// sketch, in edit mode, so the video starts on a blank whiteboard.
 const IMPORT_BUTTON = 'button:has-text("Import from GitHub")'
+const NAME_FIELD = 'textarea[aria-label="Name"]'
+const EMPTY = ':text("Nothing here yet")'
+const MODE_KEY = "subcanvas:whiteboard-mode"
+const setMode = (mode: "edit" | "view") =>
+  demo.call(({ page }) => page?.evaluate(([key, value]) => localStorage.setItem(key, value), [MODE_KEY, mode]))
 await demo.browser.goto(`${base}/login`, { settle: 600 })
 await demo.type("#email", email, { wpm: 1200 })
 await demo.type("#password", password, { wpm: 1200 })
 await demo.press("Enter")
 await move(SIGNED_IN, 300) // resolving a target waits, off camera, until it exists
+await setMode("edit")
 await demo.browser.goto(stage.self.top, { settle: 0 })
 await demo.waitFor(SHEET(into[0]))
 await move({ x: 420, y: 660 }, 100) // an empty corner of the canvas, to focus it
 await demo.cursor.click()
-await demo.press("e")
 await demo.press("Control+Backslash")
 await demo.wait(300)
 await move(OFF, 100)
-await open(`${base}/${slug}`, IMPORT_BUTTON)
-zoom(IMPORT_BUTTON, 1.4, 0) // close enough on the empty workspace to read it
+await open(sketch, EMPTY)
+// The whole window: the panel the boxes are colored in opens on the right.
+zoom(SKETCH, 1.1, 0)
 const preludeActions = demo.getTimeline().length
 
 // The pace: each caption stays up at least a second and a half plus a
@@ -555,10 +583,62 @@ const preludeActions = demo.getTimeline().length
 // text goes soft. A muted viewer sees a repository become a diagram within
 // the first five seconds.
 
+// 0. A sketch from the keyboard: Tab draws the first box, and the next to
+// the right of it, Shift+Tab one below, each named as it is drawn. A box
+// drawn with Tab looks like the one it came from, so the gateway is made a
+// blue hexagon and Orders a teal box in the panel, and the services fanned
+// out below Orders come out teal by themselves. The view follows the
+// newest box.
+mark("Sketch from the keyboard")
+caption("Sketch from the keyboard. Tab draws the next box.")
+const SHAPE = (name: string) => `[role="radiogroup"][aria-label="Shape"] [aria-label="${name}"]`
+const COLOR = (name: string) => `[role="radiogroup"][aria-label="Color"] [aria-label="${name}"]`
+async function name(key: string, text: string) {
+  await demo.press(key)
+  await demo.wait(150)
+  await demo.type(NAME_FIELD, text, { wpm: 200 })
+  await demo.wait(150)
+}
+// In the panel: a shape and a color, then back to the box, which keeps it
+// selected and the keys on the canvas.
+async function style(box: string, shape: string, color: string) {
+  await demo.press("Enter")
+  await move(SHAPE(shape), 600)
+  await demo.cursor.click()
+  await move(COLOR(color), 450)
+  await demo.cursor.click()
+  await demo.wait(250)
+  await move(NODE(box), 600)
+  await demo.cursor.click()
+  await move(REST, 400)
+}
+await demo.wait(600)
+await name("Tab", "API gateway")
+caption("Give each kind of box its own color and shape.")
+await style("API gateway", "Hexagon", "Blue")
+await name("Tab", "Orders")
+await style("Orders", "Rectangle", "Teal")
+caption("Shift+Tab fans out more of the same.")
+await name("Shift+Tab", "Payments")
+await name("Shift+Tab", "Inventory")
+// Enter keeps the last name; Escape lets go of the box, so the finished
+// sketch is shown with nothing selected and no panel.
+await demo.press("Enter")
+await demo.wait(150)
+await demo.press("Escape")
+// In on the finished sketch, which sits left of the middle now the panel
+// has closed: Payments is the middle of its two columns.
+zoom(NODE("Payments"), 1.45, 900)
+await demo.wait(2000)
+// The rest is looked at, not drawn on.
+await setMode("view")
+
 // 1. A repository with no .subcanvas files, imported on camera: its main
 // folders become boxes on their own.
 mark("Import a repository")
-caption("Turn a GitHub repo into a diagram you can click into.")
+caption("Or turn a GitHub repo into a diagram you can click into.")
+await open(`${base}/${slug}`, IMPORT_BUTTON)
+zoom(IMPORT_BUTTON, 1.4, 0) // close enough on the empty workspace to read it
 await demo.wait(500)
 await move(IMPORT_BUTTON, 900)
 await demo.cursor.click()

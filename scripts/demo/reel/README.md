@@ -5,12 +5,15 @@ it drives a headless Chromium through the real app one frame at a time and
 writes a 60 fps, 1920x1080 mp4. Nothing is screen-recorded, so after an
 interface change the video is re-rendered, not re-shot.
 
-About 44 seconds, for Product Hunt, where it autoplays muted. A caption on
+About 52 seconds, for Product Hunt and Reddit, where it autoplays muted. A caption on
 the picture says each scene's point. There is no voice: the render is
 silent, and a music track can be laid under it (see "Music" below).
 
+0. A sketch drawn from the keyboard on an empty whiteboard: Tab draws a
+   gateway and an Orders service, and Shift+Tab fans Payments and
+   Inventory out below, each named as it is drawn.
 1. `react/react` imported on camera, from GitHub like any import, so a
-   repository becomes a diagram in the first five seconds. It has no
+   repository becomes a diagram in the first fifteen seconds. It has no
    `.subcanvas` files, so its main folders become boxes automatically. The
    cut wait is marked as sped up.
 2. Its Packages box opens onto the diagram inside it.

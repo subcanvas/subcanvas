@@ -17,8 +17,8 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 <p align="center">
   <a href="https://subcanvas.app/trevin-lee/subcanvas">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg?theme=dark">
-      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/972d5baf-0f13-46b5-91a6-7aba703e9955/d/e261f65a-2961-487b-ab49-9a7f5a3aaaff/embed.svg" width="880">
+      <source media="(prefers-color-scheme: dark)" srcset="https://subcanvas.app/p/9e07e635-7e19-49a8-a081-4d769208b008/d/dc2639dd-3bb4-48b3-9941-0f26537e5f4c/embed.svg?theme=dark">
+      <img alt="Subcanvas, a Subcanvas diagram" src="https://subcanvas.app/p/9e07e635-7e19-49a8-a081-4d769208b008/d/dc2639dd-3bb4-48b3-9941-0f26537e5f4c/embed.svg" width="880">
     </picture>
   </a>
 </p>
