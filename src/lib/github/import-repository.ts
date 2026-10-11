@@ -16,6 +16,7 @@ import { ROOT } from "./paths"
 import { HEADING_KEY, planImport, type PlannedBoard } from "./plan"
 import {
   RepositoryError,
+  type RepositoryErrorKind,
   type RepositoryFile,
   type RepositoryProvider,
   type RepositoryReference,
@@ -32,7 +33,12 @@ import { MAX_SUBCANVAS_FILE_BYTES, parseSubcanvasFile, type SubcanvasFile } from
 
 export type ImportOutcome =
   | { ok: true; projectId: string; documentId: string; folders: number; warnings: string[] }
-  | { error: string; limit?: true }
+  | { error: string; limit?: true; reason: ImportRefusal }
+
+// Why an import was refused, as the step record keeps it (lib/activity.ts):
+// the kind of failure, never the repository. A private repository is
+// "not_found", as GitHub answers for it.
+export type ImportRefusal = RepositoryErrorKind | "limit" | "other"
 
 const CONCURRENT_READS = 6
 const MAX_SUBCANVAS_FILES = 100
@@ -67,7 +73,7 @@ export async function importRepository(
   try {
     gathered = await gather(provider, reference)
   } catch (error) {
-    if (error instanceof RepositoryError) return { error: error.message }
+    if (error instanceof RepositoryError) return { error: error.message, reason: error.kind }
     throw error
   }
   const { repository } = gathered
@@ -89,7 +95,7 @@ export async function importRepository(
     })
     .select("id")
     .single()
-  if (projectError) return { error: projectRefusal(projectError, makePublic ? "public" : "private") }
+  if (projectError) return { error: projectRefusal(projectError, makePublic ? "public" : "private"), reason: "other" }
 
   // Half a project is worse than none, however it came to be half.
   const discard = () => supabase.rpc("discard_import", { p_project_id: project.id })
@@ -118,16 +124,16 @@ export async function importRepository(
 async function write(
   supabase: SupabaseClient<Database>,
   { rows, contents }: Awaited<ReturnType<typeof draw>>
-): Promise<{ error: string; limit?: true } | null> {
+): Promise<{ error: string; limit?: true; reason: ImportRefusal } | null> {
   // Drawn by the import, not by the person: no "created a whiteboard" step.
   const { error } = await supabase.from("documents").insert(rows).setHeader(IMPORT_HEADER, "1")
   if (error) {
     // A private project counts against the free plan like any other.
     const limit = limitMessage(error.code, error.message)
-    return limit ? { error: limit, limit: true } : { error: error.message }
+    return limit ? { error: limit, limit: true, reason: "limit" } : { error: error.message, reason: "other" }
   }
   const written = await writeNewDocuments(supabase, contents)
-  return written.error ? { error: written.error } : null
+  return written.error ? { error: written.error, reason: "other" } : null
 }
 
 // Reads the repository and decides what to draw.

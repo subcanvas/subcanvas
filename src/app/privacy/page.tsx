@@ -82,9 +82,9 @@ export default async function PrivacyPage() {
       {/* Ours: the step record (lib/activity.ts) and error reports (lib/errors). */}
       <p>
         We also record which of a few steps in the product your account has taken, and when it first took each
-        one: for example signing up, creating a first project or whiteboard, importing from GitHub, inviting
-        someone, connecting an agent, or upgrading. We record the step and the time, never what you write or
-        draw. We use this, and the emails we send ourselves about new accounts and each day&apos;s steps, to
+        one: for example signing up, creating a first project or whiteboard, importing from GitHub (or, when
+        an import is refused, what kind of refusal it was), inviting someone, connecting an agent, or
+        upgrading. We record the step and the time, never what you write or draw, or which repository. We use this, and the emails we send ourselves about new accounts and each day&apos;s steps, to
         improve the product. We keep it as long as your account exists, and delete it with your account. When
         something goes wrong, the app records the error and where in the app it happened, not who you are or
         what you wrote or drew, and keeps it for 30 days.

@@ -5,6 +5,7 @@ import { after } from "next/server"
 
 import { sendEmail } from "@/lib/email"
 import { signUpEmail } from "@/lib/email-messages"
+import type { ImportRefusal } from "@/lib/github/import-repository"
 import { operatorContact } from "@/lib/legal"
 import type { Database } from "@/lib/supabase/database.types"
 
@@ -23,6 +24,9 @@ type Client = SupabaseClient<Database>
 export type ServerStep =
   | "opened_github_import"
   | "imported_repository"
+  // Why an import from GitHub was refused, the first time it was for that
+  // reason: so the operator can see where people got stuck.
+  | `import_refused_${ImportRefusal}`
   | "imported_files"
   | "connected_agent"
   | "opened_billing"

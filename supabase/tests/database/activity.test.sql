@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(36);
 
 -- The step record and the operator's view of accounts (migration
 -- account_steps). Uses its own email domain, slugs and ids so it passes
@@ -118,6 +118,8 @@ select ok(not 'came_back' = any (pg_temp.steps(:ada)), 'all of it on the day of 
 
 select pg_temp.login(:ada);
 select lives_ok($$ select public.record_step('opened_github_import') $$, 'the server records a step for the person');
+select lives_ok($$ select public.record_step('import_refused_not_found') $$,
+  'and why an import was refused, by its kind');
 select throws_ok($$ select public.record_step('upgraded') $$, '22023', null,
   'but not one that a row decides');
 select throws_ok($$ select public.record_step('read your diary') $$, '22023', null, 'nor anything else');
@@ -153,7 +155,7 @@ select results_eq(
              1::bigint, 'Pro', false) $$,
   'the operator''s view has a row per account, from the data that exists');
 select is((select steps from private.account_activity where user_id = :ada),
-  array['signed_up', 'opened_github_import', 'created_project', 'created_whiteboard', 'made_edit',
+  array['signed_up', 'opened_github_import', 'import_refused_not_found', 'created_project', 'created_whiteboard', 'made_edit',
         'invited_someone', 'upgraded'],
   'and the steps, in the order they were reached (one transaction here, so in the order of the list)');
 select is((select came_back from private.account_activity where user_id = :old), true, 'and who came back');
@@ -164,7 +166,7 @@ select is((select count(*) from private.account_activity where email like '%@pgt
 select is(
   (select jsonb_path_query_array(public.daily_activity((now() at time zone 'utc')::date),
      '$.new[*] ? (@.email == "ada@pgtap-activity.test").steps[*].step')),
-  '["signed_up", "opened_github_import", "created_project", "created_whiteboard", "made_edit", "invited_someone", "upgraded"]'::jsonb,
+  '["signed_up", "opened_github_import", "import_refused_not_found", "created_project", "created_whiteboard", "made_edit", "invited_someone", "upgraded"]'::jsonb,
   'the day''s summary lists a new account with its steps');
 select is(
   (select jsonb_path_query_array(public.daily_activity((now() at time zone 'utc')::date),

@@ -10,6 +10,7 @@ import {
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
+import { stepsOf } from "./support/database"
 import { canvas, devBaseURL, treeLink } from "./support/import"
 
 // Against the development server, where "fixture/<name>" imports a folder
@@ -120,7 +121,7 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
 })
 
 test("a repository that does not exist is refused in the dialog, with nothing created", async ({ page }) => {
-  const { slug } = await signUpWithOrg(page)
+  const { account, slug } = await signUpWithOrg(page)
 
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
@@ -133,6 +134,8 @@ test("a repository that does not exist is refused in the dialog, with nothing cr
   await page.keyboard.press("Escape")
   await expect(dialog).toBeHidden()
   await expect(page.getByText("Start with a project")).toBeVisible()
+  // The operator learns why, and nothing of which repository.
+  await expect.poll(() => stepsOf(account.email)).toContain("import_refused_not_found")
 })
 
 test("an import with notes shows them, even in an org that had no projects", async ({ page }) => {
