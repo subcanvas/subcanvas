@@ -463,6 +463,8 @@ process.stderr.write(`demo: importing into /${slug}, staging /${stageSlug}\n`)
 
 function address(url: string) {
   if (url.startsWith("file:")) return publicSite
+  // GitHub is GitHub, against a dev server too: the README is the real one.
+  if (url.startsWith("https://github.com/")) return url
   return local ? "" : url
 }
 
@@ -614,10 +616,11 @@ async function style(box: string, shape: string, color: string) {
 }
 await demo.wait(600)
 await name("Tab", "API gateway")
-caption("Give each kind of box its own color and shape.")
 await style("API gateway", "Hexagon", "Blue")
 await name("Tab", "Orders")
+caption("Color each kind of box.")
 await style("Orders", "Rectangle", "Teal")
+await demo.wait(500)
 caption("Shift+Tab fans out more of the same.")
 await name("Shift+Tab", "Payments")
 await name("Shift+Tab", "Inventory")
@@ -782,8 +785,11 @@ if (readmeUrl) {
   await demo.call(({ page }) =>
     page?.locator(EMBED).first().evaluate((image) => image.scrollIntoView({ block: "center", behavior: "instant" }))
   )
-  zoom(EMBED, 1.3, 0)
-  await demo.wait(3500)
+  // Wide first, so it reads as GitHub, the address bar included; then in
+  // on the picture.
+  await demo.wait(1400)
+  zoom(EMBED, 1.2, 2200)
+  await demo.wait(2800)
 }
 
 // 7. The end card.
