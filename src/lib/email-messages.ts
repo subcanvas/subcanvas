@@ -169,6 +169,7 @@ export const STEP_LABELS: Record<string, string> = {
   made_edit: "Made an edit",
   invited_someone: "Invited someone",
   connected_agent: "Connected an agent",
+  connected_github: "Connected GitHub",
   opened_billing: "Opened Billing",
   upgraded: "Upgraded to Pro",
   came_back: "Came back on a later day",

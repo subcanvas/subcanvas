@@ -3,6 +3,7 @@ import Link from "next/link"
 
 import { PageHeader } from "@/components/page-header"
 import { billingConfigured } from "@/lib/billing/stripe"
+import { gitHubAppConfig } from "@/lib/github/app"
 import { getOrgContext } from "@/lib/orgs"
 
 import { OpenFirstSection } from "./open-first-section"
@@ -15,7 +16,7 @@ export const metadata = { title: "Settings" }
 export default async function SettingsPage({ params }: PageProps<"/[org]/settings">) {
   const { org: slug } = await params
   const { org } = await getOrgContext(slug)
-  const groups = settingsGroups(org, billingConfigured())
+  const groups = settingsGroups(org, { billing: billingConfigured(), github: gitHubAppConfig() !== null })
 
   return (
     <main id="main" className="flex flex-col gap-8 md:hidden">

@@ -15,7 +15,7 @@ function fixtureProvider(name: string): RepositoryProvider {
       entry.isDirectory() ? walk(join(folder, entry.name)) : [join(folder, entry.name)]
     )
   return {
-    describe: async () => ({ repository: `acme/${name}`, ref: "main", commit: "abc123", description: "From GitHub." }),
+    describe: async () => ({ repository: `acme/${name}`, ref: "main", commit: "abc123", description: "From GitHub.", private: false }),
     listFiles: async () => ({
       files: walk(root).map((path) => ({ path: relative(root, path), size: statSync(path).size })),
     }),
@@ -147,7 +147,7 @@ describe("planImport, on the shop fixture", async () => {
 describe("planImport", () => {
   it("falls back to the repository's own name and description", () => {
     const { boards } = planImport({
-      repository: { repository: "acme/tool", ref: "main", commit: "abc", description: "A tool." },
+      repository: { repository: "acme/tool", ref: "main", commit: "abc", description: "A tool.", private: false },
       mapping: mapFolders([{ path: "cli/README.md", size: 1 }]),
       subcanvasFiles: new Map(),
       readmes: new Map(),
@@ -161,7 +161,7 @@ describe("planImport", () => {
   it("says so when the cap was hit", () => {
     const files = Array.from({ length: 80 }, (_, i) => ({ path: `packages/p${i}/index.ts`, size: 1 }))
     const { warnings } = planImport({
-      repository: { repository: "a/b", ref: "main", commit: "abc", description: "" },
+      repository: { repository: "a/b", ref: "main", commit: "abc", description: "", private: false },
       mapping: mapFolders(files),
       subcanvasFiles: new Map(),
       readmes: new Map(),

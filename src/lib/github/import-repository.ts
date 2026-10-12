@@ -77,6 +77,8 @@ export async function importRepository(
     throw error
   }
   const { repository } = gathered
+  // What only some people can read stays where only some people can read it.
+  if (repository.private) makePublic = false
 
   const source: ProjectSource = {
     provider: "github",

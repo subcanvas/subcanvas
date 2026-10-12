@@ -51,7 +51,7 @@ describe("stripFrontMatter", () => {
 })
 
 describe("resolveReadmeUrl", () => {
-  const repository = { repository: "acme/shop", ref: "main", commit: "abc123", description: "" }
+  const repository = { repository: "acme/shop", ref: "main", commit: "abc123", description: "", private: false }
   const resolve = (url: string, kind: "link" | "image" = "link", readme = "services/payments/README.md") =>
     resolveReadmeUrl(url, kind, repository, readme)
 

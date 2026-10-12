@@ -93,6 +93,7 @@ The server keeps a step record: for each account, the first time it reached each
 | `made_edit` | A change to a document is saved, in the editor or by their agent, not what an import writes. |
 | `invited_someone` | An invite is made or renewed. |
 | `connected_agent` | They approve an agent on the consent screen. |
+| `connected_github` | They connect a GitHub account or organization to a workspace (Settings → GitHub). |
 | `opened_billing` | They open a workspace's Billing page. |
 | `upgraded` | A workspace they own starts paying for Pro. |
 | `came_back` | They open a workspace, or reach any other step, on a later day (UTC) than the one they signed up on. |

@@ -14,6 +14,9 @@ export type Repository = {
   ref: string
   commit: string
   description: string
+  // Whether only some people can read it. A private repository always makes
+  // a private project.
+  private: boolean
 }
 
 export type RepositoryFile = { path: string; size: number }

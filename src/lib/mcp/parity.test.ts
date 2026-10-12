@@ -38,6 +38,13 @@ const NOT_EXPOSED: Record<string, string> = {
   "[org]/[project]/tree-actions.deleteProject": "irreversible, and takes every document in it",
   "[org]/(org)/settings/general/actions.leaveOrg": "changes who has access; a person's decision",
   "[org]/(org)/settings/general/actions.renameOrg": "kept with the rest of workspace administration",
+  // Connect GitHub. Which GitHub accounts a workspace may read is an admin's
+  // decision, like who is in it; connecting goes through GitHub in a
+  // person's browser anyway. Listing what the connections can read only
+  // fills the import dialog's suggestions: import_github_repository already
+  // imports a connected repository by name.
+  "[org]/(org)/settings/github/actions.disconnectGitHub": "changes which GitHub accounts a workspace can read",
+  "[org]/(org)/actions.gitHubChoices": "the import dialog's suggestions; the import tool takes a connected repository by name",
   // Your own name and picture are how other people recognise you. An agent
   // acts as you; it does not get to change who you appear to be.
   "[org]/(org)/settings/profile/actions.updateDisplayName": "a person's identity is theirs to change",
