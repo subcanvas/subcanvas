@@ -86,6 +86,7 @@ The server keeps a step record: for each account, the first time it reached each
 | `signed_up` | The account is created, whichever way (its time is the account's). |
 | `opened_github_import` | The Import from GitHub dialog opens. |
 | `imported_repository` | An import from GitHub succeeds, from the dialog or by an agent. |
+| `import_refused_<reason>` | An import from GitHub is refused, from the dialog or by an agent, once per reason: `not_found` (no public repository by that name; a private one looks the same), `rate_limited`, `too_large`, `nothing_to_map`, `unavailable` (GitHub did not answer), `limit` (the plan's), or `other` (a name that is not a repository's, no permission, a failed write). Never the repository's name. |
 | `imported_files` | A batch of imported files is written, from the project or by an agent. |
 | `created_project` | A project is made with New project, by the person or their agent. An imported one is `imported_repository` instead. |
 | `created_whiteboard` | A whiteboard is made, not one an import draws. |

@@ -31,11 +31,12 @@ export async function importFromReference(
 ): Promise<ImportOutcome> {
   const reference = parseRepositoryReference(repository)
   if (!reference)
-    return { error: "Enter a GitHub repository as owner/name, or paste its address." }
+    return refused(supabase, { error: "Enter a GitHub repository as owner/name, or paste its address.", reason: "other" })
 
   // Checked before GitHub is asked anything. The database checks again.
   const access = await readOrgAccess(supabase, userId, orgId)
-  if (!access?.canEdit) return { error: "You do not have permission to create projects." }
+  if (!access?.canEdit)
+    return refused(supabase, { error: "You do not have permission to create projects.", reason: "other" })
 
   const fixtures = fixturesFolder()
   const provider =
@@ -49,5 +50,11 @@ export async function importFromReference(
     makePublic: makePublic ?? hasRole(access.role, "admin"),
   })
   if ("ok" in outcome) await recordStep(supabase, "imported_repository")
+  else await recordStep(supabase, `import_refused_${outcome.reason}`)
+  return outcome
+}
+
+async function refused(supabase: SupabaseClient<Database>, outcome: Extract<ImportOutcome, { error: string }>) {
+  await recordStep(supabase, `import_refused_${outcome.reason}`)
   return outcome
 }

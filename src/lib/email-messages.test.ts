@@ -184,6 +184,14 @@ describe("dailySummaryEmail", () => {
     expect(html).toContain("Opened Import from GitHub")
   })
 
+  it("says why an import was refused", () => {
+    const { text } = dailySummaryEmail({
+      ...activity,
+      new: [{ ...activity.new[0], steps: [{ step: "import_refused_not_found", at: "2026-10-05T18:05:00Z" }] }],
+    })
+    expect(text).toContain("Import refused: not a public repository")
+  })
+
   it("lists each returning account with what it did for the first time that day", () => {
     const { text, html } = dailySummaryEmail(activity)
     expect(text).toContain("<bob>@example.test (signed up September 30, 2026)\n  Came back on a later day")
