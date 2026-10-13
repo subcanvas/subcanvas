@@ -12,7 +12,7 @@ import {
   freshAccount,
   freshId,
   inspector,
-  personalSlug,
+  firstWorkspaceSlug,
   signUp,
   whiteboardTools,
 } from "./support/app"
@@ -20,9 +20,9 @@ import { FIXTURES } from "./support/import"
 import { createInviteLink, joinThroughInvite, memberRow, setMemberRole } from "./support/members"
 
 // Deleting an account from Settings → Profile does what the Terms and the
-// Privacy Policy say: the personal workspace and every team workspace
-// nobody else is in go, with everything in them and their files; a team
-// workspace other people are in stays theirs. Some things refuse it, by name.
+// Privacy Policy say: every workspace nobody else is in goes, with
+// everything in it and its files; a workspace other people are in stays
+// theirs. Some things refuse it, by name.
 
 const deleteSection = (page: Page) => page.getByRole("region", { name: "Delete your account" })
 
@@ -58,20 +58,20 @@ test("deleting an account deletes its workspaces and files, and a shared workspa
   baseURL,
 }) => {
   const account = await signUp(page)
-  const personal = personalSlug(account)
+  const personal = firstWorkspaceSlug(account)
 
-  // In the personal workspace: a public project, so anyone can tell whether
-  // it still exists, with a picture on its whiteboard.
+  // In the workspace the account started with: a public project, so anyone
+  // can tell whether it still exists, with a picture on its whiteboard.
   await page.goto(`/${personal}`)
   const own = await createProject(page, "Own project", "public")
   const picture = await addPicture(page)
 
-  // A team workspace nobody else is in, with a public project too.
+  // Another workspace nobody else is in, with a public project too.
   const soloId = freshId()
   const solo = await createOrg(page, soloId)
   const soloProject = await createProject(page, "Solo project", "public")
 
-  // A team workspace shared with a partner, who is made an owner too.
+  // A workspace shared with a partner, who is made an owner too.
   const sharedId = freshId()
   const shared = await createOrg(page, sharedId)
   await createProject(page, `Shared project ${sharedId}`)
@@ -84,13 +84,15 @@ test("deleting an account deletes its workspaces and files, and a shared workspa
     // Profile says what will go and what will stay before anything does.
     await page.goto(`/${personal}/settings/profile`)
     const section = deleteSection(page)
-    await expect(section.getByText(`e2e-${account.id}'s workspace, E2E ${soloId}`, { exact: true })).toBeVisible()
+    // The two that go, in one list, by name (in whichever order the names sort).
+    const going = section.getByText(`E2E ${soloId}`)
+    await expect(going).toContainText(`e2e-${account.id}'s workspace`)
     await expect(section.getByText(`E2E ${sharedId}`, { exact: true })).toBeVisible()
 
     await deleteSection(page).getByRole("button", { name: "Delete account" }).click()
     const dialog = page.getByRole("dialog")
-    await expect(dialog.getByText(/and 1 team workspace nobody else is in/)).toBeVisible()
-    await expect(dialog.getByText(/You leave 1 team workspace; what you made there stays with it/)).toBeVisible()
+    await expect(dialog.getByText(/and 2 workspaces nobody else is in/)).toBeVisible()
+    await expect(dialog.getByText(/You leave 1 workspace; what you made there stays with it/)).toBeVisible()
     const confirm = dialog.getByRole("button", { name: "Delete my account" })
     const field = dialog.getByLabel(`Type ${account.email} to confirm`)
     await expect(confirm).toBeDisabled()
@@ -143,7 +145,7 @@ test("the only owner of a workspace with other members is refused, by name", asy
     shared
   )
   try {
-    const profile = `/${personalSlug(account)}/settings/profile`
+    const profile = `/${firstWorkspaceSlug(account)}/settings/profile`
     await page.goto(profile)
     const section = deleteSection(page)
     await expect(section).toContainText(
@@ -178,7 +180,7 @@ test("a workspace with a running subscription is refused, by name, until it is c
   const admin = adminClient()
   test.skip(!admin, NO_ADMIN)
   const account = await signUp(page)
-  const slug = personalSlug(account)
+  const slug = firstWorkspaceSlug(account)
   const name = `e2e-${account.id}'s workspace`
   const org = await workspaceId(account, slug)
 

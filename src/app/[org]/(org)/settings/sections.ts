@@ -9,7 +9,7 @@ export type SettingsGroup = { label: string; sections: SettingsSection[] }
 export type SettingsOptions = { billing: boolean; github: boolean }
 
 export function settingsGroups(
-  org: { name: string; slug: string; personal: boolean },
+  org: { name: string; slug: string },
   { billing, github }: SettingsOptions
 ): SettingsGroup[] {
   const base = `/${org.slug}/settings`
@@ -28,7 +28,7 @@ export function settingsGroups(
         {
           href: `${base}/members`,
           label: "Members",
-          detail: org.personal ? "Just you. Team workspaces are for working with others." : "Who is in the workspace and what they can do.",
+          detail: "Who is in the workspace and what they can do.",
           icon: Users,
         },
         ...(github

@@ -8,7 +8,7 @@ import {
   documentAddress,
   freshAccount,
   freshId,
-  personalSlug,
+  firstWorkspaceSlug,
   signIn,
   signOut,
   signUp,
@@ -90,19 +90,24 @@ test("signs an agent in through the consent page, and it works as that person", 
   expect(tools.map((tool) => tool.name).sort()).toEqual(documentedTools().sort())
 
   // The token is the person's own, so the agent sees their workspaces with
-  // their role: the personal one first, then the team one.
+  // their role: the one the account started with, and the one made for this.
   const { workspaces } = (await callTool(client, "list_workspaces")) as {
-    workspaces: { id: string; slug: string; role: string; personal: boolean }[]
+    workspaces: { id: string; slug: string; role: string }[]
   }
-  expect(workspaces).toEqual([
-    expect.objectContaining({ personal: true, role: "owner" }),
-    expect.objectContaining({ slug, personal: false, role: "owner" }),
-  ])
+  expect(workspaces).toHaveLength(2)
+  expect(workspaces).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ slug: firstWorkspaceSlug(account), role: "owner" }),
+      expect.objectContaining({ slug, role: "owner" }),
+    ])
+  )
+  expect(workspaces.every((workspace) => !("personal" in workspace))).toBe(true)
+  const workspaceId = workspaces.find((workspace) => workspace.slug === slug)!.id
 
   const id = freshId()
   const projectName = `Agent project ${id}`
   const boardName = `Agent board ${id}`
-  const { project_id } = (await callTool(client, "create_project", { workspace_id: workspaces[1].id, name: projectName })) as {
+  const { project_id } = (await callTool(client, "create_project", { workspace_id: workspaceId, name: projectName })) as {
     project_id: string
   }
   const { document_id: board, url: boardUrl } = (await callTool(client, "create_document", {
@@ -152,7 +157,7 @@ test("signs an agent in through the consent page, and it works as that person", 
   // A project the operator took down reads as taken down, as it does in the
   // app, and has no embed to hand out.
   const { project_id: shown } = (await callTool(client, "create_project", {
-    workspace_id: workspaces[1].id,
+    workspace_id: workspaceId,
     name: `Shown ${id}`,
     visibility: "public",
   })) as { project_id: string }
@@ -162,7 +167,7 @@ test("signs an agent in through the consent page, and it works as that person", 
     title: `Shown board ${id}`,
   })) as { document_id: string }
   takeDown(shown)
-  const listed = (await callTool(client, "list_projects", { workspace_id: workspaces[1].id })) as {
+  const listed = (await callTool(client, "list_projects", { workspace_id: workspaceId })) as {
     projects: { id: string; visibility: string; taken_down: boolean }[]
   }
   expect(listed.projects.find((project) => project.id === shown)).toEqual(
@@ -235,13 +240,13 @@ test("signed in as the wrong account, the consent page signs out, and connecting
 
   // Connecting again from the app asks again, and the right account says yes.
   await signIn(page, right)
-  await page.waitForURL(`/${personalSlug(right)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(right)}`)
   const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: right.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
 
   // The agent is the account that approved it.
   const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { slug: string }[] }
-  expect(workspaces.map((workspace) => workspace.slug)).toEqual([personalSlug(right)])
+  expect(workspaces.map((workspace) => workspace.slug)).toEqual([firstWorkspaceSlug(right)])
   await client.close()
 })
 
@@ -285,13 +290,13 @@ test("a viewer's agent can read and cannot write", async ({ page, browser, baseU
     if (!client) throw new Error("No client after approval")
 
     const { workspaces } = (await callTool(client, "list_workspaces")) as {
-      workspaces: { id: string; slug: string; role: string; can_edit: boolean; personal: boolean }[]
+      workspaces: { id: string; slug: string; role: string; can_edit: boolean }[]
     }
-    expect(workspaces).toEqual([
-      expect.objectContaining({ personal: true }),
-      expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false }),
-    ])
-    const team = workspaces[1].id
+    expect(workspaces).toHaveLength(2)
+    expect(workspaces).toEqual(
+      expect.arrayContaining([expect.objectContaining({ slug: owner.slug, role: "viewer", can_edit: false })])
+    )
+    const team = workspaces.find((workspace) => workspace.slug === owner.slug)!.id
 
     // Reads work: the viewer can look.
     const { projects } = (await callTool(client, "list_projects", { workspace_id: team })) as {

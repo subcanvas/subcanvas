@@ -1,10 +1,11 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(36);
 
--- Personal and team workspaces, and deleting an account. Uses its own email
--- domain, names, slugs and ids so it passes against a local database that
--- already holds development data.
+-- Workspaces (one kind: migration one_kind_of_workspace), the one every
+-- account starts with, and deleting an account. Uses its own email domain,
+-- names, slugs and ids so it passes against a local database that already
+-- holds development data.
 
 -- Fixtures -----------------------------------------------------------------
 
@@ -31,6 +32,12 @@ begin
 end;
 $$;
 
+-- The workspace an account started with: the one it made first.
+create function pg_temp.first(p_id uuid) returns uuid
+language sql as $$
+  select id from public.orgs where created_by = p_id order by created_at, id limit 1;
+$$;
+
 \set named    '''0a000000-0000-0000-0000-000000000901'''
 \set plain    '''0a000000-0000-0000-0000-000000000902'''
 \set twin1    '''0a000000-0000-0000-0000-000000000903'''
@@ -49,84 +56,60 @@ select pg_temp.make_user(:long, 'long@pgtap-ws.test', repeat('Pgtap Long Name ',
 select pg_temp.make_user(:leaver, 'pgtap-leaver@pgtap-ws.test');
 select pg_temp.make_user(:partner, 'pgtap-partner@pgtap-ws.test');
 
--- Every account gets one, named after its person ---------------------------------
+-- Every account starts with one, named after its person -------------------------
 
-select is((select name from public.orgs where personal_owner = :named), 'Zoë Pgtap-Ünïcode''s workspace',
-  'a personal workspace is named after the name from Google or GitHub');
-select is((select slug from public.orgs where personal_owner = :named), 'zoe-pgtap-unicode',
+select is((select name from public.orgs where id = pg_temp.first(:named)), 'Zoë Pgtap-Ünïcode''s workspace',
+  'an account''s first workspace is named after the name from Google or GitHub');
+select is((select slug from public.orgs where id = pg_temp.first(:named)), 'zoe-pgtap-unicode',
   'and its address is made from the name, accents and all');
-select is((select name from public.orgs where personal_owner = :plain), 'ws-plain''s workspace',
+select is((select name from public.orgs where id = pg_temp.first(:plain)), 'ws-plain''s workspace',
   'without a name, it is named after the email before the @');
-select is((select slug from public.orgs where personal_owner = :plain), 'ws-plain',
+select is((select slug from public.orgs where id = pg_temp.first(:plain)), 'ws-plain',
   'and so is its address');
 select is(
-  array[(select slug from public.orgs where personal_owner = :twin1),
-        (select slug from public.orgs where personal_owner = :twin2)],
+  array[(select slug from public.orgs where id = pg_temp.first(:twin1)),
+        (select slug from public.orgs where id = pg_temp.first(:twin2))],
   array['pgtap-twin', 'pgtap-twin-2'],
   'an address that is taken gets a number');
-select matches((select slug from public.orgs where personal_owner = :reserved), '^admin-[0-9]+$',
+select matches((select slug from public.orgs where id = pg_temp.first(:reserved)), '^admin-[0-9]+$',
   'an address the app reserves gets a number too');
 select ok((select char_length(name) <= 80 and char_length(slug) <= 30 and name like '%''s workspace'
-           from public.orgs where personal_owner = :long),
+           from public.orgs where id = pg_temp.first(:long)),
   'a long name is shortened to fit');
 select results_eq(
-  format($$ select user_id, role::text from public.org_members
-            where org_id = (select id from public.orgs where personal_owner = %L) $$, :plain),
+  format($$ select user_id, role::text from public.org_members where org_id = pg_temp.first(%L) $$, :plain),
   format($$ values (%L::uuid, 'owner') $$, :plain),
-  'its person is its owner and its only member');
-select is(
-  (select count(*) from public.profiles p
-   where (select count(*) from public.orgs o where o.personal_owner = p.id) <> 1),
-  0::bigint,
-  'every profile, older ones included, has exactly one personal workspace');
+  'its person is its owner and, to start with, its only member');
 
--- It is its owner's alone ---------------------------------------------------------------
+-- It is an ordinary workspace ----------------------------------------------------------
 
+select pg_temp.first(:plain) as plain_ws \gset
 select pg_temp.login(:plain);
-select is((select count(*) from public.orgs where personal_owner = :plain), 1::bigint,
-  'its owner sees it');
-update public.orgs set name = 'Mine' where personal_owner = :plain;
-select is((select name from public.orgs where personal_owner = :plain), 'Mine', 'its owner can rename it');
-select throws_ok(
+update public.orgs set name = 'Mine' where id = :'plain_ws';
+select is((select name from public.orgs where id = :'plain_ws'), 'Mine', 'its owner can rename it');
+select lives_ok(
   format($$ insert into public.org_invites (org_id, email, role, invited_by)
-            select id, 'friend@pgtap-ws.test', 'editor', %L from public.orgs where personal_owner = %L $$,
-         :plain, :plain),
-  'P0001', 'A personal workspace is yours alone. Create a team workspace to invite people.',
-  'nobody is invited to it');
-select throws_ok(
-  format($$ delete from public.org_members
-            where org_id = (select id from public.orgs where personal_owner = %L) $$, :plain),
-  'P0001', 'A personal workspace cannot be left. It is deleted with your account.',
-  'its owner cannot leave it');
-select throws_ok(
-  format($$ delete from public.orgs where personal_owner = %L $$, :plain),
-  'P0001', 'A personal workspace is deleted only with its account.',
-  'its owner cannot delete it');
-
+            values (%L, 'friend@pgtap-ws.test', 'editor', %L) $$, :'plain_ws', :plain),
+  'and invite people to it');
 select pg_temp.login(:named);
-select is((select count(*) from public.orgs where personal_owner = :plain), 0::bigint,
-  'nobody else sees it');
-
--- Nor can the database be talked into it.
+select is((select count(*) from public.orgs where id = :'plain_ws'), 0::bigint,
+  'nobody else sees it until they join');
 select pg_temp.logout();
+select lives_ok(
+  format($$ insert into public.org_members (org_id, user_id, role) values (%L, %L, 'viewer') $$, :'plain_ws', :named),
+  'someone can join it, as an invite accepted does');
+select pg_temp.login(:named);
+select is((select count(*) from public.orgs where id = :'plain_ws'), 1::bigint, 'and then sees it');
+select pg_temp.login(:plain);
 select throws_ok(
-  format($$ insert into public.org_members (org_id, user_id, role)
-            select id, %L, 'viewer' from public.orgs where personal_owner = %L $$, :named, :plain),
-  'P0001', 'A personal workspace is yours alone. Create a team workspace to work with others.',
-  'nobody else joins it');
-select throws_ok(
-  format($$ update public.org_members set role = 'admin'
-            where org_id = (select id from public.orgs where personal_owner = %L) $$, :plain),
-  'P0001', 'You are always the owner of your personal workspace.',
-  'its owner stays its owner');
-select throws_ok(
-  format($$ update public.orgs set personal_owner = null where personal_owner = %L $$, :plain),
-  'P0001', 'Whose personal workspace it is cannot change.',
-  'it cannot be turned into a team workspace');
-select throws_ok(
-  format($$ delete from public.orgs where personal_owner = %L $$, :plain),
-  'P0001', 'A personal workspace is deleted only with its account.',
-  'the operator cannot delete it apart from its account either');
+  format($$ delete from public.org_members where org_id = %L and user_id = %L $$, :'plain_ws', :plain),
+  'P0001', 'A workspace must have at least one owner.',
+  'its only owner cannot leave it, as with any workspace');
+select lives_ok(format($$ delete from public.orgs where id = %L $$, :'plain_ws'), 'but can delete it');
+select pg_temp.logout();
+select ok(not exists (select 1 from public.org_members where user_id = :plain)
+            and exists (select 1 from public.profiles where id = :plain),
+  'which leaves them in no workspace, with their account as it was');
 
 -- Deleting an account --------------------------------------------------------------------
 
@@ -139,9 +122,9 @@ select throws_ok(
 \set shared_doc    '''0a000000-0000-0000-0000-0000000009d2'''
 \set own_doc       '''0a000000-0000-0000-0000-0000000009d3'''
 
-select id as own from public.orgs where personal_owner = :leaver \gset
+select pg_temp.first(:leaver) as own \gset
 
--- A team workspace of their own, and one they share with a partner.
+-- Another workspace of their own, and one they share with a partner.
 insert into public.orgs (id, name, slug, created_by) values
   (:solo, 'Pgtap Solo', 'pgtap-ws-solo', :leaver),
   (:shared, 'Pgtap Shared', 'pgtap-ws-shared', :leaver);
@@ -166,11 +149,9 @@ insert into storage.objects (bucket_id, name) values
   ('media-images', :shared || '/' || :shared_proj || '/' || :shared_doc || '/0a000000-0000-0000-0000-00000000f003.png');
 
 select pg_temp.login(:leaver);
-select results_eq(
-  $$ select org_name, personal, outcome from public.account_deletion_plan() $$,
-  $$ values ('pgtap-leaver''s workspace', true, 'delete'),
-            ('Pgtap Shared', false, 'only_owner'),
-            ('Pgtap Solo', false, 'delete') $$,
+select set_eq(
+  $$ select org_name, outcome from public.account_deletion_plan() $$,
+  $$ values ('pgtap-leaver''s workspace', 'delete'), ('Pgtap Shared', 'only_owner'), ('Pgtap Solo', 'delete') $$,
   'Profile can say what deleting the account would do to each workspace');
 select throws_ok(
   format($$ select * from public.delete_account(%L) $$, :leaver),
@@ -211,7 +192,7 @@ select is((select count(*) from auth.audit_log_entries where payload ->> 'actor_
   'and Auth''s record of its sign-ins');
 select is((select count(*) from public.profiles where id = :leaver), 0::bigint, 'and its profile');
 select is((select count(*) from public.orgs where id in (:'own', :solo)), 0::bigint,
-  'the personal workspace and the team workspace nobody else was in are gone');
+  'the workspaces nobody else was in are gone');
 select is(
   (select count(*) from public.documents where id in (:own_doc, :solo_doc))
     + (select count(*) from public.projects where id in (:own_project, :solo_project)),
@@ -240,23 +221,24 @@ select is(
   null,
   'every reference to a person cascades or clears when they are deleted');
 
--- The operator deleting a user in the dashboard deletes their personal
--- workspace with them, with what they made in it: a project and a
--- whiteboard whose created_by would otherwise be cleared in the same pass
--- that deletes them.
+-- The operator deleting a user in the dashboard deletes the workspaces
+-- nobody else was in with them (delete_lone_workspaces), with what they made
+-- in them: a project and a whiteboard whose created_by would otherwise be
+-- cleared in the same pass that deletes them.
+\set gone '''0a000000-0000-0000-0000-000000000909'''
+select pg_temp.make_user(:gone, 'pgtap-gone@pgtap-ws.test');
+select pg_temp.first(:gone) as gone_ws \gset
 insert into public.projects (id, org_id, name, created_by)
-values ('0a000000-0000-0000-0000-000000000a01', (select id from public.orgs where personal_owner = :plain), 'Theirs', :plain);
+values ('0a000000-0000-0000-0000-000000000a01', :'gone_ws', 'Theirs', :gone);
 insert into public.documents (id, org_id, project_id, type, title, created_by)
-values ('0a000000-0000-0000-0000-000000000a02', (select id from public.orgs where personal_owner = :plain),
-        '0a000000-0000-0000-0000-000000000a01', 'whiteboard', 'Board', :plain);
-select ok((select created_by = :plain from public.projects where id = '0a000000-0000-0000-0000-000000000a01'),
-  'a project in a personal workspace says who made it');
-select lives_ok(format($$ delete from auth.users where id = %L $$, :plain),
+values ('0a000000-0000-0000-0000-000000000a02', :'gone_ws',
+        '0a000000-0000-0000-0000-000000000a01', 'whiteboard', 'Board', :gone);
+select lives_ok(format($$ delete from auth.users where id = %L $$, :gone),
   'a user can be deleted from the dashboard');
 select is((select count(*) from public.projects where id = '0a000000-0000-0000-0000-000000000a01'), 0::bigint,
-  'and what they made in their personal workspace goes too');
-select is((select count(*) from public.orgs where name = 'Mine'), 0::bigint,
-  'and their personal workspace goes with them');
+  'and what they made in a workspace nobody else was in goes too');
+select is((select count(*) from public.orgs where id = :'gone_ws'), 0::bigint,
+  'and so does the workspace');
 
 select * from finish();
 rollback;

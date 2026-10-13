@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createOrg, personalSlug, signIn, signOut, signUp } from "./support/app"
+import { createOrg, firstWorkspaceSlug, signIn, signOut, signUp } from "./support/app"
 import { authProviders } from "./support/env"
 
 const PROVIDER_LABELS = { google: "Google", github: "GitHub" }
@@ -30,19 +30,19 @@ test("after signing in, an address that leads to another site is not followed", 
   await page.getByLabel("Email").fill(account.email)
   await page.getByLabel("Password").fill(account.password)
   await page.getByRole("button", { name: "Sign in", exact: true }).click()
-  // Where signing in goes when it is not sent elsewhere: the personal workspace.
-  await page.waitForURL(`/${personalSlug(account)}`)
+  // Where signing in goes when it is not sent elsewhere: the workspace the account started with.
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
   expect(new URL(page.url()).origin).toBe(new URL(baseURL!).origin)
 })
 
 test("signs up with a password, changes it, and signs back in with the new one", async ({
   page,
 }) => {
-  // Every account has a personal workspace, and sign-up lands in it.
+  // Every account starts with a workspace, and sign-up lands in it.
   const account = await signUp(page)
-  const home = `/${personalSlug(account)}`
+  const home = `/${firstWorkspaceSlug(account)}`
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
-  // A team workspace too, which signing in does not go to.
+  // A second workspace too, which signing in does not go to.
   await createOrg(page, account.id)
 
   // /auth/password is where anyone already signed in — by link, by password,
@@ -52,7 +52,7 @@ test("signs up with a password, changes it, and signs back in with the new one",
   await page.getByLabel("New password").fill(changed.password)
   await page.getByRole("button", { name: "Save password" }).click()
   // With nowhere else asked for, it sends you to your own work: the
-  // personal workspace.
+  // workspace the account started with.
   await page.waitForURL(home)
 
   await signOut(page)
@@ -69,7 +69,7 @@ test("refuses the old password once it has been changed", async ({ page }) => {
   await page.goto("/auth/password")
   await page.getByLabel("New password").fill(`changed-${account.id}`)
   await page.getByRole("button", { name: "Save password" }).click()
-  await page.waitForURL(`/${personalSlug(account)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
   await signOut(page)
 
   await page.goto("/login")

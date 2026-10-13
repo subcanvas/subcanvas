@@ -12,7 +12,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 
 | Word | What it means | In code and tool names |
 |---|---|---|
-| **Workspace** | Where projects live, with the people in it and its plan. Everyone has a personal workspace, theirs alone; a team workspace is shared with the people invited to it. Not "org" or "organization". | `orgs`, `org_id`, the `[org]` route; the tools say `workspace_id` |
+| **Workspace** | Where projects live, with the people in it and its plan. One kind: every account starts with one, and any workspace can have people invited to it; a second editor needs a paid plan. Not "org" or "organization", and not "personal" or "team" workspace. | `orgs`, `org_id`, the `[org]` route; the tools say `workspace_id` |
 | **Document** | Anything in a project's tree: a whiteboard or a page. | `documents` |
 | **Whiteboard** | A document to draw on: nodes and arrows on a canvas (its drawing surface). | `type: whiteboard` |
 | **Page** | A document of rich text. Not "text doc" or "note". | a text document, `type: text` (`read_text_document`) |
@@ -52,7 +52,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 | R2.1 | A **breadcrumb** shows the path the user navigated to reach the current document, from the root down. Each crumb is clickable. |
 | R2.2 | When a document is reached through a link, the breadcrumb shows the navigated path, not the canonical one. The canonical location is available from the document's menu ("Show in tree"). |
 | R2.3 | The navigated path is encoded in the URL so breadcrumbs survive reload and links are shareable. Opening a document by its bare URL falls back to the canonical path. |
-| R2.4 | A left sidebar lists every workspace the user is in as a section that can be closed, Personal first and then the team workspaces by name. Each section lists its projects (the first 20 by name, then "Show all", which goes to the workspace's Projects page), with a + for a new project (editors and above) and a menu with the workspace's pages: Projects, Settings, Members, and Connect an agent where agents can sign in. The project being viewed opens in place to show its tree: folders, documents, and nested documents under their parent. Which sections are closed is remembered; the one being viewed opens when the user arrives in it. |
+| R2.4 | A left sidebar lists every workspace the user is in as a section that can be closed, by name. Each section lists its projects (the first 20 by name, then "Show all", which goes to the workspace's Projects page), with a + for a new project (editors and above) and a menu with the workspace's pages: Projects, Settings, Members, and Connect an agent where agents can sign in. The project being viewed opens in place to show its tree: folders, documents, and nested documents under their parent. Which sections are closed is remembered; the one being viewed opens when the user arrives in it. |
 | R2.5 | Pages show child documents and links to other documents inline, as a card (a custom BlockNote block) that shows the document's title and type and opens it on click. |
 
 ## 3. Whiteboard objects
@@ -126,21 +126,21 @@ An **object** is a node or an arrow. Groups contain nodes.
 | ID | Requirement |
 |---|---|
 | R6.1 | Auth through Supabase: **email and password** (with reset by email), **email magic link**, **Google**, and **GitHub**. Anyone signed in can set a password later, whichever way they signed up. |
-| R6.2 | Every account has a **personal workspace**, made with it and named after its person. It is theirs alone: nobody else joins it or is invited to it, it cannot be left, and it is deleted only with the account. A user can also create **team workspaces** and belong to several; the sidebar shows every one as a section, the personal workspace first (headed "Personal"), and offers "New team workspace" below them. Signing in opens the personal workspace. |
+| R6.2 | There is one kind of **workspace**. Every account starts with one, made with it and named after its person ("Ada's workspace"), which is like any other: people can be invited to it, and it can be renamed, left (when someone else owns it) or deleted by its owner. A user can create more and belong to several; the sidebar shows every one as a section, by name, and offers "New workspace" below them. Signing in opens the workspace they joined first. Someone in no workspace (they left or deleted every one) is asked to create one. |
 | R6.3 | Roles per workspace: **Owner** (billing, delete the workspace, everything below), **Admin** (members, projects), **Editor** (create and edit content), **Viewer** (read only). |
-| R6.4 | Members are invited to a team workspace by email with a role. |
+| R6.4 | Members are invited to a workspace by email with a role. |
 | R6.5 | All data access is enforced by Postgres row-level security scoped to workspace membership and role. |
 | R6.6 | A project is **private** (members only, the default) or **public** (anyone with the link can read every document in it; nobody outside the workspace can edit). Only admins and owners make a project public, whether when creating it (including by a GitHub import or an agent) or later, and change it back, behind a confirmation that says plainly what public means. Editors create private projects. Public pages are not indexed by search engines unless the workspace opts in **(opt-in later)**. |
 | R6.7 | Public pages carry a way to report abuse, and the operator can take a project down. |
-| R6.8 | A person deletes their own account from Profile, typing its email to confirm. That deletes their personal workspace and every team workspace nobody else is in, with everything in them, pictures and videos included, then the account. Team workspaces other people are still in keep what they made there. It is refused, naming the workspace and what to do, while they are the only owner of a team workspace with other members, or while a workspace it would delete has a running subscription. |
+| R6.8 | A person deletes their own account from Profile, typing its email to confirm. That deletes every workspace nobody else is in, with everything in them, pictures and videos included, then the account. Workspaces other people are still in keep what they made there. It is refused, naming the workspace and what to do, while they are the only owner of a workspace with other members, or while a workspace it would delete has a running subscription. |
 
 ## 7. Plans and billing
 
 | ID | Requirement |
 |---|---|
-| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and **1 editor**, so everything a person does in their personal workspace is free. Viewers are unlimited. |
+| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and **1 editor**, so everything a person does on their own is free. Viewers are unlimited. Inviting a second editor is what needs Pro: paying is what makes a workspace a team. |
 | R7.1a | Descriptions (R4.2) and what is in the trash, including everything inside a trashed document or folder, do not count toward the private document limit. Restoring counts everything that comes back. |
-| R7.2 | **Paid plan, Pro:** $5 per editor per month through Stripe, billed per workspace, personal or team (a personal workspace has one editor). Unlimited private documents and editors. |
+| R7.2 | **Paid plan, Pro:** $5 per editor per month through Stripe, billed per workspace. Unlimited private documents and editors. |
 | R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
 | R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |

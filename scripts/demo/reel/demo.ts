@@ -43,14 +43,14 @@
  *                         Default reel-demo@subcanvas.test: an account with nothing
  *                         else in it, so the agent finds the project it is
  *                         asked about.
- *   DEMO_STAGE_WORKSPACE  Slug of the team workspace that keeps finished
+ *   DEMO_STAGE_WORKSPACE  Slug of the workspace that keeps finished
  *                         imports of both repositories for the scenes that do
  *                         not import (see "Two workspaces" below). Default
  *                         reel-demo.
  *   DEMO_WORKSPACE        Slug of the workspace the on-camera import lands in.
- *                         Default: the account's personal workspace while it
- *                         holds no projects, else a fresh team workspace.
- *   DEMO_WORKSPACE_NAME   A fresh team workspace's name. Default Acme. The
+ *                         Default: the account's first workspace while it
+ *                         holds no projects, else a fresh workspace.
+ *   DEMO_WORKSPACE_NAME   A fresh workspace's name. Default Acme. The
  *                         sidebar is collapsed on camera, so it rarely shows.
  *   DEMO_IMPORT_WAIT      Milliseconds of video on "Importing…" before the
  *                         cut to the diagram, which is marked as sped up.
@@ -86,7 +86,7 @@
  * canvas shots after it are in view mode, with no editing tools.
  *
  * Two workspaces: the import in scene 1 is real and lands in an empty
- * workspace (the account's personal one, the first time), but the page it
+ * workspace (the account's first one, the first time), but the page it
  * produces has ids nobody knows in advance, and reelscript can only
  * navigate to addresses the script knows. So the other scenes play on
  * imports made ahead of time (once, and kept) in the staging workspace,
@@ -242,7 +242,7 @@ async function openBox(page: Page, title: string): Promise<string> {
   return page.url()
 }
 
-// A team workspace, from "New team workspace" (/onboarding).
+// A workspace, from "New workspace" (/onboarding).
 async function createWorkspace(page: Page, slug: string) {
   await page.goto(`${base}/onboarding`)
   await page.getByLabel("Name").fill(workspaceName)
@@ -302,7 +302,7 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
       await page.getByLabel("Email").fill(email)
       await page.getByLabel("Password").fill(password)
       await page.getByRole("button", { name: "Create account", exact: true }).click()
-      // A new account lands in its personal workspace.
+      // A new account lands in its first workspace.
       await Promise.race([
         page.waitForURL((url) => !url.pathname.startsWith("/login")).catch(() => {}),
         alert.waitFor().catch(() => {}),
@@ -311,14 +311,14 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
         throw new Error(`Could not create ${email}: ${await alert.textContent()}`)
     }
 
-    // The personal workspace, where sign-in lands. Its address is made from
+    // The first workspace, where sign-in lands. Its address is made from
     // the email, so it can be the staging workspace's: that would put the
     // staged imports where the camera's import should land.
     await page.goto(`${base}/auth/home`)
     await page.waitForURL((url) => url.pathname !== "/auth/home")
-    const personal = new URL(page.url()).pathname.split("/")[1]
-    if (personal === stageSlug)
-      throw new Error(`demo: /${stageSlug} is ${email}'s personal workspace; choose another DEMO_STAGE_WORKSPACE`)
+    const first = new URL(page.url()).pathname.split("/")[1]
+    if (first === stageSlug)
+      throw new Error(`demo: /${stageSlug} is ${email}'s first workspace; choose another DEMO_STAGE_WORKSPACE`)
 
     // A dev server draws its route badge in the corner; this hides it for a day.
     if (local) await page.request.post(`${base}/__nextjs_disable_dev_indicator`).catch(() => {})
@@ -423,18 +423,18 @@ async function prepare(): Promise<{ slug: string; stage: Stage; token: string; a
       writeFileSync(agentFile, JSON.stringify(agent, null, 2) + "\n")
     }
 
-    // The workspace the on-camera import lands in: the account's personal
+    // The workspace the on-camera import lands in: the account's first
     // workspace, where sign-up put it, while it holds no projects. After
-    // that, a fresh team workspace each time: nothing is deleted.
+    // that, a fresh workspace each time: nothing is deleted.
     let slug = process.env.DEMO_WORKSPACE
     if (!slug) {
-      await page.goto(`${base}/${personal}`)
+      await page.goto(`${base}/${first}`)
       const empty = await page
         .getByRole("main")
         .getByText("Start with a project")
         .waitFor({ timeout: 5_000 })
         .then(() => true, () => false)
-      if (personal && empty) slug = personal
+      if (first && empty) slug = first
       else {
         slug = `demo-${nameOf(repository)}-${Math.random().toString(36).slice(2, 8)}`
         await createWorkspace(page, slug)

@@ -30,7 +30,8 @@ function slugify(value: string) {
     .replace(/-+$/, "")
 }
 
-export function CreateOrgForm({ back, email }: { back: { href: string; label: string }; email: string }) {
+// `back` is null for someone in no workspace: there is nowhere to go back to.
+export function CreateOrgForm({ back, email }: { back: { href: string; label: string } | null; email: string }) {
   const [state, action, pending] = useActionState(createOrg, null)
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
@@ -39,10 +40,11 @@ export function CreateOrgForm({ back, email }: { back: { href: string; label: st
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>New team workspace</CardTitle>
+        <CardTitle>{back ? "New workspace" : "Create a workspace"}</CardTitle>
         <CardDescription>
-          A workspace to share: invite people, give each of them a role, and work on the same projects. Your
-          personal workspace stays yours alone.
+          {back
+            ? "A separate place for a different team or a different kind of work. Invite people to it, give each of them a role, and work on the same projects."
+            : "You are not in any workspace. Make one to start drawing, and invite people to it when you want to."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,13 +93,15 @@ export function CreateOrgForm({ back, email }: { back: { href: string; label: st
         </form>
       </CardContent>
       <CardFooter className="flex flex-col items-start gap-2 text-sm">
-        <Link
-          href={back.href}
-          className="-ml-0.5 flex items-center gap-1 rounded-md text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          {back.label}
-        </Link>
+        {back && (
+          <Link
+            href={back.href}
+            className="-ml-0.5 flex items-center gap-1 rounded-md text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            {back.label}
+          </Link>
+        )}
         <p className="text-graphite">
           Signed in as {email}. <SignOutButton />
         </p>

@@ -64,11 +64,11 @@ REELSCRIPT_OUT= node ~/Git/reelscript/dist/cli.js preview scripts/demo/reel/demo
 ```
 
 The first run creates the demo account (`reel-demo@subcanvas.test`, see the
-header of `demo.ts`) and a staging team workspace, `reel-demo`
+header of `demo.ts`) and a staging workspace, `reel-demo`
 (`DEMO_STAGE_WORKSPACE`), that keeps finished imports of both repositories.
-The import that happens on camera lands in the account's personal
+The import that happens on camera lands in the account's first
 workspace, where sign-up put it, while that is empty; after that, each run
-creates a fresh team workspace for it. Nothing is deleted. A staging file
+creates a fresh workspace for it. Nothing is deleted. A staging file
 from before 2026-10-07 (`out/stage-<slug>.json`) does not have the sheets
 this script needs; stage in a new workspace, or a new account, so the agent
 does not find two copies of the project. The render prints
@@ -101,7 +101,7 @@ the agent runs against them.
 ## A local render of the published cut
 
 Against a production build of `main` and the local stack, with a fresh
-account, so the camera's import lands in its empty personal workspace and
+account, so the camera's import lands in its empty first workspace and
 the agent finds one Subcanvas project:
 
 ```sh
@@ -191,9 +191,9 @@ scripts/demo/readme-preview.sh
   is clicked, and the scene ends on the embed in the README, scrolled into
   view (it takes a reelscript whose page clock leaves scroll-driven
   animations alone, as github.com has them).
-- The staging workspace, and after the first render a fresh team workspace
+- The staging workspace, and after the first render a fresh workspace
   per render, are created in production; delete them, and the import in the
-  personal workspace, when the launch is over. The agent's arrow is taken off the
+  first workspace, when the launch is over. The agent's arrow is taken off the
   sheet after the session and again after the render.
 
 ## Files

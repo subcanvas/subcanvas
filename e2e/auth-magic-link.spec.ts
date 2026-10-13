@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { cardTitled, freshAccount, personalSlug } from "./support/app"
+import { cardTitled, freshAccount, firstWorkspaceSlug } from "./support/app"
 import { signInLinkFor } from "./support/mailpit"
 
 test("signs in by following the link in the email", async ({ page }) => {
@@ -20,9 +20,9 @@ test("signs in by following the link in the email", async ({ page }) => {
   await page.goto(link)
 
   // The Auth API sends the browser to /auth/callback, which swaps the code
-  // for a session and then follows `next`: to the personal workspace the
-  // new account was given.
-  const slug = personalSlug(account)
+  // for a session and then follows `next`: to the workspace the new
+  // account started with.
+  const slug = firstWorkspaceSlug(account)
   await page.waitForURL(`/${slug}`)
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible()
 

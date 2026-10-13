@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createProject, createWhiteboard, freshId, personalSlug, signUp } from "./support/app"
+import { createProject, createWhiteboard, freshId, firstWorkspaceSlug, signUp } from "./support/app"
 import { corruptDocument, errorCountAt, errorReports } from "./support/database"
 import { adminClient, idsOf, NO_ADMIN } from "./support/admin"
 
@@ -44,7 +44,7 @@ test("an error thrown in the browser is one row, counted each time it happens ag
     expect(errorReports(marker)[0]?.count).toBe(2)
   }).toPass()
   expect(errorReports(marker)).toHaveLength(1)
-  expect(JSON.stringify(errorReports(marker))).not.toContain(personalSlug(account))
+  expect(JSON.stringify(errorReports(marker))).not.toContain(firstWorkspaceSlug(account))
 })
 
 test("a failure on the server is one row, counted each time it happens again", async ({ page }) => {

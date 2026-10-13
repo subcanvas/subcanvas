@@ -53,8 +53,9 @@ select is((select m.role from public.org_members m join public.orgs o on o.id = 
 
 select pg_temp.login(:bob, 'bob@pgtap.test');
 select lives_ok($$ select public.create_org('Bobco', 'pgtap-bobco') $$, 'bob creates an org');
--- Everyone also has a personal workspace (workspaces.test.sql).
-select is((select array_agg(slug) from public.orgs where personal_owner is distinct from :bob), array['pgtap-bobco'],
+-- Everyone also has the workspace their account started with
+-- (workspaces.test.sql), which is not one of these.
+select is((select array_agg(slug) from public.orgs where slug like 'pgtap-%'), array['pgtap-bobco'],
   'bob sees only his own org');
 select is((select count(*) from public.org_members where user_id <> :bob), 0::bigint,
   'bob sees only his own membership');
@@ -90,7 +91,7 @@ select throws_ok(
 select pg_temp.login(:carol, 'carol@pgtap.test');
 select lives_ok($$ select public.accept_invite('cccccccc-0000-0000-0000-000000000000') $$,
   'carol accepts her invite');
-select is((select array_agg(slug) from public.orgs where personal_owner is distinct from :carol), array['pgtap-acme'],
+select is((select array_agg(slug) from public.orgs where slug like 'pgtap-%'), array['pgtap-acme'],
   'carol now sees the org');
 select throws_ok(
   $$ select public.accept_invite('cccccccc-0000-0000-0000-000000000000') $$,
