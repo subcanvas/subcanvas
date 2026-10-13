@@ -1,6 +1,7 @@
 import * as Y from "yjs"
 
 import { parseCodeUrl } from "./code-link"
+import { COLOR_KEYS, iconName, singleEmoji, type ColorKey } from "./marks"
 import { mediaTypeOf, parseMediaPath, type MediaType } from "./media"
 import { NODE_SHAPES, type NodeShape } from "./shapes"
 
@@ -14,7 +15,6 @@ export type EdgeStroke = "solid" | "dotted"
 export type EdgeDirection = "none" | "forward" | "reverse" | "both"
 export type OpenMode = "panel" | "navigate"
 export type DocType = "text" | "whiteboard"
-export type ColorKey = (typeof COLOR_KEYS)[number]
 
 export type WbNode = {
   id: string
@@ -93,10 +93,9 @@ export type WbEdge = {
   openMode: OpenMode
 }
 
-// Colors are stored as keys, not values, so themes can restyle them.
-export const COLOR_KEYS = [
-  "default", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink",
-] as const
+// Colors, icon names and emoji are checked in marks.ts, which a page can load
+// without this file's sync library.
+export { COLOR_KEYS, colorKey, iconName, singleEmoji, type ColorKey } from "./marks"
 
 export { COLORS } from "./colors"
 
@@ -164,25 +163,6 @@ const numberOrNull = (map: Y.Map<unknown>, key: string) => {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
-// An icon is stored by its Lucide name. The name is only checked for form
-// here: whether this version can draw it is for whoever draws (icons.ts), so
-// a name written by a newer version survives being read by an older one.
-const ICON_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/
-export function iconName(value: unknown) {
-  return typeof value === "string" && value.length <= 48 && ICON_NAME.test(value) ? value : null
-}
-
-const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u
-
-// One emoji and nothing else: a single grapheme (a family or a flag is
-// several code points but one grapheme) that a font would draw as a picture.
-export function singleEmoji(value: unknown) {
-  if (typeof value !== "string") return null
-  const trimmed = value.trim()
-  if (!trimmed || trimmed.length > 40 || !EMOJI.test(trimmed)) return null
-  const graphemes = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(trimmed)]
-  return graphemes.length === 1 ? trimmed : null
-}
 
 // Reads are defensive: the document is shared, so another client (or a
 // future version) may have written something unexpected.

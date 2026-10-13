@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 
 import { createClient } from "@/lib/supabase/client"
 import { readDocumentSource, type DocumentSource } from "@/lib/github/source"
+import { readItemIcon, type ItemIcon } from "@/lib/item-icon"
 import type { DocumentType } from "@/lib/tree"
 
 export type DocumentMeta = {
@@ -14,6 +15,7 @@ export type DocumentMeta = {
   trashed: boolean
   // Where it was imported from, which also makes it read-only.
   source: DocumentSource | null
+  icon: ItemIcon | null
 }
 
 type State = { id: string; meta: DocumentMeta | null } | null
@@ -28,7 +30,7 @@ export function useDocumentMeta(documentId: string | null): DocumentMeta | null 
     let cancelled = false
     const supabase = createClient()
     Promise.all([
-      supabase.from("documents").select("id, title, type, kind, deleted_at, source").eq("id", documentId).maybeSingle(),
+      supabase.from("documents").select("id, title, type, kind, deleted_at, source, icon").eq("id", documentId).maybeSingle(),
       supabase.rpc("document_is_live", { p_document_id: documentId }),
     ]).then(([{ data }, { data: live }]) => {
       if (cancelled) return
@@ -42,6 +44,7 @@ export function useDocumentMeta(documentId: string | null): DocumentMeta | null 
           // Inside something in the trash is in the trash too.
           trashed: data.deleted_at !== null || live === false,
           source: readDocumentSource(data.source),
+          icon: readItemIcon(data.icon),
         },
       })
     })

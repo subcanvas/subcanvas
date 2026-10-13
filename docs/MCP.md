@@ -54,6 +54,7 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 | `create_project` | Create a project | writes |
 | `set_project_visibility` | Make a project public or private | writes |
 | `rename_project` | Rename a project | writes |
+| `set_icon` | Set the icon of a project or document | writes |
 | `create_document` | Create a document | writes |
 | `import_markdown_documents` | Import Markdown files as documents | writes |
 | `create_folder` | Create a folder | writes |

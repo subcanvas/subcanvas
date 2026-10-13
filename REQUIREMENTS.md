@@ -54,6 +54,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 | R2.3 | The navigated path is encoded in the URL so breadcrumbs survive reload and links are shareable. Opening a document by its bare URL falls back to the canonical path. |
 | R2.4 | A left sidebar lists every workspace the user is in as a section that can be closed, by name. Each section lists its projects (the first 20 by name, then "Show all", which goes to the workspace's Projects page), with a + for a new project (editors and above) and a menu with the workspace's pages: Projects, Settings, Members, and Connect an agent where agents can sign in. The project being viewed opens in place to show its tree: folders, documents, and nested documents under their parent. Which sections are closed is remembered; the one being viewed opens when the user arrives in it. |
 | R2.5 | Pages show child documents and links to other documents inline, as a card (a custom BlockNote block) that shows the document's title and type and opens it on click. |
+| R2.6 | A project or a document can wear an **icon** in front of its name: one emoji, or one of the whiteboard's icons in one of its colors (the same marks a box wears). It shows everywhere the name does: the sidebar, the Projects page, the page title, the breadcrumb, the trash, and the cards that link to a document. Whoever may rename it may change it: from the button in front of a page's title, or "Add icon…" in the sidebar's menus; agents with `set_icon`. A visitor to a public project sees the icons. |
 
 ## 3. Whiteboard objects
 

@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils"
 import { WhiteboardIcon } from "./icon"
 
 // The pickers of the object panel: a node's shape, and the icon and emoji a
-// node or an edge wears.
+// node or an edge wears. The icon and emoji grids are also how a project or a
+// document gets the icon in front of its name (components/item-icon-picker).
 
 const SWATCH = { x: 1, y: 1, width: 30, height: 20 }
 
@@ -108,10 +109,19 @@ function PickerRow({
   )
 }
 
-export function IconField({ value, onChange }: { value: string | null; onChange: (icon: string | null) => void }) {
-  const [open, setOpen] = useState(false)
+// The icons to choose from, searchable, in their groups. Shared by a box's
+// panel (IconField) and the icon of a project or a document (item-icon-picker).
+export function IconGrid({
+  value,
+  onPick,
+  color,
+}: {
+  value: string | null
+  onPick: (icon: string) => void
+  // The color the icons are drawn in, when one is being chosen with them.
+  color?: string
+}) {
   const [query, setQuery] = useState("")
-  const panelId = useId()
   const categories = useMemo(
     () =>
       ICON_CATEGORIES.map((category) => ({
@@ -120,6 +130,125 @@ export function IconField({ value, onChange }: { value: string | null; onChange:
       })).filter((category) => category.icons.length),
     [query]
   )
+  return (
+    <>
+      <Input
+        type="search"
+        aria-label="Search icons"
+        placeholder="Search icons"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <div className="flex max-h-56 flex-col gap-2 overflow-y-auto p-0.5">
+        {categories.map((category) => (
+          <div key={category.label} role="group" aria-label={category.label} className="flex flex-col gap-1">
+            <span className="text-[11px] text-graphite">{category.label}</span>
+            <div className="flex flex-wrap gap-0.5">
+              {category.icons.map((choice) => (
+                <button
+                  key={choice.name}
+                  type="button"
+                  aria-label={choice.label}
+                  aria-pressed={value === choice.name}
+                  title={choice.label}
+                  onClick={() => onPick(choice.name)}
+                  className={cn(CELL, "text-ink")}
+                  style={color ? { color } : undefined}
+                >
+                  <WhiteboardIcon name={choice.name} className="size-4" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!categories.length && <p className="px-1 py-2 text-xs text-graphite">No icon matches that.</p>}
+      </div>
+    </>
+  )
+}
+
+// The emoji to choose from, searchable, and a field for any other one.
+export function EmojiGrid({ value, onPick }: { value: string | null; onPick: (emoji: string) => void }) {
+  const [query, setQuery] = useState("")
+  const [typed, setTyped] = useState("")
+  const typedId = useId()
+  const categories = useMemo(
+    () =>
+      EMOJI_CATEGORIES.map((category) => ({
+        ...category,
+        emoji: category.emoji.filter((choice) => matches(query, choice.words)),
+      })).filter((category) => category.emoji.length),
+    [query]
+  )
+  const rejected = typed.trim() !== "" && !singleEmoji(typed)
+  return (
+    <>
+      <Input
+        type="search"
+        aria-label="Search emoji"
+        placeholder="Search emoji"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <div className="flex max-h-56 flex-col gap-2 overflow-y-auto p-0.5">
+        {categories.map((category) => (
+          <div key={category.label} role="group" aria-label={category.label} className="flex flex-col gap-1">
+            <span className="text-[11px] text-graphite">{category.label}</span>
+            <div className="flex flex-wrap gap-0.5">
+              {category.emoji.map((choice) => (
+                <button
+                  key={choice.emoji}
+                  type="button"
+                  aria-label={choice.words}
+                  aria-pressed={value === choice.emoji}
+                  title={choice.words}
+                  onClick={() => onPick(choice.emoji)}
+                  className={cn(CELL, "text-base leading-none")}
+                >
+                  {choice.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!categories.length && <p className="px-1 py-2 text-xs text-graphite">No emoji matches that.</p>}
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={typedId} className="text-[11px] text-graphite">
+          Or type or paste any emoji
+        </Label>
+        <Input
+          id={typedId}
+          value={typed}
+          aria-invalid={rejected}
+          aria-describedby={rejected ? `${typedId}-error` : undefined}
+          placeholder="One emoji"
+          onChange={(event) => {
+            setTyped(event.target.value)
+            const emoji = singleEmoji(event.target.value)
+            if (emoji) onPick(emoji)
+          }}
+        />
+        {rejected && (
+          <p id={`${typedId}-error`} role="alert" className="text-xs text-destructive">
+            That is not a single emoji.
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+// The word an emoji from the list goes by, or a plain one for any other.
+export function emojiWord(emoji: string | null) {
+  if (!emoji) return null
+  const known = EMOJI_CATEGORIES.flatMap((category) => category.emoji).find((choice) => choice.emoji === emoji)
+  return known ? known.words.split(" ")[0] : "Your own emoji"
+}
+
+export function IconField({ value, onChange }: { value: string | null; onChange: (icon: string | null) => void }) {
+  const [open, setOpen] = useState(false)
+  const panelId = useId()
   // A name this version cannot draw shows as nothing on the canvas, so it
   // reads as nothing here too.
   const chosen = iconNode(value) ? iconLabel(value) : null
@@ -138,36 +267,7 @@ export function IconField({ value, onChange }: { value: string | null; onChange:
       />
       {open && (
         <div id={panelId} className="flex flex-col gap-2 rounded-lg border border-rule bg-paper p-2">
-          <Input
-            type="search"
-            aria-label="Search icons"
-            placeholder="Search icons"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto p-0.5">
-            {categories.map((category) => (
-              <div key={category.label} role="group" aria-label={category.label} className="flex flex-col gap-1">
-                <span className="text-[11px] text-graphite">{category.label}</span>
-                <div className="flex flex-wrap gap-0.5">
-                  {category.icons.map((choice) => (
-                    <button
-                      key={choice.name}
-                      type="button"
-                      aria-label={choice.label}
-                      aria-pressed={value === choice.name}
-                      title={choice.label}
-                      onClick={() => onChange(choice.name)}
-                      className={cn(CELL, "text-ink")}
-                    >
-                      <WhiteboardIcon name={choice.name} className="size-4" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {!categories.length && <p className="px-1 py-2 text-xs text-graphite">No icon matches that.</p>}
-          </div>
+          <IconGrid value={value} onPick={onChange} />
         </div>
       )}
     </div>
@@ -176,29 +276,14 @@ export function IconField({ value, onChange }: { value: string | null; onChange:
 
 export function EmojiField({ value, onChange }: { value: string | null; onChange: (emoji: string | null) => void }) {
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
-  const [typed, setTyped] = useState("")
   const panelId = useId()
-  const typedId = useId()
-  const categories = useMemo(
-    () =>
-      EMOJI_CATEGORIES.map((category) => ({
-        ...category,
-        emoji: category.emoji.filter((choice) => matches(query, choice.words)),
-      })).filter((category) => category.emoji.length),
-    [query]
-  )
-  const rejected = typed.trim() !== "" && !singleEmoji(typed)
-  // Said in a word beside the emoji itself, when it is one from the list.
-  const known = EMOJI_CATEGORIES.flatMap((category) => category.emoji).find((choice) => choice.emoji === value)
-  const chosen = value ? (known ? known.words.split(" ")[0] : "Your own emoji") : null
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="text-xs text-graphite">Emoji</Label>
       <PickerRow
         label="Emoji"
-        chosen={chosen}
+        chosen={emojiWord(value)}
         preview={value}
         open={open}
         panelId={panelId}
@@ -207,58 +292,7 @@ export function EmojiField({ value, onChange }: { value: string | null; onChange
       />
       {open && (
         <div id={panelId} className="flex flex-col gap-2 rounded-lg border border-rule bg-paper p-2">
-          <Input
-            type="search"
-            aria-label="Search emoji"
-            placeholder="Search emoji"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto p-0.5">
-            {categories.map((category) => (
-              <div key={category.label} role="group" aria-label={category.label} className="flex flex-col gap-1">
-                <span className="text-[11px] text-graphite">{category.label}</span>
-                <div className="flex flex-wrap gap-0.5">
-                  {category.emoji.map((choice) => (
-                    <button
-                      key={choice.emoji}
-                      type="button"
-                      aria-label={choice.words}
-                      aria-pressed={value === choice.emoji}
-                      title={choice.words}
-                      onClick={() => onChange(choice.emoji)}
-                      className={cn(CELL, "text-base leading-none")}
-                    >
-                      {choice.emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {!categories.length && <p className="px-1 py-2 text-xs text-graphite">No emoji matches that.</p>}
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={typedId} className="text-[11px] text-graphite">
-              Or type or paste any emoji
-            </Label>
-            <Input
-              id={typedId}
-              value={typed}
-              aria-invalid={rejected}
-              aria-describedby={rejected ? `${typedId}-error` : undefined}
-              placeholder="One emoji"
-              onChange={(event) => {
-                setTyped(event.target.value)
-                const emoji = singleEmoji(event.target.value)
-                if (emoji) onChange(emoji)
-              }}
-            />
-            {rejected && (
-              <p id={`${typedId}-error`} role="alert" className="text-xs text-destructive">
-                That is not a single emoji.
-              </p>
-            )}
-          </div>
+          <EmojiGrid value={value} onPick={onChange} />
         </div>
       )}
     </div>

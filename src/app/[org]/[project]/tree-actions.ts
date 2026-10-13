@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import * as operations from "@/lib/documents/operations"
+import type { ItemIcon } from "@/lib/item-icon"
 import type { ItemKind } from "@/lib/documents/operations"
 import { documentHref, documentPermalink, projectHref } from "@/lib/navigation"
 import { createClient } from "@/lib/supabase/server"
@@ -63,6 +64,21 @@ export async function renameItem(
 ): Promise<ActionResult> {
   const supabase = await createClient()
   return finish(project, await operations.renameItem(supabase, kind, id, name))
+}
+
+// The icon in front of a document's or the project's name. Both are shown in
+// the sidebar and the pages, so both refresh the project.
+export async function setDocumentIcon(project: ProjectRef, documentId: string, icon: ItemIcon | null): Promise<ActionResult> {
+  const supabase = await createClient()
+  return finish(project, await operations.setItemIcon(supabase, { document: documentId }, icon))
+}
+
+export async function setProjectIcon(project: ProjectRef, icon: ItemIcon | null): Promise<ActionResult> {
+  const supabase = await createClient()
+  const result = await operations.setItemIcon(supabase, { project: project.projectId }, icon)
+  // The icon is in the sidebar and the workspace's project list too.
+  if ("ok" in result) revalidatePath(`/${project.slug}`, "layout")
+  return result
 }
 
 export async function moveItem(

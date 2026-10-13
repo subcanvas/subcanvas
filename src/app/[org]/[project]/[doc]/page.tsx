@@ -4,10 +4,12 @@ import { notFound, redirect } from "next/navigation"
 import { DocumentBreadcrumb, type Crumb } from "@/components/document-breadcrumb"
 import { DocumentTitle } from "@/components/editor/document-title"
 import { TextDocument } from "@/components/editor/text-document"
+import { ItemIconMark } from "@/components/item-icon"
 import { ReferencedBy } from "@/components/referenced-by"
 import { ShareProject } from "@/components/share-project"
 import { WhiteboardDocument } from "@/components/whiteboard/whiteboard-document"
 import { readDocumentSource, readProjectSource } from "@/lib/github/source"
+import { readItemIcon } from "@/lib/item-icon"
 import { abuseContact } from "@/lib/legal"
 import { codeFromSegment, documentHref, parseVia } from "@/lib/navigation"
 import { privateDocumentLimit } from "@/lib/org-access"
@@ -27,7 +29,7 @@ async function findDocument(params: PageProps<"/[org]/[project]/[doc]">["params"
   const access = await getProjectAccess(slug, projectParam)
   const { data: document } = await access.supabase
     .from("documents")
-    .select("id, code, title, type, source")
+    .select("id, code, title, type, source, icon")
     .eq("project_id", access.project.id)
     .eq("code", code)
     .is("deleted_at", null)
@@ -65,15 +67,15 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
   if (via.length) {
     const { data: visited } = await supabase
       .from("documents")
-      .select("id, code, title")
+      .select("id, code, title, icon")
       .eq("project_id", project.id)
       .in("code", via)
     const byCode = new Map(visited?.map((row) => [row.code, row]))
     trail = via.flatMap((code) => {
       const row = byCode.get(code)
-      return row ? [{ id: row.id, title: row.title }] : []
+      return row ? [{ id: row.id, title: row.title, icon: readItemIcon(row.icon) }] : []
     })
-  } else trail = (ancestors ?? []).map(({ id, title }) => ({ id, title }))
+  } else trail = (ancestors ?? []).map(({ id, title, icon }) => ({ id, title, icon: readItemIcon(icon) }))
   const trailIds = trail.map((crumb) => crumb.id)
 
   const { data: referenceRows } = await supabase.rpc("document_references", {
@@ -83,9 +85,19 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
     id: row.source_document_id,
     title: row.source_title,
     type: row.source_type,
+    icon: readItemIcon(row.source_icon),
   }))
 
-  const breadcrumb = <DocumentBreadcrumb projectName={project.name} trail={trail} current={document.title} />
+  const icon = readItemIcon(document.icon)
+  const breadcrumb = (
+    <DocumentBreadcrumb
+      projectName={project.name}
+      projectIcon={readItemIcon(project.icon)}
+      trail={trail}
+      current={document.title}
+      currentIcon={icon}
+    />
+  )
   const source = readDocumentSource(document.source)
   const repository = readProjectSource(project.source)
 
@@ -106,7 +118,12 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
             user={guest}
             repository={repository}
             breadcrumb={breadcrumb}
-            title={<h1 className="truncate text-lg font-semibold">{document.title}</h1>}
+            title={
+              <h1 className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+                <ItemIconMark icon={icon} className="size-5 text-lg" />
+                <span className="truncate">{document.title}</span>
+              </h1>
+            }
             actions={linkedFrom}
           />
         </main>
@@ -124,7 +141,12 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
           page={{
             breadcrumb,
             actions: linkedFrom,
-            title: <h1 className="px-13 text-4xl font-semibold tracking-tight">{document.title}</h1>,
+            title: (
+              <h1 className="flex items-center gap-2 px-13 text-4xl font-semibold tracking-tight">
+                <ItemIconMark icon={icon} className="size-9 text-3xl" />
+                <span>{document.title}</span>
+              </h1>
+            ),
           }}
         />
       </main>
@@ -167,7 +189,10 @@ export default async function DocumentPage({ params, searchParams }: PageProps<"
       project={projectRef}
       documentId={document.id}
       title={document.title}
+      icon={icon}
       editable={editable}
+      // The icon is this app's, even on what a repository owns.
+      iconEditable={canEdit}
       compact={compact}
     />
   )

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
+import { ItemIconMark } from "@/components/item-icon"
 import { DocumentPicker } from "@/components/document-picker"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { TextDocument } from "@/components/editor/text-document"
@@ -175,7 +176,11 @@ export function ObjectDocument({
           className="sheet-stack mx-4 mb-2 flex items-center gap-3 rounded-lg border border-rule bg-sheet p-4 text-left outline-none transition-[translate,border-color] [--stack-edge:var(--blueline)] hover:-translate-y-0.5 hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="flex size-10 items-center justify-center rounded-md bg-muted">
-            <Icon className="size-5 text-muted-foreground" />
+            <ItemIconMark
+              icon={meta.icon}
+              className="size-5 text-lg"
+              fallback={<Icon className="size-5 text-muted-foreground" />}
+            />
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">{meta.title}</span>

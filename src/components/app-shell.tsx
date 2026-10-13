@@ -7,6 +7,7 @@ import { SidebarSectionsProvider, type SidebarProject, type SidebarWorkspace } f
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { agentSignInAvailable } from "@/lib/mcp/sign-in"
 import { privateDocumentLimit } from "@/lib/org-access"
+import { readItemIcon } from "@/lib/item-icon"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, type Role } from "@/lib/roles"
 import {
@@ -44,7 +45,7 @@ export async function AppShell({
     // sidebar knows when to offer "Show all".
     supabase
       .from("orgs")
-      .select("id, name, slug, org_members(role), projects(id, slug, name, visibility, taken_down_at)")
+      .select("id, name, slug, org_members(role), projects(id, slug, name, visibility, taken_down_at, icon)")
       .eq("org_members.user_id", user.id)
       .order("name", { referencedTable: "projects" })
       .limit(SIDEBAR_SECTION_PROJECT_LIMIT + 1, { referencedTable: "projects" }),
@@ -59,12 +60,13 @@ export async function AppShell({
       const role = (row.org_members[0]?.role ?? "viewer") as Role
       const projects: SidebarProject[] = row.projects
         .slice(0, SIDEBAR_SECTION_PROJECT_LIMIT)
-        .map(({ id, slug, name, visibility, taken_down_at }) => ({
+        .map(({ id, slug, name, visibility, taken_down_at, icon }) => ({
           id,
           slug,
           name,
           visibility,
           takenDown: taken_down_at !== null,
+          icon: readItemIcon(icon),
         }))
       // The open project is listed even when it is past the limit.
       if (current && project && !projects.some(({ id }) => id === project.id)) projects.push(project)

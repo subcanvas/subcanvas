@@ -11,12 +11,15 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { ItemIconMark } from "@/components/item-icon"
 import { useProjectAddresses } from "@/components/project-addresses"
+import type { ItemIcon } from "@/lib/item-icon"
 
 export type Reference = {
   id: string
   title: string
   type: "text" | "whiteboard"
+  icon: ItemIcon | null
 }
 
 // Every other place this document appears (R1.7).
@@ -47,7 +50,10 @@ export function ReferencedBy({ references }: { references: Reference[] }) {
                   href={addresses.href(reference.id)}
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                 >
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <ItemIconMark
+                    icon={reference.icon}
+                    fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />}
+                  />
                   <span className="truncate">{reference.title}</span>
                 </Link>
               </li>

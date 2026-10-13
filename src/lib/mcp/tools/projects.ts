@@ -1,6 +1,9 @@
 import { z } from "zod"
 
 import * as operations from "@/lib/documents/operations"
+import { readItemIcon } from "@/lib/item-icon"
+import { ICON_CHOICES } from "@/lib/whiteboard/icons"
+import { COLOR_KEYS } from "@/lib/whiteboard/marks"
 import { readOrgAccess } from "@/lib/org-access"
 import type { Tables } from "@/lib/supabase/database.types"
 import { projectHref } from "@/lib/navigation"
@@ -91,11 +94,11 @@ export const projectTools = [
         // What each shows: nothing in the trash, nor inside something that
         // is. `document_count` is computed by the database, which the
         // generated types do not describe.
-        .select("id, slug, name, visibility, taken_down_at, source, document_count")
+        .select("id, slug, name, visibility, taken_down_at, source, icon, document_count")
         .eq("org_id", workspace_id)
         .order("created_at")
         .overrideTypes<
-          (Pick<Tables<"projects">, "id" | "slug" | "name" | "visibility" | "taken_down_at" | "source"> & {
+          (Pick<Tables<"projects">, "id" | "slug" | "name" | "visibility" | "taken_down_at" | "source" | "icon"> & {
             document_count: number
           })[],
           { merge: false }
@@ -105,6 +108,7 @@ export const projectTools = [
       const projects = data.map((project) => ({
         id: project.id,
         name: project.name,
+        icon: readItemIcon(project.icon),
         visibility: project.visibility,
         taken_down: project.taken_down_at !== null,
         shown_as: shownAs(project),
@@ -143,7 +147,7 @@ export const projectTools = [
           .eq("project_id", project_id),
         context.supabase
           .from("documents")
-          .select("id, title, type, kind, folder_id, parent_document_id, position, deleted_at")
+          .select("id, title, type, kind, folder_id, parent_document_id, position, deleted_at, icon")
           .eq("project_id", project_id),
         orgSlug(context, project.org_id),
       ])
@@ -182,6 +186,7 @@ export const projectTools = [
             id: project.id,
             workspace_id: project.org_id,
             name: project.name,
+            icon: readItemIcon(project.icon),
             visibility: project.visibility,
             taken_down: project.taken_down_at !== null,
             imported_from: project.source,
@@ -290,6 +295,40 @@ export const projectTools = [
       const result = await operations.renameProject(context.supabase, project_id, name)
       if ("error" in result) return result
       return { text: `The project is now called "${name.trim()}".`, data: { project_id, name: name.trim() } }
+    },
+  }),
+
+  defineTool({
+    name: "set_icon",
+    title: "Set the icon of a project or document",
+    group: "Workspaces and projects",
+    description:
+      "Puts an icon in front of the name of a project or a document, shown everywhere the name is: the sidebar, the projects page, the page's title, the trail of tabs. Give `emoji` (one emoji), or `icon` (one of the app's icons, the same set nodes use) with an optional `color`; give neither to take the icon off. Needs the editor role or higher, as renaming does.",
+    input: {
+      kind: z.enum(["project", "document"]).describe("What `id` refers to."),
+      id: id("The project or the document."),
+      emoji: z.string().optional().describe("One emoji."),
+      icon: z
+        .enum(ICON_CHOICES.map((choice) => choice.name) as [string, ...string[]])
+        .optional()
+        .describe("An icon by name, instead of an emoji."),
+      color: z.enum(COLOR_KEYS).optional().describe("The icon's color. Default `default`, the ink of the text. Not for an emoji."),
+    },
+    kind: "idempotent-write",
+    covers: ["[org]/[project]/tree-actions.setProjectIcon", "[org]/[project]/tree-actions.setDocumentIcon"],
+    run: async (context, { kind, id: itemId, emoji, icon, color }) => {
+      if (color && !icon) return { error: "A color goes with an icon, not an emoji." }
+      const result = await operations.setItemIcon(
+        context.supabase,
+        kind === "project" ? { project: itemId } : { document: itemId },
+        { emoji, icon, color }
+      )
+      if ("error" in result) return result
+      const set = emoji ? `the emoji ${emoji.trim()}` : icon ? `the icon "${icon}"${color ? ` in ${color}` : ""}` : null
+      return {
+        text: set ? `The ${kind} now wears ${set}.` : `The ${kind} has no icon now.`,
+        data: { kind, id: itemId, emoji: emoji?.trim() ?? null, icon: icon ?? null, color: icon ? (color ?? "default") : null },
+      }
     },
   }),
 ]

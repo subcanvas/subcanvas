@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import type { Database } from "@/lib/supabase/database.types"
+import { itemIconFrom } from "@/lib/item-icon"
+import type { Database, Json } from "@/lib/supabase/database.types"
 import { loadDocument } from "@/lib/sync/server-document"
 import type { Container, DocumentType } from "@/lib/tree"
 import { edgesMap, nodesMap } from "@/lib/whiteboard/schema"
@@ -140,6 +141,25 @@ export async function renameItem(
     kind === "folder"
       ? await supabase.from("folders").update({ name: trimmed }).eq("id", id).select("id")
       : await supabase.from("documents").update({ title: trimmed }).eq("id", id).select("id")
+  if (error) return fail(error)
+  if (!data.length) return NOT_ALLOWED
+  return { ok: true }
+}
+
+// The icon in front of a project's or a document's name (lib/item-icon.ts),
+// or none. Whoever may rename it may change it: the same policies decide.
+export async function setItemIcon(
+  supabase: Client,
+  target: { project: string } | { document: string },
+  input: { emoji?: string | null; icon?: string | null; color?: string | null } | null
+): Promise<OperationResult> {
+  const checked = itemIconFrom(input ?? {})
+  if ("error" in checked) return checked
+  const icon = checked.icon as Json
+  const { data, error } =
+    "project" in target
+      ? await supabase.from("projects").update({ icon }).eq("id", target.project).select("id")
+      : await supabase.from("documents").update({ icon }).eq("id", target.document).select("id")
   if (error) return fail(error)
   if (!data.length) return NOT_ALLOWED
   return { ok: true }

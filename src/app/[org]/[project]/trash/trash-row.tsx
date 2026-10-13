@@ -4,6 +4,7 @@ import { FileText, Folder, StickyNote, Workflow } from "lucide-react"
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
+import { ItemIconMark } from "@/components/item-icon"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { ItemIcon } from "@/lib/item-icon"
 
 import {
   deleteItemForever,
@@ -30,6 +32,8 @@ export type TrashedItem = {
   id: string
   title: string
   what: "folder" | "whiteboard" | "text" | "notes"
+  // A document's own icon, shown instead of the one for its kind.
+  icon: ItemIcon | null
 }
 
 const SHOWN_AS = {
@@ -80,7 +84,12 @@ export function TrashRow({
 
   return (
     <li className="flex items-center gap-3 px-4 py-2">
-      <Icon aria-hidden className={item.what === "whiteboard" ? "size-4 shrink-0 text-cobalt" : "size-4 shrink-0 text-graphite"} />
+      <ItemIconMark
+        icon={item.icon}
+        fallback={
+          <Icon aria-hidden className={item.what === "whiteboard" ? "size-4 shrink-0 text-cobalt" : "size-4 shrink-0 text-graphite"} />
+        }
+      />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">{item.title}</span>
         <span className="text-xs text-graphite">{label}</span>

@@ -1,3 +1,5 @@
+import { readItemIcon, type ItemIcon } from "@/lib/item-icon"
+
 export type DocumentType = "text" | "whiteboard"
 
 export type FolderRow = {
@@ -14,11 +16,13 @@ export type DocumentRow = {
   folder_id: string | null
   parent_document_id: string | null
   position: number
+  // The icon in front of its name, as stored (lib/item-icon.ts).
+  icon?: unknown
 }
 
 export type TreeNode =
   | { kind: "folder"; id: string; name: string; children: TreeNode[] }
-  | { kind: "document"; id: string; name: string; type: DocumentType; children: TreeNode[] }
+  | { kind: "document"; id: string; name: string; type: DocumentType; icon: ItemIcon | null; children: TreeNode[] }
 
 // Where an item can live: the project root, a folder, or inside a document.
 export type Container =
@@ -35,6 +39,7 @@ export function buildTree(folders: FolderRow[], documents: DocumentRow[]): TreeN
     id: row.id,
     name: row.title,
     type: row.type,
+    icon: readItemIcon(row.icon),
     children: documents
       .filter((d) => d.parent_document_id === row.id)
       .sort(byPosition)

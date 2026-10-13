@@ -15,6 +15,7 @@ import { billingConfigured } from "@/lib/billing/stripe"
 import { projectHref } from "@/lib/navigation"
 import { getProjectAccess } from "@/lib/project-access"
 import { hasRole } from "@/lib/roles"
+import { readItemIcon } from "@/lib/item-icon"
 import { buildTree } from "@/lib/tree"
 
 // A public project's pages are reachable by link only (R6.6). Members' pages
@@ -41,7 +42,7 @@ export default async function ProjectLayout({
     // addresses; the list shows the standard ones.
     supabase
       .from("documents")
-      .select("id, code, title, type, kind, folder_id, parent_document_id, position")
+      .select("id, code, title, type, kind, folder_id, parent_document_id, position, icon")
       .eq("project_id", project.id)
       .is("deleted_at", null),
   ])
@@ -56,6 +57,7 @@ export default async function ProjectLayout({
       <ProjectTree
         project={{ ...path, orgId: project.org_id, projectId: project.id }}
         projectName={project.name}
+        projectIcon={readItemIcon(project.icon)}
         nodes={nodes}
         canEdit={false}
       />
@@ -102,6 +104,7 @@ export default async function ProjectLayout({
     name: project.name,
     visibility: project.visibility,
     takenDown: project.taken_down_at !== null,
+    icon: readItemIcon(project.icon),
   }
   const showUsage =
     project.visibility === "private" &&
@@ -114,6 +117,7 @@ export default async function ProjectLayout({
     <ProjectTree
       project={{ ...path, orgId: org.id, projectId: project.id }}
       projectName={project.name}
+      projectIcon={sidebarProject.icon}
       row={{ href: projectHref(path), ...sidebarProject }}
       nodes={nodes}
       canEdit={canEdit}
