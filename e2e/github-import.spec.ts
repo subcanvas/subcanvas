@@ -37,7 +37,7 @@ test("a repository becomes a diagram: a node per folder, READMEs read-only, arro
   await expect(page.getByText("Start with a project")).toBeVisible()
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/orchard")
+  await dialog.getByRole("combobox", { name: "Repository" }).fill("fixture/orchard")
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
 
   // Nothing in this repository is skipped, so the import goes straight to
@@ -127,7 +127,7 @@ test("a repository that does not exist is refused in the dialog, with nothing cr
 
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/nowhere")
+  await dialog.getByRole("combobox", { name: "Repository" }).fill("fixture/nowhere")
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
 
   await expect(dialog.getByRole("alert")).toHaveText("There is no fixture named nowhere.")
@@ -149,7 +149,7 @@ test("an import with notes shows them, even in an org that had no projects", asy
   await expect(page.getByText("Start with a project")).toBeVisible()
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/bramble")
+  await dialog.getByRole("combobox", { name: "Repository" }).fill("fixture/bramble")
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
 
   await expect(dialog.getByRole("heading", { name: "Imported, with a few things left out" })).toBeVisible()
@@ -163,7 +163,7 @@ test("an import with notes shows them, even in an org that had no projects", asy
   // Opened again, it is the form, not the last import's notes; and the
   // whiteboard the notes pointed to is there.
   await page.getByRole("button", { name: "Import from GitHub" }).click()
-  await expect(dialog.getByRole("textbox", { name: "Repository" })).toBeVisible()
+  await expect(dialog.getByRole("combobox", { name: "Repository" })).toBeVisible()
   await page.keyboard.press("Escape")
   await page.getByRole("main").getByRole("link", { name: /^bramble/ }).click()
   await treeLink(page, "System design").click()
@@ -181,7 +181,7 @@ test("a private repository makes a private project, even when public is ticked",
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByRole("checkbox", { name: /Make this project public/ })).toBeChecked()
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/private-ledger")
+  await dialog.getByRole("combobox", { name: "Repository" }).fill("fixture/private-ledger")
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
   await expect(whiteboardTools(page)).toBeVisible()
 
