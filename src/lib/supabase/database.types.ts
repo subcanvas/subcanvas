@@ -364,6 +364,41 @@ export type Database = {
           },
         ]
       }
+      github_connections: {
+        Row: {
+          account_login: string
+          account_type: string
+          connected_at: string
+          connected_by: string | null
+          installation_id: number
+          org_id: string
+        }
+        Insert: {
+          account_login: string
+          account_type: string
+          connected_at?: string
+          connected_by?: string | null
+          installation_id: number
+          org_id: string
+        }
+        Update: {
+          account_login?: string
+          account_type?: string
+          connected_at?: string
+          connected_by?: string | null
+          installation_id?: number
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_connections_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_invites: {
         Row: {
           accepted_at: string | null

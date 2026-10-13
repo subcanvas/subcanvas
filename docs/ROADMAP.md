@@ -75,7 +75,7 @@ Items 2 and 3 both need the same two pieces first, described under [Shared found
 
 ## 3. GitHub integration
 
-**Status.** Built: a one-time import of a public repository from the Projects page ("Import from GitHub"), automatic folder mapping, [`.subcanvas` files](SUBCANVAS_FILE.md), arrows with their documents, automatic layout, and READMEs as read-only documents. Not built: the GitHub App, private repositories, sync on push, pull requests, remembering deleted paths, and the Developers tab.
+**Status.** Built: a one-time import of a repository from the Projects page ("Import from GitHub"), automatic folder mapping, [`.subcanvas` files](SUBCANVAS_FILE.md), arrows with their documents, automatic layout, and READMEs as read-only documents. Private repositories through the GitHub App ("Connect GitHub", Settings → GitHub): a workspace admin installs it on a GitHub account or organization, the workspace's editors import the repositories it was granted, read-only, and a private repository always makes a private project. Not built: sync on push (the app has no webhook yet), pull requests, remembering deleted paths, and the Developers tab.
 
 **What.** A **Developers** tab on the home page. Connect a repository and Subcanvas draws its system diagram: **one node per folder**, each node's document is that folder's `README.md`, and folders inside folders become whiteboards inside nodes. This is the product's own idea (a box on the architecture diagram opens that service's own diagram) filled in from what the repository already says about itself. A free-tier user sees it working on their own code before they have drawn anything.
 

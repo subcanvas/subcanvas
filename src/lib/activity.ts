@@ -29,6 +29,7 @@ export type ServerStep =
   | `import_refused_${ImportRefusal}`
   | "imported_files"
   | "connected_agent"
+  | "connected_github"
   | "opened_billing"
 
 export async function recordStep(supabase: Client, step: ServerStep) {

@@ -4,21 +4,21 @@ import { ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-import { settingsGroups } from "./sections"
+import { settingsGroups, type SettingsOptions } from "./sections"
 
 // The section list beside every settings page on a wide screen.
 export function SettingsNav({
   org,
-  showBilling,
+  options,
 }: {
   org: { name: string; slug: string; personal: boolean }
-  showBilling: boolean
+  options: SettingsOptions
 }) {
   const pathname = usePathname()
 
   return (
     <nav aria-label="Settings" className="sticky top-10 hidden w-44 shrink-0 flex-col gap-6 self-start md:flex">
-      {settingsGroups(org, showBilling).map((group) => (
+      {settingsGroups(org, options).map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
           <p className="truncate px-2 pb-1 font-mono text-xs tracking-wide text-graphite uppercase">{group.label}</p>
           {group.sections.map(({ href, label, icon: Icon }) => (

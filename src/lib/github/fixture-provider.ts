@@ -36,7 +36,15 @@ export function createFixtureProvider(fixtures: string): RepositoryProvider {
       const repository = `${owner}/${name}`
       const found = await stat(folderOf(repository)).catch(() => null)
       if (!found?.isDirectory()) throw new RepositoryError("not_found", `There is no fixture named ${name}.`)
-      return { repository, ref: "main", commit: "0".repeat(40), description: "A fixture repository." }
+      // A fixture named private-… stands for a private repository, so the
+      // rule that one always makes a private project can be tested here.
+      return {
+        repository,
+        ref: "main",
+        commit: "0".repeat(40),
+        description: "A fixture repository.",
+        private: name.startsWith("private-"),
+      }
     },
 
     async listFiles({ repository }) {

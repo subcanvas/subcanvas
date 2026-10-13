@@ -13,7 +13,7 @@ export const integrationTools = [
     title: "Draw a GitHub repository as a project",
     group: "GitHub and embeds",
     description:
-      "Creates a new project from a public GitHub repository: a whiteboard of its top-level folders, a nested whiteboard inside each folder that has folders of its own, every README as a read-only page, and the arrows its `.subcanvas` files declare. It is a one-time copy. Returns the project and its top whiteboard, plus warnings about anything left out. Large repositories take several seconds.",
+      "Creates a new project from a GitHub repository, public or, when the workspace has connected the GitHub account that owns it (Settings → GitHub in the web app), private: a whiteboard of its top-level folders, a nested whiteboard inside each folder that has folders of its own, every README as a read-only page, and the arrows its `.subcanvas` files declare. It is a one-time copy. Returns the project and its top whiteboard, plus warnings about anything left out. Large repositories take several seconds.",
     input: {
       workspace_id: id("The workspace to create the project in, from `list_workspaces`."),
       repository: z.string().min(3).describe("`owner/name`, or the repository's address on github.com."),
@@ -21,7 +21,7 @@ export const integrationTools = [
         .boolean()
         .optional()
         .describe(
-          "Whether the new project is public, so it can be shared and embedded. Left out, it is public when you are an admin or owner of the workspace, since the repository already is, and private otherwise, as in the web app. Making a project public takes the admin role."
+          "Whether the new project is public, so it can be shared and embedded. Left out, a public repository's project is public when you are an admin or owner of the workspace, since the repository already is, and private otherwise, as in the web app. Making a project public takes the admin role. A private repository always makes a private project, whatever this says."
         ),
     },
     kind: "write",

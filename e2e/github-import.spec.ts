@@ -10,7 +10,9 @@ import {
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
+import { adminClient, idsOf, NO_ADMIN, workspaceId } from "./support/admin"
 import { stepsOf } from "./support/database"
+import { GITHUB_APP_SLUG } from "./support/github-app"
 import { canvas, devBaseURL, treeLink } from "./support/import"
 
 // Against the development server, where "fixture/<name>" imports a folder
@@ -168,4 +170,71 @@ test("an import with notes shows them, even in an org that had no projects", asy
   await expect(whiteboardTools(page)).toBeVisible()
   await expect(nodeLabelled(page, "API")).toBeVisible()
   await expect(nodeLabelled(page, "Web")).toBeVisible()
+})
+
+test("a private repository makes a private project, even when public is ticked", async ({ page }) => {
+  const { account } = await signUpWithOrg(page)
+
+  // `private-ledger` stands for a private repository (fixture-provider.ts).
+  // An admin's dialog opens with public ticked, as for any repository it
+  // cannot tell is private.
+  await page.getByRole("button", { name: "Import from GitHub" }).click()
+  const dialog = page.getByRole("dialog")
+  await expect(dialog.getByRole("checkbox", { name: /Make this project public/ })).toBeChecked()
+  await dialog.getByRole("textbox", { name: "Repository" }).fill("fixture/private-ledger")
+  await dialog.getByRole("button", { name: "Import", exact: true }).click()
+  await expect(whiteboardTools(page)).toBeVisible()
+
+  // Its address finds nothing for a visitor, and the project for a member.
+  await expect(idsOf(page.url())).rejects.toBeTruthy()
+  expect((await idsOf(page.url(), account)).projectId).toBeTruthy()
+})
+
+test("Settings → GitHub: an admin connects through GitHub, sees the connection, and disconnects it", async ({ page }) => {
+  test.skip(!adminClient(), NO_ADMIN)
+  const { account, slug } = await signUpWithOrg(page)
+  const orgId = await workspaceId(account, slug)
+
+  await page.goto(`/${slug}/settings/github`)
+  await expect(page.getByRole("heading", { name: "GitHub", level: 1 })).toBeVisible()
+  await expect(page.getByText("No GitHub accounts are connected to this workspace.")).toBeVisible()
+  const connect = page.getByRole("link", { name: "Connect GitHub" })
+  await expect(connect).toHaveAttribute("href", `/api/github/connect?workspace=${slug}`)
+
+  // Connecting sends the browser to GitHub to install the app, with a value
+  // GitHub hands back. Followed no further: that is github.com.
+  const started = await page.request.get(`/api/github/connect?workspace=${slug}`, { maxRedirects: 0 })
+  expect(started.status()).toBe(307)
+  const install = new URL(started.headers().location)
+  expect(`${install.origin}${install.pathname}`).toBe(`https://github.com/apps/${GITHUB_APP_SLUG}/installations/new`)
+  expect(install.searchParams.get("state")).toBeTruthy()
+
+  // Coming back with any other value connects nothing.
+  await page.goto(`/api/github/callback?state=guessed&installation_id=42&code=x&setup_action=install`)
+  await expect(page).toHaveURL(new RegExp(`/${slug}/settings/github\\?github=expired`))
+  await expect(page.getByRole("status")).toHaveText(/did not start from this page/)
+  await expect(page.getByText("No GitHub accounts are connected to this workspace.")).toBeVisible()
+
+  // A connection as the callback would write it, once GitHub has vouched
+  // for the person: only the server's secret key can.
+  const { error } = await adminClient()!.from("github_connections").insert({
+    org_id: orgId,
+    installation_id: 4242,
+    account_login: "octo-e2e",
+    account_type: "Organization",
+  })
+  expect(error).toBeNull()
+  await page.goto(`/${slug}/settings/github`)
+  const row = page.getByRole("listitem").filter({ hasText: "octo-e2e" })
+  await expect(row.getByText("Organization")).toBeVisible()
+  await expect(row.getByRole("link", { name: /Choose repositories/ })).toHaveAttribute(
+    "href",
+    "https://github.com/organizations/octo-e2e/settings/installations/4242"
+  )
+
+  await row.getByRole("button", { name: "Disconnect" }).click()
+  const confirm = page.getByRole("dialog")
+  await expect(confirm.getByRole("heading", { name: "Disconnect octo-e2e?" })).toBeVisible()
+  await confirm.getByRole("button", { name: "Disconnect" }).click()
+  await expect(page.getByText("No GitHub accounts are connected to this workspace.")).toBeVisible()
 })

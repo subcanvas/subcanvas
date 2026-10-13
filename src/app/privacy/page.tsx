@@ -59,7 +59,20 @@ export default async function PrivacyPage() {
       <p>
         We do not request access to any other Google data. We do not use Google user data for advertising, do not
         sell it, do not use it to train machine-learning models, and do not transfer it to anyone except the
-        providers listed below as needed to run the service, or as the law requires. The same applies to GitHub.
+        providers listed below as needed to run the service, or as the law requires. The same applies to GitHub,
+        apart from the repositories you choose to connect, below.
+      </p>
+
+      {/* Ours: Connect GitHub (lib/github/app.ts, migration github_connections). */}
+      <h3>Connecting GitHub</h3>
+      <p>
+        An admin of a workspace can connect a GitHub account or organization to it, so that the workspace&apos;s
+        editors can import its private repositories. Connecting installs our GitHub App, which can read the contents
+        of the repositories you choose on GitHub and nothing else; it cannot change them. We keep which GitHub account
+        is connected to which workspace, who connected it, and when. When someone imports a repository, we read its
+        folders, READMEs, and <code>.subcanvas</code> files and keep what the import draws, like anything else in the
+        workspace. We do not keep the code itself, or any GitHub token. Disconnecting stops imports from that account;
+        uninstalling the app on GitHub stops us reading it at all.
       </p>
 
       <h3>Billing information</h3>
@@ -132,7 +145,7 @@ export default async function PrivacyPage() {
         <li><strong>Resend</strong>: sending email.</li>
         <li><strong>Stripe</strong>: payments, for paid plans.</li>
         <li><strong>Cloudflare</strong>: domain name service.</li>
-        <li><strong>Google and GitHub</strong>: sign-in, only if you choose them. They learn that you signed in to this service.</li>
+        <li><strong>Google and GitHub</strong>: sign-in, only if you choose them. They learn that you signed in to this service. GitHub also serves the repositories a workspace connects.</li>
       </ul>
       <p>
         Members of your workspaces can see your name, email address, and picture, what you create and edit there, and

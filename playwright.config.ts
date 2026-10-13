@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test"
 
+import { gitHubAppEnvironment } from "./e2e/support/github-app"
 import { devBaseURL, DEV_PORT, GITHUB_FIXTURES } from "./e2e/support/import"
 
 // End-to-end tests: a real browser, a real production build, and the real
@@ -87,6 +88,8 @@ export default defineConfig({
       // e2e/support/import.ts). The URL is the sign-in page, so the first
       // page every spec opens is compiled before any test starts.
       command: `SUBCANVAS_IMPORT_FIXTURES=${GITHUB_FIXTURES} pnpm dev --port ${DEV_PORT}`,
+      // With a GitHub App that exists nowhere, for Connect GitHub.
+      env: { ...process.env, ...gitHubAppEnvironment() } as Record<string, string>,
       url: `${devBaseURL}/login`,
       reuseExistingServer: true,
       timeout: 120_000,

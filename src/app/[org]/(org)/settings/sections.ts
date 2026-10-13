@@ -1,13 +1,16 @@
-import { Building2, CreditCard, Palette, UserRound, Users, type LucideIcon } from "lucide-react"
+import { Building2, CreditCard, FolderGit2, Palette, UserRound, Users, type LucideIcon } from "lucide-react"
 
 export type SettingsSection = { href: string; label: string; detail: string; icon: LucideIcon }
 export type SettingsGroup = { label: string; sections: SettingsSection[] }
 
 // Every section of Settings, in order. The list beside each page on a wide
 // screen and the list page on a narrow one are both drawn from this.
+// Billing and GitHub are left out on a server that has not set them up.
+export type SettingsOptions = { billing: boolean; github: boolean }
+
 export function settingsGroups(
   org: { name: string; slug: string; personal: boolean },
-  showBilling: boolean
+  { billing, github }: SettingsOptions
 ): SettingsGroup[] {
   const base = `/${org.slug}/settings`
   return [
@@ -28,7 +31,17 @@ export function settingsGroups(
           detail: org.personal ? "Just you. Team workspaces are for working with others." : "Who is in the workspace and what they can do.",
           icon: Users,
         },
-        ...(showBilling
+        ...(github
+          ? [
+              {
+                href: `${base}/github`,
+                label: "GitHub",
+                detail: "The GitHub accounts whose private repositories this workspace can import.",
+                icon: FolderGit2,
+              },
+            ]
+          : []),
+        ...(billing
           ? [{ href: `${base}/billing`, label: "Billing", detail: "The plan and what it is billed for.", icon: CreditCard }]
           : []),
       ],

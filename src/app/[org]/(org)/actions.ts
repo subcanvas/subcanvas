@@ -5,9 +5,12 @@ import { redirect } from "next/navigation"
 
 import { recordStep } from "@/lib/activity"
 import * as operations from "@/lib/documents/operations"
+import { gitHubAppConfig } from "@/lib/github/app"
 import { importFromReference } from "@/lib/github/import-reference"
+import { connectedRepositories } from "@/lib/github/installations"
 import { projectHref } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
+import { hasRole } from "@/lib/roles"
 import { addressOfDocument } from "@/lib/project-access"
 import { createClient } from "@/lib/supabase/server"
 
@@ -73,6 +76,28 @@ export async function importFromGitHub(
   // lists the new project instead, would close it before they were read.
   // The dialog refreshes the page when it closes.
   return { ok: true, href, folders: outcome.folders, warnings: outcome.warnings }
+}
+
+// What the import dialog offers beyond public repositories: the ones this
+// workspace's GitHub connections can read (Connect GitHub), and whether the
+// person could connect one. Nothing when this server has no GitHub App.
+export type GitHubChoices = {
+  connectable: boolean
+  canConnect: boolean
+  repositories: { repository: string; private: boolean }[]
+  broken: string[]
+}
+
+export async function gitHubChoices(slug: string): Promise<GitHubChoices> {
+  const { supabase, org, role } = await getOrgContext(slug)
+  if (!gitHubAppConfig()) return { connectable: false, canConnect: false, repositories: [], broken: [] }
+  const { repositories, broken } = await connectedRepositories(supabase, org.id)
+  return {
+    connectable: true,
+    canConnect: hasRole(role, "admin"),
+    repositories: repositories.map(({ repository, private: isPrivate }) => ({ repository, private: isPrivate })),
+    broken,
+  }
 }
 
 // The step record (lib/activity.ts): the person opened Import from GitHub.

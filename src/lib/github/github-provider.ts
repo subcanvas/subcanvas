@@ -7,8 +7,11 @@ import {
   type RepositoryReference,
 } from "./provider"
 
-// Public repositories on github.com, read without a GitHub App. Only two
-// hosts are ever contacted, and both are written here, not taken from input.
+// Repositories on github.com: public ones as the OAuth app (or anonymously),
+// and, given an installation's token from the GitHub App (app.ts), the
+// repositories that installation was granted, private ones included. Only
+// two hosts are ever contacted, and both are written here, not taken from
+// input.
 const API = "https://api.github.com"
 const RAW = "https://raw.githubusercontent.com"
 
@@ -39,10 +42,25 @@ export function gitHubAppCredentials(): GitHubAppCredentials | undefined {
   return clientId && clientSecret ? { clientId, clientSecret } : undefined
 }
 
-export function createGitHubProvider(credentials: GitHubAppCredentials | undefined): RepositoryProvider {
-  const authorization = credentials
-    ? `Basic ${Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString("base64")}`
-    : undefined
+export type GitHubProviderOptions = {
+  // A token for one installation of the GitHub App: reads what it was
+  // granted, private repositories included, and nothing else.
+  installationToken?: string
+  // What to say when there is no repository by that name that can be read.
+  notFound?: string
+}
+
+const PUBLIC_NOT_FOUND = "There is no public repository by that name."
+
+export function createGitHubProvider(
+  credentials: GitHubAppCredentials | undefined,
+  { installationToken, notFound = PUBLIC_NOT_FOUND }: GitHubProviderOptions = {}
+): RepositoryProvider {
+  const authorization = installationToken
+    ? `Bearer ${installationToken}`
+    : credentials
+      ? `Basic ${Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString("base64")}`
+      : undefined
 
   async function api(path: string, accept = "application/vnd.github+json") {
     let response: Response
@@ -71,10 +89,7 @@ export function createGitHubProvider(credentials: GitHubAppCredentials | undefin
         `GitHub is limiting how often this server may ask. Try again ${resetTime(response)}.`
       )
     if (response.status === 404 || response.status === 403 || response.status === 451)
-      throw new RepositoryError(
-        "not_found",
-        "There is no public repository by that name. Private repositories cannot be imported yet."
-      )
+      throw new RepositoryError("not_found", notFound)
     throw new RepositoryError("unavailable", `GitHub answered with an error (${response.status}). Try again in a moment.`)
   }
 
@@ -83,11 +98,11 @@ export function createGitHubProvider(credentials: GitHubAppCredentials | undefin
       const response = await api(`/repos/${owner}/${name}`)
       const data: { full_name?: unknown; default_branch?: unknown; description?: unknown; private?: unknown } =
         await response.json()
-      if (data.private !== false || typeof data.full_name !== "string" || typeof data.default_branch !== "string")
-        throw new RepositoryError(
-          "not_found",
-          "There is no public repository by that name. Private repositories cannot be imported yet."
-        )
+      // Without an installation, only a repository anyone could read: the
+      // OAuth app's credentials must not reach further than a stranger.
+      const isPrivate = data.private !== false
+      if ((isPrivate && !installationToken) || typeof data.full_name !== "string" || typeof data.default_branch !== "string")
+        throw new RepositoryError("not_found", notFound)
 
       let commit: string
       try {
@@ -111,6 +126,7 @@ export function createGitHubProvider(credentials: GitHubAppCredentials | undefin
         ref: data.default_branch,
         commit,
         description: typeof data.description === "string" ? data.description : "",
+        private: isPrivate,
       }
     },
 
@@ -136,11 +152,27 @@ export function createGitHubProvider(credentials: GitHubAppCredentials | undefin
     async readFile(repository: Repository, path: string) {
       let response: Response
       try {
-        response = await fetch(`${RAW}/${repository.repository}/${repository.commit}/${encodePath(path)}`, {
-          headers: { "user-agent": "subcanvas" },
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          cache: "no-store",
-        })
+        // A private repository's files only come from the API, with the
+        // token; a public one's from the raw host, with nothing.
+        response = installationToken
+          ? await fetch(
+              `${API}/repos/${repository.repository}/contents/${encodePath(path)}?ref=${repository.commit}`,
+              {
+                headers: {
+                  accept: "application/vnd.github.raw",
+                  "x-github-api-version": "2022-11-28",
+                  "user-agent": "subcanvas",
+                  authorization: `Bearer ${installationToken}`,
+                },
+                signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+                cache: "no-store",
+              }
+            )
+          : await fetch(`${RAW}/${repository.repository}/${repository.commit}/${encodePath(path)}`, {
+              headers: { "user-agent": "subcanvas" },
+              signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+              cache: "no-store",
+            })
       } catch {
         return null
       }
