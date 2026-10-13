@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createOrg, freshId, personalSlug, signIn, signOut, signUpWithOrg, workspaceSection } from "./support/app"
+import { createOrg, freshId, firstWorkspaceSlug, signIn, signOut, signUpWithOrg, workspaceSection } from "./support/app"
 import { signInLinkFor } from "./support/mailpit"
 
 // Settings and the account: what a person changes about themselves and
@@ -77,7 +77,7 @@ test("General: renaming the workspace renames it in the sidebar", async ({ page 
   await expect(page).toHaveURL(`/${slug}`)
 })
 
-test("General: deleting a team workspace asks for its name and then it is gone", async ({ page }) => {
+test("General: deleting a workspace asks for its name and then it is gone", async ({ page }) => {
   const { account } = await signUpWithOrg(page)
   // A second one to throw away.
   const doomed = freshId()
@@ -98,8 +98,8 @@ test("General: deleting a team workspace asks for its name and then it is gone",
   await confirm.click()
 
   await expect(page.getByText(`${orgName} was deleted.`)).toBeVisible()
-  // Home is the personal workspace.
-  await page.waitForURL(`/${personalSlug(account)}`)
+  // Home is the workspace the account started with.
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
   // The deleted workspace is not found, for its former owner too.
   const gone = await page.goto(`/${slug}`)
   expect(gone?.status()).toBe(404)
@@ -120,7 +120,7 @@ test("Profile: changing the password from the profile page", async ({ page }) =>
 
   await signOut(page)
   await signIn(page, changed)
-  await page.waitForURL(`/${personalSlug(account)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
 })
 
 test("resets a forgotten password through the link in the email", async ({ page }) => {
@@ -141,11 +141,11 @@ test("resets a forgotten password through the link in the email", async ({ page 
   const reset = { ...account, password: `reset-${account.id}` }
   await page.getByLabel("New password").fill(reset.password)
   await page.getByRole("button", { name: "Save password" }).click()
-  await page.waitForURL(`/${personalSlug(account)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
 
   await signOut(page)
   await signIn(page, reset)
-  await page.waitForURL(`/${personalSlug(account)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
 })
 
 test("the account menu names the person, leads to the profile, and signs out", async ({ page }) => {

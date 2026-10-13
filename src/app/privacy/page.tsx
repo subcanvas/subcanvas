@@ -273,8 +273,8 @@ export default async function PrivacyPage() {
       <h2>What happens when you delete content</h2>
       <p>
         Documents you trash stay in the project&apos;s trash, where you can restore them, until you delete them
-        for good. You can delete your account from Profile, or ask us to. Deleting it deletes your personal
-        workspace and every workspace that has no other members, with all of their content. Content in
+        for good. You can delete your account from Profile, or ask us to. Deleting it deletes every workspace
+        that has no other members, with all of their content. Content in
         workspaces that other people are still members of stays with those workspaces, since it is theirs too.
         The content deleted with your account will become immediately inaccessible and should be purged from our
         systems in full within 60 days.

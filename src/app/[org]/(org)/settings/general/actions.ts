@@ -11,8 +11,7 @@ import { removeMember } from "../members/actions"
 // Authorization is RLS: admins rename, owners delete, anyone leaves. A write
 // that a policy filters out affects nothing, which is reported as "not
 // allowed". Triggers say no on their own terms: a workspace keeps at least
-// one owner, one with a running subscription cannot be deleted, and a
-// personal workspace is neither left nor deleted apart from its account.
+// one owner, and one with a running subscription cannot be deleted.
 
 export type ActionResult = { error: string } | { ok: true }
 

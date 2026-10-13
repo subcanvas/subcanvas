@@ -35,13 +35,13 @@ export const projectTools = [
     title: "List workspaces",
     group: "Workspaces and projects",
     description:
-      "Lists the workspaces the signed-in person belongs to, with their role in each: their personal workspace first (`personal` is true; it is theirs alone), then the team workspaces they share with others. Start here: every project lives in a workspace, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of a workspace whose Pro plan has lapsed.",
+      "Lists the workspaces the signed-in person belongs to, by name, with their role in each. Start here: every project lives in a workspace, and the role decides what you may do (viewer: read only; editor, admin, owner: read and write). `can_edit` is false for a viewer, and for everyone but the owner of a workspace whose Pro plan has lapsed.",
     input: {},
     kind: "read",
     run: async (context) => {
       const { data, error } = await context.supabase
         .from("org_members")
-        .select("role, orgs(id, name, slug, personal_owner)")
+        .select("role, orgs(id, name, slug)")
         .eq("user_id", context.userId)
       if (error) return { error: error.message }
 
@@ -53,7 +53,6 @@ export const projectTools = [
                   id: row.orgs.id,
                   name: row.orgs.name,
                   slug: row.orgs.slug,
-                  personal: row.orgs.personal_owner !== null,
                   role: row.role,
                   can_edit: access?.canEdit ?? false,
                 })),
@@ -61,13 +60,13 @@ export const projectTools = [
             : []
         )
       )
-      workspaces.sort((a, b) => Number(b.personal) - Number(a.personal))
+      workspaces.sort((a, b) => a.name.localeCompare(b.name))
       return {
         text: workspaces.length
           ? workspaces
               .map(
                 (workspace) =>
-                  `- ${workspace.name} (${workspace.id}): ${workspace.personal ? "personal, " : ""}${workspace.role}${workspace.can_edit ? "" : ", read only"}`
+                  `- ${workspace.name} (${workspace.id}): ${workspace.role}${workspace.can_edit ? "" : ", read only"}`
               )
               .join("\n")
           : "You are not a member of any workspace.",

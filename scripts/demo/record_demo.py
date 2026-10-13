@@ -161,7 +161,7 @@ def keep_title(page: Page):
 
 
 def sign_in(page: Page, base_url: str, email: str, password: str):
-    """Signs in, creating the account the first time, and opens its personal
+    """Signs in, creating the account the first time, and opens its first
     workspace. Only ever used before the camera rolls."""
     page.goto(f"{base_url}/login", wait_until="networkidle")
     page.get_by_label("Email").fill(email)
@@ -174,7 +174,7 @@ def sign_in(page: Page, base_url: str, email: str, password: str):
         page.get_by_label("Password").fill(password)
         page.get_by_role("button", name="Create account").click()
         page.wait_for_url(lambda url: "/login" not in url, timeout=15_000)
-    # Every account has a personal workspace, and /auth/home opens it.
+    # Every account starts with a workspace, and /auth/home opens it.
     page.goto(f"{base_url}/auth/home", wait_until="networkidle")
 
 

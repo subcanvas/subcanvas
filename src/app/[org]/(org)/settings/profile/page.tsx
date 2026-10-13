@@ -86,15 +86,18 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
   const deleted = workspaces.filter((workspace) => workspace.outcome === "delete")
   const left = workspaces.filter((workspace) => workspace.outcome === "leave")
   const blockers = workspaces.filter((workspace) => workspace.outcome === "only_owner" || workspace.outcome === "subscribed")
-  const teams = deleted.filter((workspace) => !workspace.personal).length
   const summary = [
-    `This deletes your account and your personal workspace${
-      teams === 0 ? "" : teams === 1 ? ", and 1 team workspace nobody else is in" : `, and ${teams} team workspaces nobody else is in`
-    }, with every project, whiteboard, page, picture and video in them.`,
+    `This deletes your account${
+      deleted.length === 0
+        ? ""
+        : deleted.length === 1
+          ? ", and 1 workspace nobody else is in"
+          : `, and ${deleted.length} workspaces nobody else is in`
+    }${deleted.length ? ", with every project, whiteboard, page, picture and video in them" : ""}.`,
     left.length === 1
-      ? "You leave 1 team workspace; what you made there stays with it."
+      ? "You leave 1 workspace; what you made there stays with it."
       : left.length > 1
-        ? `You leave ${left.length} team workspaces; what you made there stays with them.`
+        ? `You leave ${left.length} workspaces; what you made there stays with them.`
         : "",
   ]
     .filter(Boolean)
@@ -175,7 +178,7 @@ export default async function ProfilePage({ params }: PageProps<"/[org]/settings
         id="profile-delete"
         title="Delete your account"
         danger
-        description="Deletes your account, your personal workspace, and every team workspace nobody else is in, with everything in them. Team workspaces other people are in stay theirs, with what you made there. It cannot be undone."
+        description="Deletes your account and every workspace nobody else is in, with everything in them. Workspaces other people are in stay theirs, with what you made there. It cannot be undone."
       >
         {!selfService ? (
           <p className="max-w-xl text-sm leading-relaxed">

@@ -162,15 +162,15 @@ test("an agent draws Mermaid with import_mermaid, as a new whiteboard or beside 
   page,
   baseURL,
 }) => {
-  const { account } = await signUpWithOrg(page)
+  const { account, slug } = await signUpWithOrg(page)
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
   const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
 
-  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; personal: boolean }[] }
+  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; slug: string }[] }
   const id = freshId()
   const { project_id } = (await callTool(client, "create_project", {
-    workspace_id: workspaces.find((workspace) => !workspace.personal)!.id,
+    workspace_id: workspaces.find((workspace) => workspace.slug === slug)!.id,
     name: `Agent diagrams ${id}`,
   })) as { project_id: string }
 

@@ -44,7 +44,7 @@ export async function AppShell({
     // sidebar knows when to offer "Show all".
     supabase
       .from("orgs")
-      .select("id, name, slug, personal_owner, org_members(role), projects(id, slug, name, visibility, taken_down_at)")
+      .select("id, name, slug, org_members(role), projects(id, slug, name, visibility, taken_down_at)")
       .eq("org_members.user_id", user.id)
       .order("name", { referencedTable: "projects" })
       .limit(SIDEBAR_SECTION_PROJECT_LIMIT + 1, { referencedTable: "projects" }),
@@ -72,7 +72,6 @@ export async function AppShell({
         id: row.id,
         name: row.name,
         slug: row.slug,
-        personal: row.personal_owner !== null,
         // The workspace being looked at knows its plan, and whether it is
         // locked. For the others, the role decides, and creating the project
         // still checks everything.
@@ -83,8 +82,8 @@ export async function AppShell({
         more: row.projects.length > SIDEBAR_SECTION_PROJECT_LIMIT,
       }
     })
-    // Personal first, then the team workspaces by name.
-    .sort((a, b) => Number(b.personal) - Number(a.personal) || a.name.localeCompare(b.name))
+    // By name: no workspace comes first because of what kind it is.
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const sidebarUser = {
     email: user.email ?? "",

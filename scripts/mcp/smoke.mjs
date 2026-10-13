@@ -1,12 +1,12 @@
 // Drives every tool of the MCP server with a real MCP client, as three
-// people: an owner, a viewer of the owner's team workspace, and someone from
+// people: an owner, a viewer of the owner's second workspace, and someone from
 // another workspace. It checks the results and the security model, and
 // leaves a project behind to look at in the browser.
 //
 //   MCP_URL=http://localhost:3000/mcp node --env-file=.env.local scripts/mcp/smoke.mjs \
 //     <owner email> <viewer email> <outsider email> <password they share>
 //
-// Local test accounts only. The viewer must already be a viewer in a team
+// Local test accounts only. The viewer must already be a viewer in a
 // workspace the owner owns; the outsider must not be a member of it.
 import assert from "node:assert/strict"
 
@@ -75,8 +75,15 @@ const viewer = await connect(viewerEmail)
 const outsider = await connect(outsiderEmail)
 const listed = (await owner.listTools()).tools.map((tool) => tool.name)
 
+// The owner's workspace the viewer is a viewer in.
 const { workspaces } = await ok(owner, "list_workspaces")
-const workspace = workspaces.find((candidate) => candidate.role === "owner" && !candidate.personal)
+const { workspaces: viewersWorkspaces } = await ok(viewer, "list_workspaces")
+const workspace = workspaces.find(
+  (candidate) =>
+    candidate.role === "owner" &&
+    viewersWorkspaces.some((theirs) => theirs.id === candidate.id && theirs.role === "viewer")
+)
+assert.ok(workspace, "the viewer must be a viewer in a workspace the owner owns")
 const projectName = `MCP smoke ${new Date().toISOString()}`
 const { project_id } = await ok(owner, "create_project", { workspace_id: workspace.id, name: `${projectName} (draft)` })
 await ok(owner, "rename_project", { project_id, name: projectName })

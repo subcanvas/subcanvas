@@ -55,10 +55,10 @@ const NOT_EXPOSED: Record<string, string> = {
   // Deleting the account takes the person's workspaces and everything in
   // them, cannot be undone, and ends the agent's own access with it.
   "[org]/(org)/settings/profile/actions.deleteAccount": "irreversible; a person's decision about their own account",
-  // A team workspace is for working with other people, and is only useful
-  // once they can be invited to it, so creating one waits for the members
-  // tools. Every account already has a personal workspace to work in.
-  "onboarding/actions.createOrg": "a team workspace is for inviting people, which has no tools yet",
+  // A second workspace is mostly for working with other people, which an
+  // agent cannot invite yet, so creating one waits for the members tools.
+  // Every account already starts with a workspace to work in.
+  "onboarding/actions.createOrg": "a new workspace is for inviting people, which has no tools yet",
   // A report is a reader's word to the operator about a public page, and it
   // emails the operator. An agent acts inside its own person's workspaces,
   // and one that could file reports could flood that inbox.

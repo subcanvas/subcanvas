@@ -10,7 +10,7 @@ import {
   inspector,
   nodeDocument,
   nodeLabelled,
-  personalSlug,
+  firstWorkspaceSlug,
   signIn,
   signUpWithOrg,
   whiteboardTools,
@@ -140,8 +140,8 @@ test.describe("on a phone", () => {
     try {
       const touch = await phone.newPage()
       await signIn(touch, account)
-      // Signing in lands in the personal workspace; the board is in the team one.
-      await touch.waitForURL(`/${personalSlug(account)}`)
+      // Signing in lands in the workspace the account started with; the board is in the other one.
+      await touch.waitForURL(`/${firstWorkspaceSlug(account)}`)
       await touch.goto(board)
       // A finger starts in view mode, where nothing can be deleted.
       await touch.getByRole("button", { name: "Edit mode" }).tap()

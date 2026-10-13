@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 
 export type CreateOrgState = { error: string } | null
 
-// Creates a team workspace, with the person who asked as its owner.
+// Creates a workspace, with the person who asked as its owner.
 export async function createOrg(
   _prev: CreateOrgState,
   formData: FormData

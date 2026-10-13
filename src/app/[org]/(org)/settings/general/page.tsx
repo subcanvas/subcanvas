@@ -70,7 +70,7 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
       <SettingsSection id="general-org" title="Workspace">
         <div className="flex flex-col gap-6">
           {isAdmin ? (
-            <RenameOrgForm orgId={org.id} initial={org.name} personal={org.personal} />
+            <RenameOrgForm orgId={org.id} initial={org.name} />
           ) : (
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium">Name</p>
@@ -87,17 +87,6 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
               embedded in other sites. Changing it would break them all, so it is fixed.
             </p>
           </div>
-
-          {org.personal && (
-            <p className="max-w-xl text-sm leading-relaxed text-graphite">
-              This is your personal workspace. Nobody else can join it, and it is deleted only with your account,
-              from{" "}
-              <Link href={`/${org.slug}/settings/profile`} className="font-medium text-ink underline underline-offset-4">
-                Profile
-              </Link>
-              .
-            </p>
-          )}
 
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <dt className="text-graphite">Created</dt>
@@ -144,40 +133,37 @@ export default async function GeneralPage({ params }: PageProps<"/[org]/settings
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Badge variant="secondary">{ROLE_LABELS[role]}</Badge>
           <p className="text-sm text-graphite">
-            {org.personal ? "It is your workspace: you can do everything in it." : ROLE_DETAILS[role]}
+            {ROLE_DETAILS[role]}
           </p>
         </div>
       </SettingsSection>
 
-      {/* A personal workspace is neither left nor deleted on its own. */}
-      {!org.personal && (
-        <SettingsSection id="general-danger" title="Danger zone" danger>
-          <div className="divide-y divide-rule">
+      <SettingsSection id="general-danger" title="Danger zone" danger>
+        <div className="divide-y divide-rule">
+          <DangerRow
+            title="Leave this workspace"
+            detail={
+              onlyOwner
+                ? "You are the only owner. Make someone else an owner in Members first, or delete the workspace."
+                : "You lose access to its projects. Nothing you made is deleted."
+            }
+          >
+            {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
+          </DangerRow>
+          {isOwner && (
             <DangerRow
-              title="Leave this workspace"
+              title="Delete this workspace"
               detail={
-                onlyOwner
-                  ? "You are the only owner. Make someone else an owner in Members first, or delete the workspace."
-                  : "You lose access to its projects. Nothing you made is deleted."
+                subscribed
+                  ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
+                  : "Deletes every project, whiteboard, and page in it, for every member. It cannot be undone."
               }
             >
-              {!onlyOwner && <LeaveOrg slug={org.slug} orgId={org.id} orgName={org.name} />}
+              {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
             </DangerRow>
-            {isOwner && (
-              <DangerRow
-                title="Delete this workspace"
-                detail={
-                  subscribed
-                    ? "This workspace has a subscription. Cancel it in Billing first, so nobody keeps paying for a workspace that is gone."
-                    : "Deletes every project, whiteboard, and page in it, for every member. It cannot be undone."
-                }
-              >
-                {!subscribed && <DeleteOrg orgId={org.id} orgName={org.name} projects={projects ?? 0} />}
-              </DangerRow>
-            )}
-          </div>
-        </SettingsSection>
-      )}
+          )}
+        </div>
+      </SettingsSection>
     </main>
   )
 }

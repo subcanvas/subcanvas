@@ -148,10 +148,10 @@ select is(pg_temp.steps(:old), array['signed_up', 'opened_billing', 'came_back']
 -- The view ----------------------------------------------------------------------------
 
 select results_eq(
-  format($$ select email, signed_up_with, personal_workspace is not null, team_workspaces_created, projects_created,
+  format($$ select email, signed_up_with, first_workspace is not null, workspaces_created, projects_created,
                    repositories_imported, whiteboards_created, pages_created, invites_open, plan, came_back
             from private.account_activity where user_id = %L $$, :ada),
-  $$ values ('ada@pgtap-activity.test', 'github', true, 1::bigint, 2::bigint, 1::bigint, 2::bigint, 1::bigint,
+  $$ values ('ada@pgtap-activity.test', 'github', true, 2::bigint, 2::bigint, 1::bigint, 2::bigint, 1::bigint,
              1::bigint, 'Pro', false) $$,
   'the operator''s view has a row per account, from the data that exists');
 select is((select steps from private.account_activity where user_id = :ada),

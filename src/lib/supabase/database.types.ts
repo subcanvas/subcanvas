@@ -492,7 +492,6 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
-          personal_owner: string | null
           slug: string
         }
         Insert: {
@@ -500,7 +499,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
-          personal_owner?: string | null
           slug: string
         }
         Update: {
@@ -508,7 +506,6 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
-          personal_owner?: string | null
           slug?: string
         }
         Relationships: [
@@ -516,13 +513,6 @@ export type Database = {
             foreignKeyName: "orgs_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orgs_personal_owner_fkey"
-            columns: ["personal_owner"]
-            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -692,7 +682,6 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
-          personal_owner: string | null
           slug: string
         }
         SetofOptions: {
@@ -709,7 +698,6 @@ export type Database = {
           org_name: string
           org_slug: string
           outcome: string
-          personal: boolean
         }[]
       }
       compact_document: {
@@ -737,7 +725,6 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
-          personal_owner: string | null
           slug: string
         }
         SetofOptions: {

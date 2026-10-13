@@ -19,17 +19,19 @@ export function freshAccount(): Account {
   return { id, email: `e2e-${id}@example.test`, password: `pw-${id}` }
 }
 
-// Every account gets a personal workspace when it is created, named after
-// the part of its email before the @, and so is its address.
-export const personalSlug = (account: Account) => `e2e-${account.id}`
+// Every account starts with a workspace, made when the account is, named
+// after the part of its email before the @ ("e2e-<id>'s workspace"), and so
+// is its address.
+export const firstWorkspaceSlug = (account: Account) => `e2e-${account.id}`
+export const firstWorkspaceName = (account: Account) => `e2e-${account.id}'s workspace`
 
-// Creates the account through the sign-up form and lands in its personal
-// workspace, which is where signing in goes.
+// Creates the account through the sign-up form and lands in the workspace it
+// starts with, which is where signing in goes.
 export async function signUp(page: Page, account = freshAccount()): Promise<Account> {
   await page.goto("/login")
   await page.getByRole("button", { name: "Create an account" }).click()
   await signInForm(page, account, "Create account")
-  await page.waitForURL(`/${personalSlug(account)}`)
+  await page.waitForURL(`/${firstWorkspaceSlug(account)}`)
   return account
 }
 
@@ -58,8 +60,8 @@ export async function signOut(page: Page) {
   await page.waitForURL("/login")
 }
 
-// The sidebar: a section for each workspace, Personal first and then the
-// team workspaces by name, each headed by a button that opens and closes it.
+// The sidebar: a section for each workspace, by name, each headed by a
+// button that opens and closes it.
 // Beside the heading, + is "New project in <heading>", and the menu with the
 // workspace's pages is "<heading> workspace menu".
 export const sidebar = (page: Page) => page.getByRole("navigation", { name: "Workspaces" })
@@ -75,9 +77,9 @@ export async function openWorkspaceMenu(page: Page, heading: string) {
   return menu
 }
 
-// A team workspace, named "E2E <id>", made on the page "New team workspace"
-// in the sidebar leads to. Returns its slug, which is the first segment of
-// every link to it. (Not `e2e-<id>`: a personal workspace may have that.)
+// A second workspace, named "E2E <id>", made on the page "New workspace" in
+// the sidebar leads to. Returns its slug, which is the first segment of every
+// link to it. (Not `e2e-<id>`: the account's first workspace has that.)
 export async function createOrg(page: Page, id = freshId()): Promise<string> {
   const slug = `e2e-${id}-team`
   await page.goto("/onboarding")
@@ -88,8 +90,8 @@ export async function createOrg(page: Page, id = freshId()): Promise<string> {
   return slug
 }
 
-// Signs up and creates a team workspace in one step, which is where most
-// specs start: a team workspace can invite people, a personal one cannot.
+// Signs up and creates a second workspace in one step, which is where most
+// specs start: one named for the spec, apart from the account's first.
 export async function signUpWithOrg(page: Page) {
   const account = await signUp(page)
   const slug = await createOrg(page, account.id)

@@ -9,8 +9,7 @@ import { createClient } from "@/lib/supabase/server"
 
 // Loads the workspace (an org, in the database) for a route, or 404s. RLS
 // hides workspaces the user is not in, so "not a member" and "does not
-// exist" look the same. `personal` is the signed-in person's own workspace,
-// which nobody else can be in: nobody else can see one to open it.
+// exist" look the same.
 export const getOrgContext = cache(async (slug: string) => {
   const { supabase, user } = await requireUser(`/${slug}`)
   const context = await loadOrg(supabase, user, slug)
@@ -37,7 +36,7 @@ export const findOrgContext = cache(async (slug: string) => {
 async function loadOrg(supabase: SupabaseClient<Database>, user: User, slug: string) {
   const { data: row } = await supabase
     .from("orgs")
-    .select("id, name, slug, personal_owner")
+    .select("id, name, slug")
     .eq("slug", slug)
     .maybeSingle()
   if (!row) return null
@@ -45,6 +44,6 @@ async function loadOrg(supabase: SupabaseClient<Database>, user: User, slug: str
   const access = await readOrgAccess(supabase, user.id, row.id)
   if (!access) return null
 
-  const org = { id: row.id, name: row.name, slug: row.slug, personal: row.personal_owner !== null }
+  const org = { id: row.id, name: row.name, slug: row.slug }
   return { supabase, user, org, ...access }
 }

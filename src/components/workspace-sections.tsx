@@ -22,9 +22,9 @@ import {
 } from "@/lib/sidebar-state"
 import { cn } from "@/lib/utils"
 
-// Every workspace the person is in, as a section of the sidebar: Personal
-// first, then the team workspaces by name. A section lists its projects, and
-// the project being viewed opens in place to show its tree.
+// Every workspace the person is in, as a section of the sidebar, by name. A
+// section lists its projects, and the project being viewed opens in place to
+// show its tree.
 
 export type SidebarProject = {
   id: string
@@ -39,7 +39,6 @@ export type SidebarWorkspace = {
   id: string
   name: string
   slug: string
-  personal: boolean
   // May make a project here: an editor or above, and not locked.
   canCreate: boolean
   // May make one public: an admin or above.
@@ -49,12 +48,6 @@ export type SidebarWorkspace = {
   // More projects than the section lists.
   more: boolean
 }
-
-// What a section's heading says. A personal workspace is named after its
-// person ("Ada's workspace") unless renamed; "Personal" says what it is in
-// fewer letters, as Notion's "Private" does.
-export const sectionLabel = (workspace: { name: string; personal: boolean }) =>
-  workspace.personal ? "Personal" : workspace.name
 
 // Which sections are open, shared by the sidebar and its copy in the drawer
 // on a narrow screen, and remembered in a cookie.
@@ -142,7 +135,7 @@ export function WorkspaceSections({
               className="text-graphite"
             >
               <Plus />
-              <span>New team workspace</span>
+              <span>New workspace</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -169,7 +162,7 @@ function WorkspaceSection({
   const { isOpen, toggle } = useSections()
   const open = isOpen(workspace.slug)
   const listId = useId()
-  const label = sectionLabel(workspace)
+  const label = workspace.name
   const base = `/${workspace.slug}`
 
   return (

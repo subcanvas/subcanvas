@@ -3,8 +3,9 @@ import { expect, test } from "@playwright/test"
 import {
   createProject,
   createWhiteboard,
+  firstWorkspaceName,
+  firstWorkspaceSlug,
   openWorkspaceMenu,
-  personalSlug,
   sidebar,
   signUpWithOrg,
   workspaceSection,
@@ -19,7 +20,7 @@ import { addProjects } from "./support/database"
 test("sections open and close, are remembered, and open again on arriving", async ({ page }) => {
   const { account, slug } = await signUpWithOrg(page)
   const team = `E2E ${account.id}`
-  const personal = workspaceSection(page, "Personal")
+  const personal = workspaceSection(page, firstWorkspaceName(account))
   const teamSection = workspaceSection(page, team)
   await expect(personal).toHaveAttribute("aria-expanded", "true")
   await expect(teamSection).toHaveAttribute("aria-expanded", "true")
@@ -43,7 +44,7 @@ test("sections open and close, are remembered, and open again on arriving", asyn
   // opens again on arriving in it, while the other stays as it was left.
   await teamSection.click()
   await expect(teamSection).toHaveAttribute("aria-expanded", "false")
-  await page.goto(`/${personalSlug(account)}`)
+  await page.goto(`/${firstWorkspaceSlug(account)}`)
   await expect(personal).toHaveAttribute("aria-expanded", "true")
   await expect(teamSection).toHaveAttribute("aria-expanded", "false")
   await page.goto(`/${slug}`)
@@ -63,7 +64,7 @@ test("a section's menu has the workspace's pages", async ({ page }) => {
 test("a section's + makes a project in that workspace, from anywhere, and it opens there", async ({ page }) => {
   const { account, slug } = await signUpWithOrg(page)
   const team = `E2E ${account.id}`
-  await page.goto(`/${personalSlug(account)}`)
+  await page.goto(`/${firstWorkspaceSlug(account)}`)
 
   await sidebar(page).getByRole("button", { name: `New project in ${team}` }).click()
   const dialog = page.getByRole("dialog")
@@ -105,7 +106,9 @@ test("a viewer has no + in a workspace they cannot add to", async ({ page, brows
     const team = `E2E ${account.id}`
     await expect(workspaceSection(viewer.page, team)).toBeVisible()
     await expect(sidebar(viewer.page).getByRole("button", { name: `New project in ${team}` })).toHaveCount(0)
-    await expect(sidebar(viewer.page).getByRole("button", { name: "New project in Personal" })).toHaveCount(1)
+    await expect(
+      sidebar(viewer.page).getByRole("button", { name: `New project in ${firstWorkspaceName(viewer.account)}` })
+    ).toHaveCount(1)
     await expect(sidebar(viewer.page).getByRole("button", { name: `${team} workspace menu` })).toHaveCount(1)
   } finally {
     await viewer.context.close()

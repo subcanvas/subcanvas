@@ -11,7 +11,7 @@ export function SettingsNav({
   org,
   options,
 }: {
-  org: { name: string; slug: string; personal: boolean }
+  org: { name: string; slug: string }
   options: SettingsOptions
 }) {
   const pathname = usePathname()

@@ -7,13 +7,13 @@ import { callTool, connectThroughOAuth, OAUTH_SERVER_OFF, oauthServerEnabled, re
 // is in the trash too, and a document a node lets go of stays put.
 
 test("an agent treats what is inside a trashed folder as in the trash", async ({ page, baseURL }) => {
-  const { account } = await signUpWithOrg(page)
+  const { account, slug } = await signUpWithOrg(page)
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
   const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
 
-  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; personal: boolean }[] }
-  const team = workspaces.find((workspace) => !workspace.personal)!.id
+  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; slug: string }[] }
+  const team = workspaces.find((workspace) => workspace.slug === slug)!.id
   const id = freshId()
   const { project_id } = (await callTool(client, "create_project", { workspace_id: team, name: `Trash ${id}` })) as {
     project_id: string
@@ -73,13 +73,13 @@ test("an agent treats what is inside a trashed folder as in the trash", async ({
 })
 
 test("a document an agent detaches from a node stays when the node is deleted", async ({ page, baseURL }) => {
-  const { account } = await signUpWithOrg(page)
+  const { account, slug } = await signUpWithOrg(page)
   test.skip(!(await oauthServerEnabled(baseURL!)), OAUTH_SERVER_OFF)
   const { client } = await connectThroughOAuth(page, { baseURL: baseURL!, email: account.email, decision: "approve" })
   if (!client) throw new Error("No client after approval")
 
-  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; personal: boolean }[] }
-  const team = workspaces.find((workspace) => !workspace.personal)!.id
+  const { workspaces } = (await callTool(client, "list_workspaces")) as { workspaces: { id: string; slug: string }[] }
+  const team = workspaces.find((workspace) => workspace.slug === slug)!.id
   const { project_id } = (await callTool(client, "create_project", { workspace_id: team, name: `Detach ${freshId()}` })) as {
     project_id: string
   }

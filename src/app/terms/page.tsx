@@ -141,9 +141,9 @@ export default async function TermsPage() {
           the Services, until it fits the free plan or subscribes again. No content is deleted because of this.
         </li>
         <li>
-          An owner can delete a team workspace from its settings. To delete your account, use Profile in the Services,
-          or write to {mail} from the email address on the account. Deleting your account deletes your personal
-          workspace and every workspace that has no other members, with all of their content. Content in
+          An owner can delete a workspace from its settings. To delete your account, use Profile in the Services,
+          or write to {mail} from the email address on the account. Deleting your account deletes every
+          workspace that has no other members, with all of their content. Content in
           workspaces that other people are still members of stays with those workspaces, since it is theirs too.
           All of the content deleted with your account will be inaccessible from the Services immediately upon
           deletion. Within 30 days, it will be permanently deleted from active systems and logs. Within 60 days,

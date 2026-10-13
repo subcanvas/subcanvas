@@ -85,9 +85,9 @@ export async function revokeAgent(clientId: string): Promise<ActionResult> {
 }
 
 // Deletes the signed-in person's account, what Terms and Privacy promise:
-// their personal workspace and every team workspace nobody else is in, with
-// everything in them, then the account itself. Team workspaces other people
-// are in stay, with what the person made there.
+// every workspace nobody else is in, with everything in it, then the account
+// itself. Workspaces other people are in stay, with what the person made
+// there.
 //
 // The database does it in one transaction (public.delete_account), which
 // only the server's secret key may call, so that a leaked token is not

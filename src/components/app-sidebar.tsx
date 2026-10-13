@@ -32,7 +32,7 @@ export function AppSidebar({
 }: {
   // The workspace being looked at.
   org: { slug: string }
-  // Personal first, then team workspaces.
+  // By name.
   workspaces: SidebarWorkspace[]
   // The project being looked at, if any.
   projectId?: string
@@ -48,7 +48,7 @@ export function AppSidebar({
       <SidebarHeader className="flex-row items-center gap-1">
         <SidebarMenu className="min-w-0 flex-1">
           <SidebarMenuItem>
-            {/* Home: the personal workspace. */}
+            {/* Home: the workspace they joined first. */}
             <SidebarMenuButton render={<Link href={WORKSPACE_HOME} />} className="w-auto font-semibold">
               <LogoMark />
               <span>Subcanvas</span>

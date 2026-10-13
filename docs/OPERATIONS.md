@@ -60,7 +60,7 @@ For when a person cannot delete their account themselves. Before anything, confi
    ```sql
    select * from private.account_deletion_plan('<user id>');
    ```
-   `delete`: their personal workspace, or a team workspace nobody else is in, which goes with everything in it. `leave`: a team workspace other people are in, which keeps what they made there. `only_owner` and `subscribed` stop the deletion, as they would in Profile.
+   `delete`: a workspace nobody else is in, which goes with everything in it. `leave`: a workspace other people are in, which keeps what they made there. `only_owner` and `subscribed` stop the deletion, as they would in Profile.
 3. For each `only_owner`, ask the person what they want:
    - Someone else becomes its owner:
      ```sql
@@ -122,8 +122,8 @@ select * from private.account_activity order by signed_up_at desc limit 50;
 | Column | What it is |
 |---|---|
 | `email`, `signed_up_at`, `signed_up_with`, `confirmed` | The account, when it was made, how (`email`, `google` or `github`), and whether its address is confirmed. |
-| `personal_workspace` | Its personal workspace's address. |
-| `team_workspaces_created`, `team_workspaces_joined` | Team workspaces it made, and others it is a member of. |
+| `first_workspace` | The address of the workspace it joined first: for most, the one made when it signed up. |
+| `workspaces_created`, `workspaces_joined` | Workspaces it made (the first one included), and ones someone else made that it is a member of. |
 | `projects_created`, `repositories_imported`, `imported_files` | Projects it made (imported ones included), how many came from GitHub, and whether it ever imported files. |
 | `whiteboards_created`, `pages_created` | Documents it made, the trashed ones included, descriptions not. |
 | `invites_open` | Its invites nobody has accepted yet. An accepted invite is deleted, so `invited_someone` in `steps` says whether it ever sent one. |
