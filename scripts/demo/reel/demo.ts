@@ -218,7 +218,7 @@ async function importInto(page: Page, slug: string, repo: string): Promise<strin
   await page.goto(`${base}/${slug}`)
   await page.getByRole("button", { name: "Import from GitHub" }).click()
   const dialog = page.getByRole("dialog")
-  await dialog.getByRole("textbox", { name: "Repository" }).fill(repo)
+  await dialog.getByRole("combobox", { name: "Repository" }).fill(repo)
   await dialog.getByRole("button", { name: "Import", exact: true }).click()
   // A clean import goes straight to the whiteboard; one with notes stops to
   // show them first.

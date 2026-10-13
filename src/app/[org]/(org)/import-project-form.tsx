@@ -1,5 +1,6 @@
 "use client"
 
+import { Autocomplete } from "@base-ui/react/autocomplete"
 import { FolderGit2, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -21,6 +22,8 @@ import { Label } from "@/components/ui/label"
 import { parseRepositoryReference } from "@/lib/github/reference"
 
 import { gitHubChoices, importFromGitHub, openedGitHubImport, type GitHubChoices, type ImportState } from "./actions"
+
+type RepositoryChoice = GitHubChoices["repositories"][number]
 
 // Draws a GitHub repository as a project: a node for each of its main
 // folders, its README inside each. See docs/SUBCANVAS_FILE.md. A public
@@ -152,31 +155,52 @@ function ImportSteps({
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="import-repository">Repository</Label>
-        <Input
-          id="import-repository"
-          name="repository"
+        {/* Suggests what the workspace's GitHub connections can read, in a
+            list drawn here: a browser's own (a <datalist>) is unstyled and,
+            on some, tiny. Anything else can still be typed or pasted. */}
+        <Autocomplete.Root
+          items={choices?.repositories ?? []}
           value={repository}
-          onChange={(event) => setRepository(event.target.value)}
-          required
-          maxLength={300}
-          autoFocus
-          autoComplete="off"
-          spellCheck={false}
-          disabled={pending}
-          placeholder="facebook/react, or its GitHub address"
-          className="font-mono text-[13px]"
-          list={choices?.repositories.length ? "import-repositories" : undefined}
-          aria-describedby={choices?.connectable ? "import-repository-detail" : undefined}
-        />
-        {choices?.repositories.length ? (
-          <datalist id="import-repositories">
-            {choices.repositories.map((choice) => (
-              <option key={choice.repository} value={choice.repository}>
-                {choice.private ? "Private" : "Public"}
-              </option>
-            ))}
-          </datalist>
-        ) : null}
+          onValueChange={setRepository}
+          itemToStringValue={(choice: RepositoryChoice) => choice.repository}
+        >
+          <Autocomplete.Input
+            render={
+              <Input
+                id="import-repository"
+                name="repository"
+                required
+                maxLength={300}
+                autoFocus
+                spellCheck={false}
+                disabled={pending}
+                placeholder="facebook/react, or its GitHub address"
+                className="font-mono text-[13px]"
+                aria-describedby={choices?.connectable ? "import-repository-detail" : undefined}
+              />
+            }
+          />
+          {choices?.repositories.length ? (
+            <Autocomplete.Portal>
+              <Autocomplete.Positioner sideOffset={4} className="isolate z-50">
+                <Autocomplete.Popup className="max-h-[min(var(--available-height),18rem)] w-(--anchor-width) overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 data-empty:hidden">
+                  <Autocomplete.List>
+                    {(choice: RepositoryChoice) => (
+                      <Autocomplete.Item
+                        key={choice.repository}
+                        value={choice}
+                        className="flex cursor-default items-center gap-3 rounded-md px-2 py-1.5 outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{choice.repository}</span>
+                        <span className="shrink-0 text-xs text-graphite">{choice.private ? "Private" : "Public"}</span>
+                      </Autocomplete.Item>
+                    )}
+                  </Autocomplete.List>
+                </Autocomplete.Popup>
+              </Autocomplete.Positioner>
+            </Autocomplete.Portal>
+          ) : null}
+        </Autocomplete.Root>
         {choices?.connectable && (
           <p id="import-repository-detail" className="text-xs leading-relaxed text-graphite">
             {choices.repositories.length
