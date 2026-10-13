@@ -40,10 +40,16 @@ test("in view mode the tools are gone and a drag moves nothing, and E is the way
   const alpha = `Alpha ${id}`
   await addNode(page, alpha)
   await expectSaved(page)
-  await closePanel(page)
+  await expect(inspector(page).getByLabel("Title")).toBeVisible()
 
   await modeToggle(page).getByRole("button", { name: "View mode" }).click()
   await expect(modeToggle(page).getByRole("button", { name: "View mode" })).toHaveAttribute("aria-pressed", "true")
+  // The panel left open is for reading now: it names the box, and has
+  // nothing that would change it, not even greyed out.
+  await expect(inspector(page).getByRole("heading", { name: alpha })).toBeVisible()
+  for (const control of ["Title", "Shape", "Color", "Icon", "Emoji"])
+    await expect(inspector(page).getByText(control, { exact: true })).toHaveCount(0)
+  await closePanel(page)
   await expect(whiteboardTools(page)).toHaveCount(0)
   // The hint bar says how to get back.
   await expect(hint(page, "to edit")).toBeVisible()

@@ -104,7 +104,9 @@ export function Inspector({
         </Button>
       </header>
 
-      <fieldset disabled={!editable} className="flex flex-col gap-5 p-4">
+      {/* In view mode only what is worth reading is shown: the controls that
+          change the object are left out, not greyed out. */}
+      <fieldset disabled={!editable} className="flex flex-col gap-5 p-4 empty:hidden">
         {isNode ? (
           <NodeFields
             node={selection.node}
@@ -179,20 +181,25 @@ function NodeFields({
     />
   )
 
-  if (node.kind === "media") return <MediaFields node={node} code={code} onChange={onChange} />
-  if (node.kind === "link") return <LinkFields node={node} onChange={onChange} />
+  if (node.kind === "media") return <MediaFields node={node} code={code} editable={editable} onChange={onChange} />
+  if (node.kind === "link") return <LinkFields node={node} editable={editable} onChange={onChange} />
 
   return (
     <>
-      <Field label="Title" htmlFor="wb-title">
-        <Input
-          id="wb-title"
-          value={node.title}
-          maxLength={MAX_TITLE}
-          onChange={(event) => onChange({ title: event.target.value })}
-        />
-      </Field>
-      {node.kind === "text" && (
+      {editable && (
+        <Field label="Title" htmlFor="wb-title">
+          <Input
+            id="wb-title"
+            value={node.title}
+            maxLength={MAX_TITLE}
+            onChange={(event) => onChange({ title: event.target.value })}
+          />
+        </Field>
+      )}
+      {node.kind === "text" && !editable && node.description !== "" && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{node.description}</p>
+      )}
+      {node.kind === "text" && editable && (
         <Field label="Body text" htmlFor="wb-description" hint="Shown on the whiteboard, under the heading.">
           <Textarea
             id="wb-description"
@@ -222,36 +229,54 @@ function NodeFields({
         </div>
       )}
       {code}
-      {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
-      <ColorField value={node.color} onChange={(color) => onChange({ color })} />
-      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
-      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+      {editable && (
+        <>
+          {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
+          <ColorField value={node.color} onChange={(color) => onChange({ color })} />
+          <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+          <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+        </>
+      )}
     </>
   )
 }
 
 // A link card (lib/links): the page's title and description, read when it
 // was pasted and the card's own to change, and the address it opens.
-function LinkFields({ node, onChange }: { node: WbNode; onChange: (patch: Partial<Omit<WbNode, "id">>) => void }) {
+function LinkFields({
+  node,
+  editable,
+  onChange,
+}: {
+  node: WbNode
+  editable: boolean
+  onChange: (patch: Partial<Omit<WbNode, "id">>) => void
+}) {
   return (
     <>
-      <Field label="Title" htmlFor="wb-title">
-        <Input
-          id="wb-title"
-          value={node.title}
-          maxLength={MAX_TITLE}
-          onChange={(event) => onChange({ title: event.target.value })}
-        />
-      </Field>
-      <Field label="Description" htmlFor="wb-description" hint="Shown on the card when it has no picture.">
-        <Textarea
-          id="wb-description"
-          value={node.description}
-          rows={3}
-          maxLength={MAX_BODY_TEXT}
-          onChange={(event) => onChange({ description: event.target.value })}
-        />
-      </Field>
+      {editable ? (
+        <>
+          <Field label="Title" htmlFor="wb-title">
+            <Input
+              id="wb-title"
+              value={node.title}
+              maxLength={MAX_TITLE}
+              onChange={(event) => onChange({ title: event.target.value })}
+            />
+          </Field>
+          <Field label="Description" htmlFor="wb-description" hint="Shown on the card when it has no picture.">
+            <Textarea
+              id="wb-description"
+              value={node.description}
+              rows={3}
+              maxLength={MAX_BODY_TEXT}
+              onChange={(event) => onChange({ description: event.target.value })}
+            />
+          </Field>
+        </>
+      ) : (
+        node.description !== "" && <p className="text-sm leading-relaxed">{node.description}</p>
+      )}
       {node.linkUrl && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs text-graphite">Link</span>
@@ -273,35 +298,48 @@ function LinkFields({ node, onChange }: { node: WbNode; onChange: (patch: Partia
 function MediaFields({
   node,
   code,
+  editable,
   onChange,
 }: {
   node: WbNode
   code: React.ReactNode
+  editable: boolean
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
   return (
     <>
-      <Field label="Caption" htmlFor="wb-title" hint="Shown under it on the whiteboard.">
-        <Input
-          id="wb-title"
-          value={node.title}
-          maxLength={MAX_TITLE}
-          onChange={(event) => onChange({ title: event.target.value })}
-        />
-      </Field>
-      <Field
-        label="Alt text"
-        htmlFor="wb-alt"
-        hint={`What this ${node.mediaType === "video" ? "video" : "picture"} shows, for someone who cannot see it.`}
-      >
-        <Textarea
-          id="wb-alt"
-          value={node.alt}
-          rows={3}
-          maxLength={MAX_ALT}
-          onChange={(event) => onChange({ alt: event.target.value })}
-        />
-      </Field>
+      {editable ? (
+        <>
+          <Field label="Caption" htmlFor="wb-title" hint="Shown under it on the whiteboard.">
+            <Input
+              id="wb-title"
+              value={node.title}
+              maxLength={MAX_TITLE}
+              onChange={(event) => onChange({ title: event.target.value })}
+            />
+          </Field>
+          <Field
+            label="Alt text"
+            htmlFor="wb-alt"
+            hint={`What this ${node.mediaType === "video" ? "video" : "picture"} shows, for someone who cannot see it.`}
+          >
+            <Textarea
+              id="wb-alt"
+              value={node.alt}
+              rows={3}
+              maxLength={MAX_ALT}
+              onChange={(event) => onChange({ alt: event.target.value })}
+            />
+          </Field>
+        </>
+      ) : (
+        node.alt !== "" && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-graphite">Alt text</span>
+            <p className="text-sm leading-relaxed">{node.alt}</p>
+          </div>
+        )
+      )}
       {node.mediaPath && (
         <div className="flex items-center justify-between gap-2 text-xs text-graphite">
           {node.mediaWidth && node.mediaHeight && (
@@ -320,8 +358,12 @@ function MediaFields({
         </div>
       )}
       {code}
-      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
-      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+      {editable && (
+        <>
+          <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+          <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+        </>
+      )}
     </>
   )
 }
@@ -335,6 +377,19 @@ function EdgeFields({
   editable: boolean
   onChange: (patch: Partial<Omit<WbEdge, "id">>) => void
 }) {
+  const code = (
+    <CodeField
+      key={edge.id}
+      codeUrl={edge.codeUrl}
+      link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null}
+      editable={editable}
+      onChange={(codeUrl) => onChange({ codeUrl })}
+    />
+  )
+  // In view mode, the arrow's label is the panel's heading; its code link is
+  // all there is to read.
+  if (!editable) return code
+
   return (
     <>
       <Field label="Label" htmlFor="wb-label">
@@ -346,13 +401,7 @@ function EdgeFields({
           onChange={(event) => onChange({ label: event.target.value })}
         />
       </Field>
-      <CodeField
-        key={edge.id}
-        codeUrl={edge.codeUrl}
-        link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null}
-        editable={editable}
-        onChange={(codeUrl) => onChange({ codeUrl })}
-      />
+      {code}
       <div className="grid grid-cols-2 gap-4">
         <Choice
           label="Line"

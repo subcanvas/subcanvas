@@ -8,6 +8,7 @@ import {
   expectSaved,
   freshAccount,
   freshId,
+  inspector,
   nodeLabelled,
   signUp,
   signUpWithOrg,
@@ -57,9 +58,11 @@ test("a member invited as a viewer can look, can change things once an editor, a
     await member.page.keyboard.press("Backspace")
     await member.page.keyboard.type("nothing")
     await expect(nodeLabelled(member.page, nodeTitle)).toBeVisible()
-    // The panel a selection opens is read-only too: its fields are there
-    // to be read, in a fieldset that takes no typing.
-    await expect(member.page.getByLabel("Title")).toBeDisabled()
+    // The panel a selection opens is for reading too: it names the node,
+    // and has no field that would change it.
+    await expect(inspector(member.page).getByRole("heading", { name: nodeTitle })).toBeVisible()
+    await expect(member.page.getByLabel("Title")).toHaveCount(0)
+    await expect(inspector(member.page).getByText("Color", { exact: true })).toHaveCount(0)
     // And what the server holds is untouched: the owner's badge never left
     // "Saved", and a fresh load from the database still has the node.
     await member.page.reload()
