@@ -12,7 +12,8 @@ import {
 } from "./support/app"
 import { adminClient, idsOf, NO_ADMIN, workspaceId } from "./support/admin"
 import { stepsOf } from "./support/database"
-import { canvas, devBaseURL, GITHUB_APP_SLUG, treeLink } from "./support/import"
+import { GITHUB_APP_SLUG } from "./support/github-app"
+import { canvas, devBaseURL, treeLink } from "./support/import"
 
 // Against the development server, where "fixture/<name>" imports a folder
 // under e2e/fixtures/github instead of asking GitHub (see support/import.ts).

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
-import { devBaseURL, DEV_PORT, GITHUB_FIXTURES, gitHubAppEnvironment } from "./e2e/support/import"
+import { gitHubAppEnvironment } from "./e2e/support/github-app"
+import { devBaseURL, DEV_PORT, GITHUB_FIXTURES } from "./e2e/support/import"
 
 // End-to-end tests: a real browser, a real production build, and the real
 // local stack (`supabase start`). They are deliberately apart from the unit

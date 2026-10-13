@@ -1,4 +1,3 @@
-import { generateKeyPairSync } from "node:crypto"
 import { join } from "node:path"
 
 import { expect, type Page } from "@playwright/test"
@@ -24,26 +23,6 @@ export const GITHUB_FIXTURES = join(FIXTURES, "github")
 export const DEV_PORT = Number(process.env.E2E_DEV_PORT ?? Number(process.env.E2E_PORT ?? 3310) + 100)
 // localhost, not 127.0.0.1, for the reason given in playwright.config.ts.
 export const devBaseURL = process.env.E2E_DEV_BASE_URL ?? `http://localhost:${DEV_PORT}`
-
-// A GitHub App that exists nowhere, so the same server offers Connect
-// GitHub (Settings → GitHub, api/github/*) without asking GitHub anything:
-// the specs check what it shows and where it sends people, and stop at
-// github.com's door. The key is made for the run and thrown away.
-export const GITHUB_APP_SLUG = "subcanvas-e2e"
-export function gitHubAppEnvironment() {
-  const { privateKey } = generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-    privateKeyEncoding: { type: "pkcs8", format: "pem" },
-    publicKeyEncoding: { type: "spki", format: "pem" },
-  })
-  return {
-    APP_ID_GITHUB: "1",
-    APP_CLIENT_ID_GITHUB: "Iv1.e2e",
-    APP_SLUG_GITHUB: GITHUB_APP_SLUG,
-    APP_CLIENT_SECRET_GITHUB: "e2e",
-    APP_PRIVATE_KEY_GITHUB: privateKey,
-  }
-}
 
 // --- Zips built from small fixtures ---------------------------------------
 

@@ -200,8 +200,13 @@ jobs:
           NODE_OPTIONS=--no-experimental-require-module pnpm start --port 3310 &
           # A development server beside it, for the GitHub import spec: the
           # fixture repositories it imports (e2e/fixtures/github) are read
-          # only by a development server. See e2e/support/import.ts.
-          SUBCANVAS_IMPORT_FIXTURES="$PWD/e2e/fixtures/github" pnpm dev --port 3410 &
+          # only by a development server. See e2e/support/import.ts. It has a
+          # GitHub App that exists nowhere, for Connect GitHub
+          # (e2e/support/github-app.ts).
+          (
+            eval "$(node e2e/support/github-app-env.mjs)"
+            SUBCANVAS_IMPORT_FIXTURES="$PWD/e2e/fixtures/github" exec pnpm dev --port 3410
+          ) &
           # localhost, not 127.0.0.1: see the note in playwright.config.ts.
           for _ in $(seq 60); do
             curl -fsS -o /dev/null http://localhost:3310/ && break
