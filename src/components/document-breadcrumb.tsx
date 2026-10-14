@@ -27,7 +27,9 @@ import { projectHref } from "@/lib/navigation"
 
 export type Crumb = { id: string; title: string; icon: ItemIcon | null }
 
-// A crumb's name, with its icon in front when it has one.
+// A crumb's name, with its icon in front when it has one. The link or page
+// around it is a flex box with a maximum width, so a long name is cut short
+// with "…" here instead of running into the next crumb.
 function Named({ icon, title }: { icon: ItemIcon | null; title: string }) {
   return (
     <span className="flex min-w-0 items-center gap-1">
@@ -110,7 +112,7 @@ export function DocumentBreadcrumb({
             <BreadcrumbItem className={cn("min-w-0", index < shown.length - 1 && narrow)}>
               <BreadcrumbLink
                 render={<Link href={crumb.href} />}
-                className="max-w-40 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex max-w-40 min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Named icon={crumb.icon} title={crumb.title} />
               </BreadcrumbLink>
@@ -119,7 +121,7 @@ export function DocumentBreadcrumb({
         ))}
         <BreadcrumbSeparator />
         <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="max-w-40">
+          <BreadcrumbPage className="flex max-w-40 min-w-0">
             <Named icon={currentIcon} title={current || "Untitled"} />
           </BreadcrumbPage>
         </BreadcrumbItem>
