@@ -200,3 +200,23 @@ test("the mark on a node goes inside without opening the panel first", async ({ 
   await expect(breadcrumb(page)).toHaveText(new RegExp(`Proj.*Board.*${outer}`))
   expect(await page.evaluate(() => (window as unknown as { panelOpened?: boolean }).panelOpened)).toBe(false)
 })
+
+// A long name in the trail is cut short with "…" in its own crumb, and never
+// runs into the next one.
+test("a long name in the trail is cut short, and never runs into the next crumb", async ({ page }) => {
+  await signUpWithOrg(page)
+  await createProject(page, "Ride-hailing system design")
+  await createWhiteboard(page, "A whiteboard with a name far too long to fit in the trail")
+
+  const box = `Dispatch ${freshId()}`
+  await addNode(page, box)
+  await createWhiteboardInside(page)
+  await expectSaved(page)
+  await openInside(page, box)
+
+  // The open document's own crumb is a link too (one that goes nowhere), last.
+  const crumbs = await breadcrumb(page).getByRole("link").all()
+  const boxes = (await Promise.all(crumbs.map((crumb) => crumb.boundingBox()))).filter((b) => b !== null)
+  expect(boxes.length).toBeGreaterThanOrEqual(3)
+  for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1].x + boxes[i - 1].width).toBeLessThanOrEqual(boxes[i].x + 1)
+})
