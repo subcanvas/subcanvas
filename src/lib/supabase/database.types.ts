@@ -223,6 +223,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           folder_id: string | null
+          icon: Json | null
           id: string
           kind: Database["public"]["Enums"]["document_kind"]
           org_id: string
@@ -241,6 +242,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           folder_id?: string | null
+          icon?: Json | null
           id?: string
           kind?: Database["public"]["Enums"]["document_kind"]
           org_id: string
@@ -259,6 +261,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           folder_id?: string | null
+          icon?: Json | null
           id?: string
           kind?: Database["public"]["Enums"]["document_kind"]
           org_id?: string
@@ -579,6 +582,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          icon: Json | null
           id: string
           name: string
           org_id: string
@@ -590,6 +594,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          icon?: Json | null
           id?: string
           name: string
           org_id: string
@@ -601,6 +606,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          icon?: Json | null
           id?: string
           name?: string
           org_id?: string
@@ -750,6 +756,7 @@ export type Database = {
         Returns: {
           deleted_at: string
           depth: number
+          icon: Json
           id: string
           title: string
           type: Database["public"]["Enums"]["document_type"]
@@ -765,6 +772,7 @@ export type Database = {
         Returns: {
           project_id: string
           source_document_id: string
+          source_icon: Json
           source_title: string
           source_type: Database["public"]["Enums"]["document_type"]
         }[]
@@ -777,6 +785,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           folder_id: string | null
+          icon: Json | null
           id: string
           kind: Database["public"]["Enums"]["document_kind"]
           org_id: string
