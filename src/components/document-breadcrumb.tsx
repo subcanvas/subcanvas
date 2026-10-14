@@ -20,10 +20,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ItemIconMark } from "@/components/item-icon"
 import { useProjectAddresses } from "@/components/project-addresses"
+import type { ItemIcon } from "@/lib/item-icon"
 import { projectHref } from "@/lib/navigation"
 
-export type Crumb = { id: string; title: string }
+export type Crumb = { id: string; title: string; icon: ItemIcon | null }
+
+// A crumb's name, with its icon in front when it has one.
+function Named({ icon, title }: { icon: ItemIcon | null; title: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      <ItemIconMark icon={icon} className="size-3.5 text-[13px]" />
+      <span className="truncate">{title}</span>
+    </span>
+  )
+}
 
 // A deep trail keeps the project and the last two sheets in view; the ones
 // between fold into a menu.
@@ -34,19 +46,24 @@ const VISIBLE = 4
 // document's own name.
 export function DocumentBreadcrumb({
   projectName,
+  projectIcon,
   trail,
   current,
+  currentIcon,
 }: {
   projectName: string
+  projectIcon: ItemIcon | null
   trail: Crumb[]
   current: string
+  currentIcon: ItemIcon | null
 }) {
   const addresses = useProjectAddresses()
   const crumbs = [
-    { key: "project", title: projectName, href: projectHref(addresses.project) },
+    { key: "project", title: projectName, icon: projectIcon, href: projectHref(addresses.project) },
     ...trail.map((crumb, index) => ({
       key: `${crumb.id}-${index}`,
       title: crumb.title,
+      icon: crumb.icon,
       href: addresses.href(
         crumb.id,
         trail.slice(0, index).map((c) => c.id)
@@ -81,7 +98,7 @@ export function DocumentBreadcrumb({
                     <DropdownMenuContent align="start">
                       {folded.map((item) => (
                         <DropdownMenuItem key={item.key} render={<Link href={item.href} />}>
-                          {item.title}
+                          <Named icon={item.icon} title={item.title} />
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -93,16 +110,18 @@ export function DocumentBreadcrumb({
             <BreadcrumbItem className={cn("min-w-0", index < shown.length - 1 && narrow)}>
               <BreadcrumbLink
                 render={<Link href={crumb.href} />}
-                className="max-w-40 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="max-w-40 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {crumb.title}
+                <Named icon={crumb.icon} title={crumb.title} />
               </BreadcrumbLink>
             </BreadcrumbItem>
           </Fragment>
         ))}
         <BreadcrumbSeparator />
         <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="max-w-40 truncate">{current || "Untitled"}</BreadcrumbPage>
+          <BreadcrumbPage className="max-w-40">
+            <Named icon={currentIcon} title={current || "Untitled"} />
+          </BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>

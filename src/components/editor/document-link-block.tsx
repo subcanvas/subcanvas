@@ -5,6 +5,7 @@ import { FileText, Workflow } from "lucide-react"
 import Link from "next/link"
 import { createContext, useContext } from "react"
 
+import { ItemIconMark } from "@/components/item-icon"
 import { useProjectAddresses } from "@/components/project-addresses"
 import { documentLinkConfig } from "@/lib/text/custom-blocks"
 import { useDocumentMeta } from "@/lib/use-document-meta"
@@ -47,7 +48,7 @@ function DocumentLinkCard({ docId }: { docId: string }) {
       href={addresses.href(meta.id, [...context.via, context.documentId])}
       className="sc-document-link flex w-full items-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium no-underline hover:bg-muted"
     >
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      <ItemIconMark icon={meta.icon} fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />} />
       <span className="truncate">{meta.title}</span>
       {meta.trashed && <span className="text-xs font-normal text-muted-foreground">In trash</span>}
       <span className="ml-auto text-xs font-normal text-muted-foreground">

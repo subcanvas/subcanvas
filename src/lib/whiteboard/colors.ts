@@ -1,4 +1,4 @@
-import type { ColorKey } from "./schema"
+import type { ColorKey } from "./marks"
 
 // The whiteboard palette, apart from the schema so that a page can use the
 // colors without loading the sync library.

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { PageHeader } from "@/components/page-header"
+import { readItemIcon } from "@/lib/item-icon"
 import { getProjectAccess } from "@/lib/project-access"
 
 import { TrashRow, type TrashedItem } from "./trash-row"
@@ -26,7 +27,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
       .not("deleted_at", "is", null),
     supabase
       .from("documents")
-      .select("id, title, type, kind, deleted_at")
+      .select("id, title, type, kind, deleted_at, icon")
       .eq("project_id", projectId)
       .eq("org_id", org.id)
       .not("deleted_at", "is", null),
@@ -37,6 +38,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
       id: folder.id,
       title: folder.name,
       what: "folder" as const,
+      icon: null,
       deletedAt: folder.deleted_at!,
     })),
     // A description is the notes of a box or an arrow, in the trash because
@@ -46,6 +48,7 @@ export default async function TrashPage({ params }: PageProps<"/[org]/[project]/
       id: document.id,
       title: document.title,
       what: document.kind === "description" ? ("notes" as const) : document.type,
+      icon: readItemIcon(document.icon),
       deletedAt: document.deleted_at!,
     })),
   ].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt))

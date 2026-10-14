@@ -20,6 +20,8 @@ import {
   SIDEBAR_SECTIONS_COOKIE_NAME,
   writeClosedSections,
 } from "@/lib/sidebar-state"
+import { ItemIconMark } from "@/components/item-icon"
+import type { ItemIcon } from "@/lib/item-icon"
 import { cn } from "@/lib/utils"
 
 // Every workspace the person is in, as a section of the sidebar, by name. A
@@ -33,6 +35,7 @@ export type SidebarProject = {
   name: string
   visibility: "private" | "public"
   takenDown: boolean
+  icon: ItemIcon | null
 }
 
 export type SidebarWorkspace = {
@@ -284,7 +287,7 @@ export function ProjectLink({
   className,
 }: {
   href: string
-  project: Pick<SidebarProject, "name" | "visibility" | "takenDown">
+  project: Pick<SidebarProject, "name" | "icon" | "visibility" | "takenDown">
   className?: string
 }) {
   const pathname = usePathname()
@@ -296,7 +299,7 @@ export function ProjectLink({
       render={<Link href={href} aria-current={current ? "page" : undefined} draggable={false} />}
       className={cn("data-active:shadow-[inset_2px_0_0_0_var(--cobalt)]", className)}
     >
-      <SheetsIcon className="text-graphite" />
+      <ItemIconMark icon={project.icon} fallback={<SheetsIcon className="text-graphite" />} />
       <span className="min-w-0 flex-1 truncate">{project.name}</span>
       {Marker && (
         <span title={project.takenDown ? "Taken down" : "Public"} className="flex shrink-0 text-graphite">

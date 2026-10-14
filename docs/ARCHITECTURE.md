@@ -24,13 +24,13 @@ orgs              id, name, slug, created_by                           (R6.2)
 org_members       org_id, user_id, role: owner|admin|editor|viewer        (R6.3)
 org_invites       id, org_id, email, role, token, expires_at, invited_by  (R6.4)
 
-projects          id, org_id, name
+projects          id, org_id, name, icon?                               (R2.6)
 folders           id, project_id, parent_folder_id?, name, position, deleted_at?
 
 documents         id, org_id, project_id
                   type: whiteboard|text                                    (R1.2)
                   kind: standard|description                               (R4.2, R7.1a)
-                  title
+                  title, icon?                                             (R2.6)
                   -- exactly one parent (R1.4), enforced by a CHECK:
                   folder_id?                     -- home is a folder
                   parent_document_id?            -- home is inside another document

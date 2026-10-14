@@ -1,7 +1,9 @@
 import { EyeOff, Globe, Lock } from "lucide-react"
 import Link from "next/link"
 
+import { ItemIconMark } from "@/components/item-icon"
 import { PageHeader } from "@/components/page-header"
+import { readItemIcon } from "@/lib/item-icon"
 import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole } from "@/lib/roles"
@@ -19,6 +21,7 @@ type ProjectCard = {
   name: string
   visibility: "private" | "public"
   taken_down_at: string | null
+  icon: unknown
   document_count: number
 }
 
@@ -34,7 +37,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
     // What each shows: nothing in the trash, nor inside something that is.
     // `document_count` is computed by the database, which the generated
     // types do not describe.
-    .select("id, slug, name, visibility, taken_down_at, document_count")
+    .select("id, slug, name, visibility, taken_down_at, icon, document_count")
     .eq("org_id", org.id)
     .order("created_at")
     .overrideTypes<ProjectCard[], { merge: false }>()
@@ -76,7 +79,10 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
                     "group flex h-32 flex-col justify-between rounded-lg border border-rule bg-sheet p-4 transition-[translate,border-color] outline-none [--stack-edge:var(--blueline)] hover:-translate-y-0.5 hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"
                   )}
                 >
-                  <h2 className="line-clamp-2 text-lg leading-snug font-semibold">{project.name}</h2>
+                  <h2 className="flex items-start gap-2 text-lg leading-snug font-semibold">
+                    <ItemIconMark icon={readItemIcon(project.icon)} className="mt-[0.2em] size-5 text-lg" />
+                    <span className="line-clamp-2">{project.name}</span>
+                  </h2>
                   <p className="flex items-center justify-between font-mono text-[11px] tracking-wide text-graphite uppercase">
                     <span>
                       {count} {count === 1 ? "document" : "documents"}

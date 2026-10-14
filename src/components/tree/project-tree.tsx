@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  SmilePlus,
   Trash2,
   Waypoints,
   Workflow,
@@ -29,10 +30,14 @@ import {
   listReferences,
   moveItem,
   renameItem,
+  setDocumentIcon,
+  setProjectIcon,
   trashItem,
   type ActionResult,
   type ProjectRef,
 } from "@/app/[org]/[project]/tree-actions"
+import { ItemIconMark } from "@/components/item-icon"
+import { ItemIconDialog } from "@/components/item-icon-picker"
 import { useShowRefusal } from "@/components/limit-refusal"
 import { useProjectAddresses } from "@/components/project-addresses"
 import { Button } from "@/components/ui/button"
@@ -63,6 +68,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { pickedFromDrop, type PickedFile } from "@/lib/import/picked"
+import type { ItemIcon } from "@/lib/item-icon"
 import { codeFromSegment, projectHref } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { pathTo, type Container, type DocumentType, type TreeNode } from "@/lib/tree"
@@ -101,6 +107,7 @@ const carries = (event: React.DragEvent) =>
 export function ProjectTree({
   project,
   projectName,
+  projectIcon,
   row,
   nodes,
   canEdit,
@@ -109,6 +116,7 @@ export function ProjectTree({
 }: {
   project: ProjectRef
   projectName: string
+  projectIcon: ItemIcon | null
   row?: { href: string } & Pick<SidebarProject, "visibility" | "takenDown">
   // Where this project's trash is. A public visitor has none.
   trashHref?: string
@@ -138,6 +146,10 @@ export function ProjectTree({
   } | null>(null)
   // The project's own rename or delete dialog, when open.
   const [projectDialog, setProjectDialog] = useState<"rename" | "delete" | null>(null)
+  // Choosing the icon of a document, or of the project, from a menu.
+  const [choosingIcon, setChoosingIcon] = useState<
+    { kind: "document"; id: string; name: string; icon: ItemIcon | null } | { kind: "project" } | null
+  >(null)
   const [exporting, setExporting] = useState(false)
   // An open import or paste dialog. The key makes each opening a fresh one.
   const [bringingIn, setBringingIn] = useState<{
@@ -307,7 +319,7 @@ export function ProjectTree({
             </SidebarMenuButton>
           ) : renamingId === node.id ? (
             <SidebarMenuButton render={<div />} className="pr-7">
-              <Icon />
+              <ItemIconMark icon={node.kind === "document" ? node.icon : null} fallback={<Icon />} />
               {label}
             </SidebarMenuButton>
           ) : (
@@ -316,7 +328,10 @@ export function ProjectTree({
               render={<Link href={href} draggable={false} />}
               className="pr-7 data-active:font-medium data-active:shadow-[inset_2px_0_0_0_var(--cobalt)]"
             >
-              <Icon className={node.type === "whiteboard" ? "text-cobalt" : "text-graphite"} />
+              <ItemIconMark
+                icon={node.icon}
+                fallback={<Icon className={node.type === "whiteboard" ? "text-cobalt" : "text-graphite"} />}
+              />
               {label}
             </SidebarMenuButton>
           )}
@@ -343,6 +358,14 @@ export function ProjectTree({
                 <Pencil />
                 Rename
               </DropdownMenuItem>
+              {node.kind === "document" && (
+                <DropdownMenuItem
+                  onClick={() => setChoosingIcon({ kind: "document", id: node.id, name: node.name, icon: node.icon })}
+                >
+                  <SmilePlus />
+                  {node.icon ? "Change icon…" : "Add icon…"}
+                </DropdownMenuItem>
+              )}
               {node.kind === "document" && <DownloadItem id={node.id} type={node.type} />}
               <DropdownMenuItem
                 variant="destructive"
@@ -432,6 +455,20 @@ export function ProjectTree({
           onClose={() => setBringingIn(null)}
         />
       )}
+      {choosingIcon && (
+        <ItemIconDialog
+          icon={choosingIcon.kind === "project" ? projectIcon : choosingIcon.icon}
+          name={choosingIcon.kind === "project" ? projectName : choosingIcon.name}
+          open
+          onOpenChange={(open) => !open && setChoosingIcon(null)}
+          onChange={(icon) => {
+            const target = choosingIcon
+            run(() =>
+              target.kind === "project" ? setProjectIcon(project, icon) : setDocumentIcon(project, target.id, icon)
+            )
+          }}
+        />
+      )}
       <RenameProjectDialog
         project={project}
         projectName={projectName}
@@ -492,10 +529,16 @@ export function ProjectTree({
           Trash
         </DropdownMenuItem>
         {canEdit && (
-          <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
-            <Pencil />
-            Rename project
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem onClick={() => setProjectDialog("rename")}>
+              <Pencil />
+              Rename project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setChoosingIcon({ kind: "project" })}>
+              <SmilePlus />
+              {projectIcon ? "Change icon…" : "Add icon…"}
+            </DropdownMenuItem>
+          </>
         )}
         {/* Every member, viewers included: what they can read is theirs to take out. */}
         <DropdownMenuItem onClick={() => setExporting(true)}>
@@ -549,7 +592,7 @@ export function ProjectTree({
         <div className="group/menu-item relative">
           <ProjectLink
             href={row.href}
-            project={{ name: projectName, visibility: row.visibility, takenDown: row.takenDown }}
+            project={{ name: projectName, icon: projectIcon, visibility: row.visibility, takenDown: row.takenDown }}
             className={cn("font-medium", canEdit && "group-has-data-[sidebar=menu-action]/menu-item:pr-14")}
           />
           {projectMenu}
@@ -569,7 +612,8 @@ export function ProjectTree({
   return (
     <SidebarGroup className="flex-1" {...rootDrop}>
       {dialogs}
-      <SidebarGroupLabel className="h-auto py-1 pr-14 font-heading text-[15px] font-semibold text-ink">
+      <SidebarGroupLabel className="h-auto gap-1.5 py-1 pr-14 font-heading text-[15px] font-semibold text-ink">
+        <ItemIconMark icon={projectIcon} />
         <span className="truncate">{projectName}</span>
       </SidebarGroupLabel>
       {projectMenu}

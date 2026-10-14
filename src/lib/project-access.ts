@@ -41,7 +41,7 @@ export const getProjectAccess = cache(async (workspace: string, project: string)
   if (found.member && member) {
     const { data: row } = await member.supabase
       .from("projects")
-      .select("id, org_id, name, visibility, taken_down_at, source")
+      .select("id, org_id, name, visibility, taken_down_at, source, icon")
       .eq("id", found.project_id)
       .single()
     if (!row) notFound()
@@ -56,7 +56,7 @@ export const getProjectAccess = cache(async (workspace: string, project: string)
   // Row-level security decides again: only a public project is readable here.
   const { data: row } = await supabase
     .from("projects")
-    .select("id, org_id, name, visibility, source")
+    .select("id, org_id, name, visibility, source, icon")
     .eq("id", found.project_id)
     .eq("visibility", "public")
     .maybeSingle()
