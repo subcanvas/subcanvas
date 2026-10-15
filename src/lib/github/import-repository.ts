@@ -123,6 +123,25 @@ export async function importRepository(
   }
 }
 
+// Reads a repository and draws it without writing anything: the document
+// rows, parents first, and what goes in each. The playground keeps these in
+// a visitor's browser (app/api/playground/seed).
+export async function drawRepository(
+  provider: RepositoryProvider,
+  reference: RepositoryReference,
+  ids: { orgId: string; projectId: string; userId: string }
+) {
+  const gathered = await gather(provider, reference)
+  const { repository } = gathered
+  const source: ProjectSource = {
+    provider: "github",
+    repository: repository.repository,
+    ref: repository.ref,
+    commit: repository.commit,
+  }
+  return { ...(await draw(gathered, source, ids)), warnings: gathered.warnings }
+}
+
 async function write(
   supabase: SupabaseClient<Database>,
   { rows, contents }: Awaited<ReturnType<typeof draw>>

@@ -13,15 +13,11 @@ import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { releasedWords, releaseHeldDocument } from "@/lib/documents/held"
+import { releasedWords } from "@/lib/documents/held"
+import { useDocumentStore } from "@/lib/documents/store"
 import { useProjectAddresses } from "@/components/project-addresses"
-import { createClient } from "@/lib/supabase/client"
 import { useDocumentMeta } from "@/lib/use-document-meta"
-import {
-  createChildWhiteboard,
-  ensureDescriptionDocument,
-  type WhiteboardContext,
-} from "@/lib/whiteboard/description-document"
+import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import type { DocType, OpenMode } from "@/lib/whiteboard/schema"
 
 export type DocumentPatch = {
@@ -60,6 +56,7 @@ export function ObjectDocument({
 }) {
   const router = useRouter()
   const addresses = useProjectAddresses()
+  const store = useDocumentStore()
   const meta = useDocumentMeta(docId)
   const [pending, startTransition] = useTransition()
   const showRefusal = useShowRefusal()
@@ -71,8 +68,8 @@ export function ObjectDocument({
     startTransition(async () => {
       const result =
         type === "text"
-          ? await ensureDescriptionDocument(createClient(), context, objectId, objectTitle)
-          : await createChildWhiteboard(createClient(), context, objectId, objectTitle)
+          ? await store.createDescription(context, objectId, objectTitle)
+          : await store.createChildWhiteboard(context, objectId, objectTitle)
       if ("error" in result) return showRefusal(result)
 
       setJustCreated(type === "text")
@@ -87,7 +84,7 @@ export function ObjectDocument({
   function detach() {
     if (!docId) return
     startTransition(async () => {
-      const result = await releaseHeldDocument(createClient(), context.whiteboardId, objectId, docId)
+      const result = await store.releaseHeld(context.whiteboardId, objectId, docId)
       if ("error" in result) return showRefusal(result)
       onChange({ docId: null, docType: null })
       if (result.released) {
@@ -128,7 +125,7 @@ export function ObjectDocument({
             Open
           </Button>
         )}
-        {docId && editable && (
+        {docId && editable && store.can.detach && (
           <Button variant="ghost" size="sm" disabled={pending} onClick={detach}>
             <Unlink />
             Detach
@@ -152,10 +149,12 @@ export function ObjectDocument({
                 <Workflow />
                 New whiteboard inside
               </Button>
-              <Button variant="outline" size="sm" disabled={pending} onClick={() => setPicking(true)}>
-                <Link2 />
-                Link existing
-              </Button>
+              {store.can.linkExisting && (
+                <Button variant="outline" size="sm" disabled={pending} onClick={() => setPicking(true)}>
+                  <Link2 />
+                  Link existing
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -233,13 +232,15 @@ export function ObjectDocument({
         </>
       )}
 
-      <DocumentPicker
-        open={picking}
-        onOpenChange={setPicking}
-        projectId={context.projectId}
-        excludeId={context.whiteboardId}
-        onPick={(document) => onChange({ docId: document.id, docType: document.type })}
-      />
+      {store.can.linkExisting && (
+        <DocumentPicker
+          open={picking}
+          onOpenChange={setPicking}
+          projectId={context.projectId}
+          excludeId={context.whiteboardId}
+          onPick={(document) => onChange({ docId: document.id, docType: document.type })}
+        />
+      )}
     </section>
   )
 }

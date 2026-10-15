@@ -1,6 +1,6 @@
 "use client"
 
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { DocProvider } from "@/lib/sync/doc-provider"
 import { useSyncStatus } from "@/lib/sync/use-document-sync"
 import { cn } from "@/lib/utils"
 
@@ -10,7 +10,7 @@ export function SyncBadge({
   provider,
   editable,
 }: {
-  provider: SupabaseProvider
+  provider: DocProvider
   editable: boolean
 }) {
   const { status, saveStatus } = useSyncStatus(provider)

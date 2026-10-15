@@ -9,6 +9,7 @@ import * as Y from "yjs"
 
 import type { Database } from "@/lib/supabase/database.types"
 
+import type { DocProvider } from "./doc-provider"
 import { fromBase64, fromBytea, toBase64, toBytea } from "./encoding"
 
 // Syncs one Y.Doc over a private Supabase Realtime channel and persists it
@@ -53,7 +54,7 @@ export type Peer = { id: string; name: string; color: string; avatarUrl: string 
 type Listener = () => void
 type UpdateMessage = { id: string; i: number; n: number; d: string }
 
-export class SupabaseProvider {
+export class SupabaseProvider implements DocProvider {
   readonly doc: Y.Doc
   readonly awareness: Awareness
 

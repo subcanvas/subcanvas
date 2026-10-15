@@ -31,10 +31,9 @@ import { importMermaid } from "@/app/[org]/[project]/import-actions"
 import { DocumentPicker } from "@/components/document-picker"
 import { useProjectAddresses } from "@/components/project-addresses"
 import { useShowRefusal } from "@/components/limit-refusal"
-import { limitMessage } from "@/lib/billing/limit"
-import { reconcileLinks, type LinkedObject } from "@/lib/document-links"
-import { createClient } from "@/lib/supabase/client"
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { LinkedObject } from "@/lib/document-links"
+import { useDocumentStore } from "@/lib/documents/store"
+import type { DocProvider } from "@/lib/sync/doc-provider"
 import { TEXT_FRAGMENT } from "@/lib/sync/text-fragment"
 import { useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { DocumentType } from "@/lib/tree"
@@ -118,7 +117,7 @@ export default function TextEditor({
   context,
   autoFocus = false,
 }: {
-  provider: SupabaseProvider
+  provider: DocProvider
   user: EditorUser
   editable: boolean
   context: TextDocumentContext
@@ -127,6 +126,7 @@ export default function TextEditor({
   const router = useRouter()
   const addresses = useProjectAddresses()
   const showRefusal = useShowRefusal()
+  const store = useDocumentStore()
   const { resolvedTheme } = useTheme()
   const [picking, setPicking] = useState(false)
 
@@ -136,8 +136,9 @@ export default function TextEditor({
   const editor = useCreateBlockNote(
     withCollaboration({
       schema,
-      uploadFile: uploader(home, showRefusal),
-      resolveFileUrl,
+      // Without files, a picture or video block takes a link instead.
+      uploadFile: store.can.media ? uploader(home, showRefusal) : undefined,
+      resolveFileUrl: store.can.media ? resolveFileUrl : undefined,
       dictionary: dictionary(),
       dropCursor: multiColumnDropCursor,
       collaboration: {
@@ -174,7 +175,7 @@ export default function TextEditor({
   // there by an agent) is copied to this one, so that its readers see it.
   const adopting = useRef(new Set<string>())
   useEffect(() => {
-    if (!editable) return
+    if (!editable || !store.can.media) return
     const here = { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId }
     const check = () =>
       editor.forEachBlock((block) => {
@@ -190,7 +191,7 @@ export default function TextEditor({
       })
     check()
     return editor.onChange(check)
-  }, [editable, editor, context.orgId, context.projectId, context.documentId])
+  }, [editable, store, editor, context.orgId, context.projectId, context.documentId])
 
   useEffect(() => {
     if (!autoFocus || !editable) return
@@ -215,11 +216,7 @@ export default function TextEditor({
       const signature = JSON.stringify(linked)
       if (signature === lastLinks.current) return
       lastLinks.current = signature
-      void reconcileLinks(
-        createClient(),
-        { orgId: context.orgId, documentId: context.documentId },
-        linked
-      )
+      void store.reconcileLinks({ orgId: context.orgId, documentId: context.documentId }, linked)
     }
     const schedule = () => {
       clearTimeout(timer)
@@ -232,7 +229,7 @@ export default function TextEditor({
       clearTimeout(timer)
       unsubscribe?.()
     }
-  }, [editable, editor, context.orgId, context.documentId])
+  }, [editable, store, editor, context.orgId, context.documentId])
 
   function insertLink(docId: string) {
     const cursor = editor.getTextCursorPosition().block
@@ -245,26 +242,12 @@ export default function TextEditor({
 
   // A new document whose home is this one (R1.6).
   async function createInside(type: DocumentType) {
-    const { data, error } = await createClient()
-      .from("documents")
-      .insert({
-        org_id: context.orgId,
-        project_id: context.projectId,
-        type,
-        parent_document_id: context.documentId,
-        position: Date.now(),
-      })
-      .select("id")
-      .single()
-    if (error) {
-      const limit = limitMessage(error.code, error.message)
-      return showRefusal(
-        limit
-          ? { error: limit, limit: true }
-          : { error: error.code === "42501" ? "You do not have permission to create documents." : error.message }
-      )
-    }
-    insertLink(data.id)
+    const result = await store.createInside(
+      { orgId: context.orgId, projectId: context.projectId, documentId: context.documentId },
+      type
+    )
+    if ("error" in result) return showRefusal(result)
+    insertLink(result.id)
     router.refresh()
   }
 
@@ -347,14 +330,18 @@ export default function TextEditor({
       icon: <Workflow size={18} />,
       onItemClick: () => void createInside("whiteboard"),
     },
-    {
-      title: "Link to document",
-      subtext: "Link a document that lives elsewhere",
-      aliases: ["reference", "embed", "mention"],
-      group: "Documents",
-      icon: <Link2 size={18} />,
-      onItemClick: () => setPicking(true),
-    },
+    ...(store.can.linkExisting
+      ? [
+          {
+            title: "Link to document",
+            subtext: "Link a document that lives elsewhere",
+            aliases: ["reference", "embed", "mention"],
+            group: "Documents",
+            icon: <Link2 size={18} />,
+            onItemClick: () => setPicking(true),
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -366,7 +353,9 @@ export default function TextEditor({
         slashMenu={false}
         sideMenu={false}
       >
-        <SideMenuWithMermaid onDraw={editable ? (block) => void drawMermaid(block) : undefined} />
+        <SideMenuWithMermaid
+          onDraw={editable && store.can.mermaidDocuments ? (block) => void drawMermaid(block) : undefined}
+        />
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>
@@ -382,13 +371,15 @@ export default function TextEditor({
           }
         />
       </BlockNoteView>
-      <DocumentPicker
-        open={picking}
-        onOpenChange={setPicking}
-        projectId={context.projectId}
-        excludeId={context.documentId}
-        onPick={(document) => insertLink(document.id)}
-      />
+      {store.can.linkExisting && (
+        <DocumentPicker
+          open={picking}
+          onOpenChange={setPicking}
+          projectId={context.projectId}
+          excludeId={context.documentId}
+          onPick={(document) => insertLink(document.id)}
+        />
+      )}
     </TextDocumentContextProvider>
   )
 }

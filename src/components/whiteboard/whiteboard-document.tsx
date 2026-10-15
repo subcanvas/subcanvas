@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { PresenceAvatars } from "@/components/editor/presence-avatars"
 import { SyncBadge } from "@/components/editor/sync-badge"
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { DocProvider } from "@/lib/sync/doc-provider"
 
 import { BlankCanvas } from "./blank-canvas"
 import type { WhiteboardProps } from "./whiteboard"
@@ -59,7 +59,7 @@ export function WhiteboardDocument({
 function Loaded({
   provider,
   ...shared
-}: Shared & { provider: SupabaseProvider; breadcrumb: React.ReactNode }) {
+}: Shared & { provider: DocProvider; breadcrumb: React.ReactNode }) {
   const { loaded } = useSyncStatus(provider)
   if (!loaded)
     return (

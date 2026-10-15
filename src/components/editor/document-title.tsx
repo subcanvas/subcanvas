@@ -7,9 +7,10 @@ import { toast } from "sonner"
 
 import { ItemIconMark } from "@/components/item-icon"
 import { ItemIconPicker } from "@/components/item-icon-picker"
+import { useDocumentStore } from "@/lib/documents/store"
 import type { ItemIcon } from "@/lib/item-icon"
 import { cn } from "@/lib/utils"
-import { renameItem, setDocumentIcon, type ProjectRef } from "@/app/[org]/[project]/tree-actions"
+import type { ProjectRef } from "@/app/[org]/[project]/tree-actions"
 
 // A document's title, with the icon in front of it (lib/item-icon.ts). For
 // someone who may edit, the title is a field and the icon a button that
@@ -36,6 +37,7 @@ export function DocumentTitle({
   compact?: boolean
 }) {
   const router = useRouter()
+  const store = useDocumentStore()
   const [value, setValue] = useState(title)
   // Shown at once, put back if the server says no.
   const [icon, setIcon] = useState(savedIcon)
@@ -51,7 +53,7 @@ export function DocumentTitle({
     setValue(next)
     if (next === title) return
     startTransition(async () => {
-      const result = await renameItem(project, "document", documentId, next)
+      const result = await store.rename(project, documentId, next)
       if ("error" in result) {
         toast.error(result.error)
         setValue(title)
@@ -63,7 +65,7 @@ export function DocumentTitle({
     const before = icon
     setIcon(next)
     startTransition(async () => {
-      const result = await setDocumentIcon(project, documentId, next)
+      const result = await store.setIcon(project, documentId, next)
       if ("error" in result) {
         toast.error(result.error)
         setIcon(before)

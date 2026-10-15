@@ -6,7 +6,7 @@ import { useEffect } from "react"
 import { PersonAvatar } from "@/components/person-avatar"
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { DocProvider } from "@/lib/sync/doc-provider"
 import { useSyncStatus } from "@/lib/sync/use-document-sync"
 
 import type { EditorUser } from "./text-editor"
@@ -18,7 +18,7 @@ export function PresenceAvatars({
   provider,
   user,
 }: {
-  provider: SupabaseProvider
+  provider: DocProvider
   user: EditorUser
 }) {
   const { peers, viewers } = useSyncStatus(provider)

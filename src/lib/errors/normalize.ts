@@ -86,7 +86,8 @@ export const STATIC_SEGMENTS = new Set([
   ".well-known", "agents", "api", "appearance", "auth", "billing", "callback", "connect", "consent", "cron", "d",
   "daily-summary", "documents", "embed.svg", "errors", "export", "general", "github", "home", "invite", "login",
   "markdown", "mcp", "media", "members", "mermaid", "oauth", "oauth-protected-resource", "onboarding", "p", "password",
-  "privacy", "profile", "projects", "release", "settings", "stripe", "svg", "terms", "trash", "webhook",
+  "playground", "privacy", "profile", "projects", "release", "seed", "settings", "stripe", "svg", "terms", "trash", "try",
+  "webhook",
 ])
 
 const PARAM = /^\[{1,2}(?:\.\.\.)?[A-Za-z0-9_]+\]{1,2}$/

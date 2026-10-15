@@ -114,8 +114,8 @@ export default async function Home() {
               <Link href={start} className={cn(buttonVariants({ size: "lg" }), "px-5")}>
                 Import a repository
               </Link>
-              <Link href={start} className={buttonVariants({ variant: "ghost", size: "lg" })}>
-                Or start blank
+              <Link href="/try" className={buttonVariants({ variant: "ghost", size: "lg" })}>
+                Try it without an account
               </Link>
             </div>
             <p className="text-sm text-graphite">Free, private projects included. No card.</p>
