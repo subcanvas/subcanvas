@@ -2,20 +2,22 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { useDocumentStore, type DocumentStore } from "@/lib/documents/store"
 
-import { SupabaseProvider, type Peer } from "./supabase-provider"
+import type { DocProvider } from "./doc-provider"
+import type { Peer } from "./supabase-provider"
 
 const EMPTY_PEERS: Peer[] = []
 
 // One provider, and so one Y.Doc, per document id no matter how many
 // components show that document. This keeps the side panel and the full page
-// in step (R5.4). Release is delayed so a remount does not reconnect.
+// in step (R5.4). Release is delayed so a remount does not reconnect. The
+// document store says where a document is kept (lib/documents/store.tsx).
 
 const RELEASE_DELAY_MS = 1000
 
 type Entry = {
-  provider: SupabaseProvider
+  provider: DocProvider
   refs: number
   releaseTimer: ReturnType<typeof setTimeout> | null
 }
@@ -34,11 +36,11 @@ function notifyRegistry() {
   for (const listener of registryListeners) listener()
 }
 
-function acquire(documentId: string, readOnly: boolean) {
+function acquire(store: DocumentStore, documentId: string, readOnly: boolean) {
   let entry = entries.get(documentId)
   if (!entry) {
     entry = {
-      provider: new SupabaseProvider(createClient(), documentId, readOnly),
+      provider: store.openDocument(documentId, readOnly),
       refs: 0,
       releaseTimer: null,
     }
@@ -61,10 +63,11 @@ function release(documentId: string) {
 }
 
 export function useDocumentSync(documentId: string, readOnly: boolean) {
+  const store = useDocumentStore()
   useEffect(() => {
-    acquire(documentId, readOnly)
+    acquire(store, documentId, readOnly)
     return () => release(documentId)
-  }, [documentId, readOnly])
+  }, [store, documentId, readOnly])
 
   const getProvider = useCallback(
     () => entries.get(documentId)?.provider ?? null,
@@ -73,7 +76,7 @@ export function useDocumentSync(documentId: string, readOnly: boolean) {
   return useSyncExternalStore(subscribeRegistry, getProvider, () => null)
 }
 
-export function useSyncStatus(provider: SupabaseProvider) {
+export function useSyncStatus(provider: DocProvider) {
   const status = useSyncExternalStore(
     provider.subscribe,
     () => provider.status,

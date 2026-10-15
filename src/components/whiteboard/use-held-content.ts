@@ -5,8 +5,7 @@ import { useCallback, useEffect, useRef } from "react"
 import { toast } from "sonner"
 
 import { useShowRefusal } from "@/components/limit-refusal"
-import { restoreHeldDocuments, trashHeldDocuments } from "@/lib/documents/held"
-import { createClient } from "@/lib/supabase/client"
+import { useDocumentStore } from "@/lib/documents/store"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
 import type { ObjectsChange } from "@/lib/whiteboard/use-whiteboard"
 
@@ -21,6 +20,7 @@ import { mediaRemoved, mediaReturned, whiteboardOpened } from "./media-release"
 export function useHeldContent(context: WhiteboardContext) {
   const router = useRouter()
   const showRefusal = useShowRefusal()
+  const store = useDocumentStore()
   const { whiteboardId } = context
   // The documents each deleted object took to the trash, by object id.
   const trashed = useRef(new Map<string, string[]>())
@@ -36,11 +36,10 @@ export function useHeldContent(context: WhiteboardContext) {
       mediaReturned(whiteboardId, files(returned))
 
       queue.current = queue.current.then(async () => {
-        const supabase = createClient()
         let changed = false
 
         if (removed.length) {
-          const result = await trashHeldDocuments(supabase, whiteboardId, removed.map((object) => object.id))
+          const result = await store.trashHeld(whiteboardId, removed.map((object) => object.id))
           if ("error" in result) showRefusal(result)
           else if (result.documents.length) {
             for (const document of result.documents) {
@@ -58,7 +57,7 @@ export function useHeldContent(context: WhiteboardContext) {
         const back = returned.flatMap((object) => trashed.current.get(object.id) ?? [])
         for (const object of returned) trashed.current.delete(object.id)
         if (back.length) {
-          const result = await restoreHeldDocuments(supabase, back)
+          const result = await store.restoreHeld(back)
           if ("error" in result) showRefusal(result)
           else changed = true
         }
@@ -67,6 +66,6 @@ export function useHeldContent(context: WhiteboardContext) {
         if (changed) router.refresh()
       })
     },
-    [router, showRefusal, whiteboardId]
+    [router, showRefusal, store, whiteboardId]
   )
 }

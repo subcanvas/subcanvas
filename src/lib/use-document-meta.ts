@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 
-import { createClient } from "@/lib/supabase/client"
-import { readDocumentSource, type DocumentSource } from "@/lib/github/source"
-import { readItemIcon, type ItemIcon } from "@/lib/item-icon"
+import { useDocumentStore } from "@/lib/documents/store"
+import type { DocumentSource } from "@/lib/github/source"
+import type { ItemIcon } from "@/lib/item-icon"
 import type { DocumentType } from "@/lib/tree"
 
 export type DocumentMeta = {
@@ -21,37 +21,26 @@ export type DocumentMeta = {
 type State = { id: string; meta: DocumentMeta | null } | null
 
 // Title and type of a linked document. `undefined` while loading, `null`
-// when it no longer exists or this person may not see it.
+// when it no longer exists or this person may not see it. Read again when
+// the document store says something changed (the playground's does).
 export function useDocumentMeta(documentId: string | null): DocumentMeta | null | undefined {
+  const store = useDocumentStore()
   const [state, setState] = useState<State>(null)
 
   useEffect(() => {
     if (!documentId) return
     let cancelled = false
-    const supabase = createClient()
-    Promise.all([
-      supabase.from("documents").select("id, title, type, kind, deleted_at, source, icon").eq("id", documentId).maybeSingle(),
-      supabase.rpc("document_is_live", { p_document_id: documentId }),
-    ]).then(([{ data }, { data: live }]) => {
-      if (cancelled) return
-      setState({
-        id: documentId,
-        meta: data && {
-          id: data.id,
-          title: data.title,
-          type: data.type,
-          kind: data.kind,
-          // Inside something in the trash is in the trash too.
-          trashed: data.deleted_at !== null || live === false,
-          source: readDocumentSource(data.source),
-          icon: readItemIcon(data.icon),
-        },
+    const read = () =>
+      void store.readMeta(documentId).then((meta) => {
+        if (!cancelled) setState({ id: documentId, meta })
       })
-    })
+    read()
+    const unsubscribe = store.subscribe?.(read)
     return () => {
       cancelled = true
+      unsubscribe?.()
     }
-  }, [documentId])
+  }, [store, documentId])
 
   if (!documentId) return null
   return state?.id === documentId ? state.meta : undefined

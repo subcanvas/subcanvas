@@ -4,7 +4,7 @@ import dynamic from "next/dynamic"
 
 import { useDocumentSync, useSyncStatus } from "@/lib/sync/use-document-sync"
 import type { DocumentSource } from "@/lib/github/source"
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
+import type { DocProvider } from "@/lib/sync/doc-provider"
 
 import type { TextDocumentContext } from "./document-link-block"
 import { PresenceAvatars } from "./presence-avatars"
@@ -99,7 +99,7 @@ function Editor({
   context,
   autoFocus,
 }: {
-  provider: SupabaseProvider
+  provider: DocProvider
   user: EditorUser
   editable: boolean
   context: TextDocumentContext

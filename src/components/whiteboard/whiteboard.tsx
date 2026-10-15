@@ -29,11 +29,10 @@ import { useShowRefusal } from "@/components/limit-refusal"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { SupabaseProvider } from "@/lib/sync/supabase-provider"
-import { reconcileLinks } from "@/lib/document-links"
+import type { DocProvider } from "@/lib/sync/doc-provider"
+import { useDocumentStore } from "@/lib/documents/store"
 import type { ProjectSource } from "@/lib/github/source"
 import { useProjectAddresses } from "@/components/project-addresses"
-import { createClient } from "@/lib/supabase/client"
 import { adoptions } from "@/lib/whiteboard/adopt"
 import { arrange } from "@/lib/whiteboard/arrange"
 import { collectClip, placeClip, type Clip } from "@/lib/whiteboard/clipboard"
@@ -91,7 +90,7 @@ const OWN_KEYS = "button, a, video, [role=separator], [role=radio]"
 let clipboard: Clip | null = null
 
 export type WhiteboardProps = {
-  provider: SupabaseProvider
+  provider: DocProvider
   editable: boolean
   context: WhiteboardContext
   user: EditorUser
@@ -119,6 +118,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   const canEdit = editable && mode === "edit"
 
   const showRefusal = useShowRefusal()
+  const documents = useDocumentStore()
   const followHeld = useHeldContent(context)
   const wb = useWhiteboard(provider.doc, canEdit, followHeld)
   const flow = useReactFlow<FlowNode, FlowEdge>()
@@ -274,14 +274,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
             return { objectId, docId }
           })
         : []
-      void reconcileLinks(
-        createClient(),
-        { orgId: context.orgId, documentId: context.whiteboardId },
-        linked
-      )
+      void documents.reconcileLinks({ orgId: context.orgId, documentId: context.whiteboardId }, linked)
     }, 1500)
     return () => clearTimeout(timer)
-  }, [editable, linkSignature, context.orgId, context.whiteboardId])
+  }, [editable, linkSignature, documents, context.orgId, context.whiteboardId])
 
   const selectOnly = useCallback(
     (ids: string[]) => {
@@ -357,6 +353,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   // they were dropped; without one they go to the middle of the canvas.
   function addFiles(files: File[], at: { x: number; y: number } | null) {
     if (!files.length) return
+    if (!documents.can.media) {
+      toast.message("Pictures and videos need an account.")
+      return
+    }
     if (!canEdit) {
       if (editable) toast.message("Switch to edit mode to add pictures and videos.")
       return
@@ -523,7 +523,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     })
     const drawn = drawDiagramBeside(diagram, taken)
     let nodes = drawn.nodes
-    if (drawn.pages.length) {
+    if (drawn.pages.length && documents.can.mermaidDocuments) {
       const result = await writeMermaidPages(
         { ...addresses.project, orgId: context.orgId, projectId: context.projectId },
         context.whiteboardId,
@@ -537,7 +537,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     // Once the new nodes have been measured.
     setTimeout(() => void flow.fitView({ ...FIT_VIEW, nodes: ids.map((id) => ({ id })), duration: 300 }), 50)
     const boxes = drawn.nodes.filter((node) => node.kind !== "group").length
-    toast.success(`Added ${boxes} ${boxes === 1 ? "box" : "boxes"} and ${drawn.edges.length} ${drawn.edges.length === 1 ? "arrow" : "arrows"}.`)
+    toast.success(`Added ${boxes} ${boxes === 1 ? "box" : "boxes"} and ${drawn.edges.length} ${drawn.edges.length === 1 ? "arrow" : "arrows"}.`, {
+      description:
+        drawn.pages.length && !documents.can.mermaidDocuments ? "The pages inside the boxes need an account, so they were left out." : undefined,
+    })
   }
 
   function cut() {
@@ -649,6 +652,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
       site
     )
     selectOnly([id])
+    // Without a server to read the page, the card keeps the link's site.
+    if (!documents.can.linkCards) return
     setPendingLinks((current) => new Set(current).add(id))
     const card = await readLinkCard(
       { orgId: context.orgId, projectId: context.projectId, documentId: context.whiteboardId },
@@ -871,8 +876,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
         onDragOver={(event) => {
           if (!event.dataTransfer.types.includes("Files")) return
           event.preventDefault()
-          event.dataTransfer.dropEffect = canEdit ? "copy" : "none"
-          setDropping(canEdit)
+          event.dataTransfer.dropEffect = canEdit && documents.can.media ? "copy" : "none"
+          setDropping(canEdit && documents.can.media)
         }}
         onDragLeave={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false)
@@ -987,13 +992,15 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
                 <Tool label="Group" hint="A frame that moves what is inside it" onClick={() => add("group")}>
                   <Group />
                 </Tool>
-                <Tool
-                  label="Media"
-                  hint="A picture or a video. Files can also be dropped on the canvas, or pasted"
-                  onClick={() => filePicker.current?.click()}
-                >
-                  <ImagePlus />
-                </Tool>
+                {documents.can.media && (
+                  <Tool
+                    label="Media"
+                    hint="A picture or a video. Files can also be dropped on the canvas, or pasted"
+                    onClick={() => filePicker.current?.click()}
+                  >
+                    <ImagePlus />
+                  </Tool>
+                )}
                 <input
                   ref={filePicker}
                   type="file"
