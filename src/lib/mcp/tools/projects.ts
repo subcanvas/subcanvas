@@ -265,7 +265,9 @@ export const projectTools = [
     description:
       "Changes who can read a project. Needs the admin role or higher. Public means anyone with the address can read every document in it, without signing in; ask the person before making something public. Making a project private can fail on the free plan when it would hold more private documents than the plan allows.",
     input: { project_id: id("The project."), visibility },
-    kind: "idempotent-write",
+    // Destructive for the client's prompts: making a project public cannot
+    // be taken back once someone has read it.
+    kind: "destructive",
     covers: ["[org]/[project]/tree-actions.setProjectVisibility"],
     run: async (context, { project_id, visibility: wanted }) => {
       const result = await operations.setProjectVisibility(context.supabase, project_id, wanted)

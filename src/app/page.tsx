@@ -36,8 +36,11 @@ const INSIDE = [
 ]
 
 const DEVELOPER_STEPS = [
-  ["Paste a repository.", "Public repositories only. There's no GitHub app to install."],
-  ["Get the boxes.", "One for each main folder, with its path under the name and its README beside the drawing."],
+  [
+    "Paste a repository.",
+    "A public one works as it is. For a private one, connect GitHub in Settings first: Subcanvas reads it, read-only, and it becomes a private project.",
+  ],
+  ["Get the boxes.", "One for each main folder, with its path under the name and its README inside."],
   [
     "Say what connects.",
     "Add a .subcanvas file to a folder to name what it talks to. Each connection becomes an arrow, drawn where the two folders meet, and its description becomes the page behind the arrow.",
@@ -103,8 +106,8 @@ export default async function Home() {
               Turn a GitHub repo into a diagram you can click into.
             </h1>
             <p className="max-w-md text-lg leading-relaxed text-graphite">
-              Paste a public repository. Each main folder becomes a box with its README inside, and a box opens
-              into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a
+              Paste a GitHub repository, public or private. Each main folder becomes a box with its README inside,
+              and a box opens into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a
               page of notes.
             </p>
             <div className="flex flex-wrap items-center gap-3">
@@ -136,7 +139,7 @@ export default async function Home() {
             </ul>
             <p className="max-w-2xl leading-relaxed text-graphite">
               Arrows and groups hold things too. Everyone you invite edits together, live, with cursors. People
-              who only need to look can watch for free.
+              who only need to look are viewers, and viewers are free.
             </p>
             <p className="max-w-2xl leading-relaxed text-graphite">
               Bring your notes from Notion, Obsidian, or a folder of Markdown.
@@ -164,9 +167,9 @@ export default async function Home() {
               <p className="font-mono text-xs tracking-wide text-graphite uppercase">For developers</p>
               <h2 className="text-3xl font-semibold">From a repository to a diagram</h2>
               <p className="max-w-xl leading-relaxed text-graphite">
-                Import a public GitHub repository and start from its structure: a box for each main folder (up to
-                60), each folder&apos;s README inside its box, and folders inside folders as whiteboards inside
-                boxes. Arrows come from .subcanvas files, where the repository has them. Then make it yours: move
+                Import a GitHub repository, public or private, and start from its structure: a box for each main
+                folder (up to 60), each folder&apos;s README inside its box, and folders inside folders as
+                whiteboards inside boxes. Arrows come from .subcanvas files, where the repository has them. Then make it yours: move
                 things, delete what isn&apos;t part of the design, draw what&apos;s missing.
               </p>
               <ol className="flex max-w-xl flex-col gap-3 text-sm leading-relaxed">
@@ -218,7 +221,7 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free for everything you do on your own. When your workspace gets a second editor, or you need more private work, Pro is $5 a month for each editor. Viewers are always free."
+                  ? "Free for one person, with up to 100 private whiteboards and pages. When your workspace gets a second editor or needs more private work, Pro is $5 per editor a month. Viewers are always free."
                   : "Nothing to pay. This server has no paid plan."}
               </p>
             </div>
