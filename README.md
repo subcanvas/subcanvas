@@ -1,11 +1,11 @@
 # Subcanvas
 
-**Turn a GitHub repo into a diagram you can click into.** Paste a public repository and each main folder becomes a box with its README inside; a box opens into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a page of notes, as many levels deep as you need.
+**Turn a GitHub repo into a diagram you can click into.** Paste a GitHub repository, public or private, and each main folder becomes a box with its README inside; a box opens into the folders within it. Then draw the rest: any box or arrow can hold its own whiteboard or a page of notes, as many levels deep as you need.
 
 <!-- The demo, made from scripts/demo/out/demo.mp4 by scripts/demo/readme-preview.sh. -->
 <p align="center">
   <a href="https://subcanvas.app">
-    <img alt="Subcanvas in 49 seconds: a repository becomes a diagram, a box opens into the whiteboard inside it, an agent adds an arrow over MCP, and the diagram goes into a README" src="docs/media/demo.webp" width="880">
+    <img alt="Subcanvas in about a minute: a repository becomes a diagram, a box opens into the whiteboard inside it, an agent adds an arrow over MCP, and the diagram goes into a README" src="docs/media/demo.webp" width="880">
   </a>
 </p>
 
@@ -23,10 +23,10 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
   </a>
 </p>
 
-- **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. The import is a one-time copy.
+- **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. Private repositories come in read-only once the workspace connects GitHub in Settings, and always as private projects. The import is a one-time copy.
 - **Code links.** A box or an arrow can point at the code behind it, a file, some lines or a folder on GitHub or anywhere else, and one click opens it. Imported boxes link to their folders.
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
-- **Live together.** Your account comes with a workspace; invite people to it and everyone edits at once, with cursors. Viewers are free.
+- **Live together.** Invite people to your workspace and everyone edits at once, with cursors. Viewers are free.
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
 - **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them, and a Claude Code plugin teaches them to draw: [Agents](#agents) below.
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
