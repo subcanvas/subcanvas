@@ -7,6 +7,7 @@ import { recordStep } from "@/lib/activity"
 import * as operations from "@/lib/documents/operations"
 import { gitHubAppConfig } from "@/lib/github/app"
 import { importFromReference } from "@/lib/github/import-reference"
+import type { ImportRefusal } from "@/lib/github/import-repository"
 import { connectedRepositories } from "@/lib/github/installations"
 import { projectHref } from "@/lib/navigation"
 import { getOrgContext } from "@/lib/orgs"
@@ -43,7 +44,9 @@ export async function createProject(
 
 // `limit` marks the free-tier limit, so the dialog can say what to do.
 export type ImportState =
-  | { error: string; limit?: true }
+  // `reason`: why it was refused (lib/github/import-repository.ts), which
+  // tells the dialog when connecting GitHub would help.
+  | { error: string; limit?: true; reason?: ImportRefusal }
   | { ok: true; href: string; folders: number; warnings: string[] }
   | null
 

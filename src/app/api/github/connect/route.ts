@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { gitHubAppConfig, installUrl } from "@/lib/github/app"
-import { CONNECT_COOKIE, CONNECT_COOKIE_SECONDS, encodeConnectState, newConnectState } from "@/lib/github/connect-state"
+import {
+  CONNECT_COOKIE,
+  CONNECT_COOKIE_SECONDS,
+  connectRepository,
+  encodeConnectState,
+  newConnectState,
+} from "@/lib/github/connect-state"
 import { findOrgContext } from "@/lib/orgs"
 import { requestOrigin } from "@/lib/origin"
 import { hasRole } from "@/lib/roles"
@@ -9,7 +15,8 @@ import { hasRole } from "@/lib/roles"
 // Connect GitHub, step one: an admin of the workspace is sent to GitHub to
 // install the app on an account or organization, or to change which
 // repositories an installation reads. GitHub sends them back to
-// api/github/callback.
+// api/github/callback. From the import dialog it carries the repository they
+// were importing (`repository=owner/name`), and they come back to it.
 export async function GET(request: NextRequest) {
   const origin = requestOrigin(request)
   const config = gitHubAppConfig()
@@ -22,7 +29,11 @@ export async function GET(request: NextRequest) {
   if (!hasRole(context.role, "admin"))
     return NextResponse.redirect(`${origin}/${context.org.slug}/settings/github?github=not-admin`)
 
-  const connect = newConnectState(context.org.id, context.org.slug)
+  const connect = newConnectState(
+    context.org.id,
+    context.org.slug,
+    connectRepository(request.nextUrl.searchParams.get("repository"))
+  )
   const response = NextResponse.redirect(installUrl(config, connect.state))
   response.cookies.set(CONNECT_COOKIE, encodeConnectState(connect), {
     httpOnly: true,

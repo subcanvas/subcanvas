@@ -3,6 +3,7 @@ import Link from "next/link"
 
 import { ItemIconMark } from "@/components/item-icon"
 import { PageHeader } from "@/components/page-header"
+import { connectRepository } from "@/lib/github/connect-state"
 import { readItemIcon } from "@/lib/item-icon"
 import { privateDocumentLimit } from "@/lib/org-access"
 import { getOrgContext } from "@/lib/orgs"
@@ -25,8 +26,15 @@ type ProjectCard = {
   document_count: number
 }
 
-export default async function OrgPage({ params }: PageProps<"/[org]">) {
+export default async function OrgPage({ params, searchParams }: PageProps<"/[org]">) {
   const { org: slug } = await params
+  // Back from Connect GitHub, to the import set out from (api/github/callback).
+  const query = await searchParams
+  const resumed = connectRepository(typeof query.import === "string" ? query.import : null)
+  // The account is only ever named as GitHub spells a login.
+  const connected =
+    typeof query.connected === "string" && /^[A-Za-z0-9-]{1,39}$/.test(query.connected) ? query.connected : null
+  const resume = resumed ? { repository: resumed, connected } : null
   const { supabase, org, canEdit, role, plan } = await getOrgContext(slug)
   // Making a project public takes an admin, at creation too.
   const canPublish = hasRole(role, "admin")
@@ -53,7 +61,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           canEdit &&
           Boolean(projects?.length) && (
             <div className="flex flex-wrap justify-end gap-2">
-              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
+              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} resume={resume} />
               <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )
@@ -107,7 +115,7 @@ export default async function OrgPage({ params }: PageProps<"/[org]">) {
           </p>
           {canEdit && (
             <div className="mt-2 flex flex-wrap justify-center gap-2">
-              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} />
+              <ImportProject slug={org.slug} canPublish={canPublish} privateLimit={privateLimit} resume={resume} />
               <NewProject slug={org.slug} orgId={org.id} canPublish={canPublish} privateLimit={privateLimit} />
             </div>
           )}
