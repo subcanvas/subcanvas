@@ -849,6 +849,7 @@ export type Database = {
           name: string
         }[]
       }
+      operator_dashboard: { Args: never; Returns: Json }
       org_media_usage: {
         Args: { p_org_id: string }
         Returns: {
