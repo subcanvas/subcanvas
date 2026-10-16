@@ -1,12 +1,13 @@
 "use client"
 
-import { Code, ExternalLink, Trash2, X } from "lucide-react"
+import { Code, ExternalLink, Paintbrush, Trash2, X } from "lucide-react"
 import { useState } from "react"
 
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -18,6 +19,7 @@ import {
   COLOR_KEYS,
   COLORS,
   type ColorKey,
+  type OpenMode,
   type WbEdge,
   type WbNode,
 } from "@/lib/whiteboard/schema"
@@ -62,6 +64,8 @@ export function Inspector({
   const isNode = "node" in selection
   const name = isNode ? selection.node.title : selection.edge.label
   const what = isNode ? nodeLabel(selection.node) : "Arrow"
+  const onNode = (patch: Partial<Omit<WbNode, "id">>) => isNode && onNodeChange(selection.node.id, patch)
+  const onEdge = (patch: Partial<Omit<WbEdge, "id">>) => !isNode && onEdgeChange(selection.edge.id, patch)
 
   return (
     <aside
@@ -74,13 +78,33 @@ export function Inspector({
         "md:relative md:inset-auto md:max-h-none md:w-(--panel-width) md:shrink-0 md:rounded-none md:border-t-0 md:border-l md:shadow-none"
       )}
     >
+      {/* The object's name is typed in the heading, and how it looks is in the
+          Style menu beside it, so the panel below is left to what the object
+          holds: its page, written at full length. */}
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-rule bg-sheet/95 px-4 py-2.5 backdrop-blur">
-        <span className="rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
+        <span className="shrink-0 rounded-[5px] border border-rule px-1.5 py-px font-mono text-[10px] tracking-wide text-graphite uppercase">
           {what}
         </span>
-        <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
-          {name || (isNode ? "Untitled" : "No label")}
-        </h2>
+        {editable ? (
+          <NameField selection={selection} onNodeChange={onNode} onEdgeChange={onEdge} />
+        ) : (
+          <h2 className="min-w-0 flex-1 truncate font-sans text-sm font-medium tracking-normal">
+            {name || (isNode ? "Untitled" : "No label")}
+          </h2>
+        )}
+        {editable && (
+          <StyleMenu what={what}>
+            {isNode ? (
+              <NodeStyle
+                node={selection.node}
+                link={codeLinkOf(selection.node, repository)}
+                onChange={onNode}
+              />
+            ) : (
+              <EdgeStyle edge={selection.edge} onChange={onEdge} />
+            )}
+          </StyleMenu>
+        )}
         {onDelete && (
           <Tooltip>
             <TooltipTrigger
@@ -104,22 +128,18 @@ export function Inspector({
         </Button>
       </header>
 
-      {/* In view mode only what is worth reading is shown: the controls that
-          change the object are left out, not greyed out. */}
+      {/* What is worth reading about the object, above its page. In view mode
+          the controls that change it are left out, not greyed out. */}
       <fieldset disabled={!editable} className="flex flex-col gap-5 p-4 empty:hidden">
         {isNode ? (
           <NodeFields
             node={selection.node}
             link={codeLinkOf(selection.node, repository)}
             editable={editable}
-            onChange={(patch) => onNodeChange(selection.node.id, patch)}
+            onChange={onNode}
           />
         ) : (
-          <EdgeFields
-            edge={selection.edge}
-            editable={editable}
-            onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
-          />
+          <EdgeFields edge={selection.edge} />
         )}
       </fieldset>
 
@@ -130,13 +150,11 @@ export function Inspector({
           objectTitle={selection.node.title}
           docId={selection.node.docId}
           docType={selection.node.docType}
-          openMode={selection.node.openMode}
           editable={editable}
           locked={locked}
           context={context}
           user={user}
-          onChange={(patch) => onNodeChange(selection.node.id, patch)}
-          onOpenModeChange={(openMode) => onNodeChange(selection.node.id, { openMode })}
+          onChange={onNode}
         />
       ) : (
         <ObjectDocument
@@ -145,19 +163,193 @@ export function Inspector({
           objectTitle={selection.edge.label}
           docId={selection.edge.docId}
           docType={selection.edge.docType}
-          openMode={selection.edge.openMode}
           editable={editable}
           locked={locked}
           context={context}
           user={user}
-          onChange={(patch) => onEdgeChange(selection.edge.id, patch)}
-          onOpenModeChange={(openMode) => onEdgeChange(selection.edge.id, { openMode })}
+          onChange={onEdge}
         />
       )}
     </aside>
   )
 }
 
+// The name, typed in the panel's heading: a box's title, a picture's
+// caption, an arrow's label. Its id is what Enter on the canvas selects
+// (whiteboard.tsx, enterSelection).
+function NameField({
+  selection,
+  onNodeChange,
+  onEdgeChange,
+}: {
+  selection: { node: WbNode } | { edge: WbEdge }
+  onNodeChange: (patch: Partial<Omit<WbNode, "id">>) => void
+  onEdgeChange: (patch: Partial<Omit<WbEdge, "id">>) => void
+}) {
+  const field = "min-w-0 flex-1 rounded-md border-0 bg-transparent px-1.5 py-1 text-sm font-medium shadow-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 md:text-sm"
+  if ("edge" in selection)
+    return (
+      <Input
+        id="wb-label"
+        aria-label="Label"
+        value={selection.edge.label}
+        maxLength={MAX_LABEL}
+        placeholder="What this arrow means"
+        className={field}
+        onChange={(event) => onEdgeChange({ label: event.target.value })}
+      />
+    )
+  const { node } = selection
+  return (
+    <Input
+      id="wb-title"
+      aria-label={node.kind === "media" ? "Caption" : "Title"}
+      value={node.title}
+      maxLength={MAX_TITLE}
+      placeholder={node.kind === "media" ? "A caption" : "Untitled"}
+      className={field}
+      onChange={(event) => onNodeChange({ title: event.target.value })}
+    />
+  )
+}
+
+// How the object looks, in a menu of its own: the panel is for what it holds.
+function StyleMenu({ what, children }: { what: string; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" aria-label={`Style the ${what.toLowerCase()}`}>
+                  <Paintbrush />
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipContent>Style</TooltipContent>
+      </Tooltip>
+      <PopoverContent
+        align="end"
+        aria-label="Style"
+        // Its keys are the whiteboard's too: undo works from here (whiteboard.tsx).
+        data-whiteboard-menu=""
+        className="max-h-[min(36rem,var(--available-height))] w-80 gap-5 overflow-y-auto p-4"
+      >
+        {children}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function NodeStyle({
+  node,
+  link,
+  onChange,
+}: {
+  node: WbNode
+  link: CodeLink | null
+  onChange: (patch: Partial<Omit<WbNode, "id">>) => void
+}) {
+  // A box still at the size its shape came in takes the new shape's size.
+  const changeShape = (shape: NodeShape) => onChange(reshape(node, shape))
+  return (
+    <>
+      {node.docId && node.docType === "text" && (
+        <OpenModeChoice value={node.openMode} onChange={(openMode) => onChange({ openMode })} />
+      )}
+      {node.kind !== "link" && (
+        <CodeField
+          key={node.id}
+          codeUrl={node.codeUrl}
+          link={link}
+          editable
+          showCard={false}
+          onChange={(codeUrl) => onChange({ codeUrl })}
+        />
+      )}
+      {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
+      {node.kind !== "media" && node.kind !== "link" && (
+        <ColorField value={node.color} onChange={(color) => onChange({ color })} />
+      )}
+      <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
+    </>
+  )
+}
+
+function EdgeStyle({ edge, onChange }: { edge: WbEdge; onChange: (patch: Partial<Omit<WbEdge, "id">>) => void }) {
+  return (
+    <>
+      {edge.docId && edge.docType === "text" && (
+        <OpenModeChoice value={edge.openMode} onChange={(openMode) => onChange({ openMode })} />
+      )}
+      <CodeField
+        key={edge.id}
+        codeUrl={edge.codeUrl}
+        link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null}
+        editable
+        showCard={false}
+        onChange={(codeUrl) => onChange({ codeUrl })}
+      />
+      <div className="grid grid-cols-2 gap-4">
+        <Choice
+          label="Line"
+          value={edge.shape}
+          options={[
+            { value: "spline", label: "Curved" },
+            { value: "step", label: "Angled" },
+          ]}
+          onChange={(shape) => onChange({ shape })}
+        />
+        <Choice
+          label="Stroke"
+          value={edge.stroke}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "dotted", label: "Dotted" },
+          ]}
+          onChange={(stroke) => onChange({ stroke })}
+        />
+      </div>
+      <Choice
+        label="Arrowheads"
+        value={edge.direction}
+        options={[
+          { value: "none", label: "None" },
+          { value: "forward", label: "End" },
+          { value: "reverse", label: "Start" },
+          { value: "both", label: "Both" },
+        ]}
+        onChange={(direction) => onChange({ direction })}
+      />
+      <ColorField value={edge.color} onChange={(color) => onChange({ color })} />
+      <IconField value={edge.icon} onChange={(icon) => onChange({ icon })} />
+      <EmojiField value={edge.emoji} onChange={(emoji) => onChange({ emoji })} />
+    </>
+  )
+}
+
+// Where double-clicking the object opens the page it holds: beside the
+// whiteboard, in this panel, or as a page of its own.
+function OpenModeChoice({ value, onChange }: { value: OpenMode; onChange: (openMode: OpenMode) => void }) {
+  return (
+    <Choice
+      label="Double-click opens its page"
+      value={value}
+      options={[
+        { value: "panel", label: "In this panel" },
+        { value: "navigate", label: "As a full page" },
+      ]}
+      onChange={onChange}
+    />
+  )
+}
+
+// What is worth reading about a node, above its page: a text node's body
+// text, where an imported box came from, and the code it links to.
 function NodeFields({
   node,
   link,
@@ -169,33 +361,11 @@ function NodeFields({
   editable: boolean
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
-  // A box still at the size its shape came in takes the new shape's size.
-  const changeShape = (shape: NodeShape) => onChange(reshape(node, shape))
-  const code = (
-    <CodeField
-      key={node.id}
-      codeUrl={node.codeUrl}
-      link={link}
-      editable={editable}
-      onChange={(codeUrl) => onChange({ codeUrl })}
-    />
-  )
-
-  if (node.kind === "media") return <MediaFields node={node} code={code} editable={editable} onChange={onChange} />
+  if (node.kind === "media") return <MediaFields node={node} link={link} editable={editable} onChange={onChange} />
   if (node.kind === "link") return <LinkFields node={node} editable={editable} onChange={onChange} />
 
   return (
     <>
-      {editable && (
-        <Field label="Title" htmlFor="wb-title">
-          <Input
-            id="wb-title"
-            value={node.title}
-            maxLength={MAX_TITLE}
-            onChange={(event) => onChange({ title: event.target.value })}
-          />
-        </Field>
-      )}
       {node.kind === "text" && !editable && node.description !== "" && (
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{node.description}</p>
       )}
@@ -223,20 +393,14 @@ function NodeFields({
               {node.path}
             </p>
           )}
-          {node.kind === "plain" && node.description && (
+          {/* The README's first paragraph: left out when the README is the
+              page right below. */}
+          {node.kind === "plain" && node.description && !node.docId && (
             <p className="text-xs leading-relaxed text-graphite">{node.description}</p>
           )}
         </div>
       )}
-      {code}
-      {editable && (
-        <>
-          {node.kind === "plain" && <ShapeField value={node.shape} onChange={changeShape} />}
-          <ColorField value={node.color} onChange={(color) => onChange({ color })} />
-          <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
-          <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
-        </>
-      )}
+      <OwnCode link={link} />
     </>
   )
 }
@@ -256,14 +420,6 @@ function LinkFields({
     <>
       {editable ? (
         <>
-          <Field label="Title" htmlFor="wb-title">
-            <Input
-              id="wb-title"
-              value={node.title}
-              maxLength={MAX_TITLE}
-              onChange={(event) => onChange({ title: event.target.value })}
-            />
-          </Field>
           <Field label="Description" htmlFor="wb-description" hint="Shown on the card when it has no picture.">
             <Textarea
               id="wb-description"
@@ -297,12 +453,12 @@ function LinkFields({
 // A picture or a video: its title is the caption under it.
 function MediaFields({
   node,
-  code,
+  link,
   editable,
   onChange,
 }: {
   node: WbNode
-  code: React.ReactNode
+  link: CodeLink | null
   editable: boolean
   onChange: (patch: Partial<Omit<WbNode, "id">>) => void
 }) {
@@ -310,14 +466,6 @@ function MediaFields({
     <>
       {editable ? (
         <>
-          <Field label="Caption" htmlFor="wb-title" hint="Shown under it on the whiteboard.">
-            <Input
-              id="wb-title"
-              value={node.title}
-              maxLength={MAX_TITLE}
-              onChange={(event) => onChange({ title: event.target.value })}
-            />
-          </Field>
           <Field
             label="Alt text"
             htmlFor="wb-alt"
@@ -357,86 +505,26 @@ function MediaFields({
           </a>
         </div>
       )}
-      {code}
-      {editable && (
-        <>
-          <IconField value={node.icon} onChange={(icon) => onChange({ icon })} />
-          <EmojiField value={node.emoji} onChange={(emoji) => onChange({ emoji })} />
-        </>
-      )}
+      <OwnCode link={link} />
     </>
   )
 }
 
-function EdgeFields({
-  edge,
-  editable,
-  onChange,
-}: {
-  edge: WbEdge
-  editable: boolean
-  onChange: (patch: Partial<Omit<WbEdge, "id">>) => void
-}) {
-  const code = (
-    <CodeField
-      key={edge.id}
-      codeUrl={edge.codeUrl}
-      link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null}
-      editable={editable}
-      onChange={(codeUrl) => onChange({ codeUrl })}
-    />
-  )
-  // In view mode, the arrow's label is the panel's heading; its code link is
-  // all there is to read.
-  if (!editable) return code
+// An arrow's label is the panel's heading and its look is in the Style
+// menu: what is left to read here is the code it links to.
+function EdgeFields({ edge }: { edge: WbEdge }) {
+  return <OwnCode link={edge.codeUrl ? { url: edge.codeUrl, derived: false } : null} />
+}
 
+// The code an object links to of its own accord (not the folder it was
+// imported from, shown as the folder), as a card to open.
+function OwnCode({ link }: { link: CodeLink | null }) {
+  if (!link || link.derived) return null
   return (
-    <>
-      <Field label="Label" htmlFor="wb-label">
-        <Input
-          id="wb-label"
-          value={edge.label}
-          maxLength={MAX_LABEL}
-          placeholder="What this arrow means"
-          onChange={(event) => onChange({ label: event.target.value })}
-        />
-      </Field>
-      {code}
-      <div className="grid grid-cols-2 gap-4">
-        <Choice
-          label="Line"
-          value={edge.shape}
-          options={[
-            { value: "spline", label: "Curved" },
-            { value: "step", label: "Angled" },
-          ]}
-          onChange={(shape) => onChange({ shape })}
-        />
-        <Choice
-          label="Stroke"
-          value={edge.stroke}
-          options={[
-            { value: "solid", label: "Solid" },
-            { value: "dotted", label: "Dotted" },
-          ]}
-          onChange={(stroke) => onChange({ stroke })}
-        />
-      </div>
-      <Choice
-        label="Arrowheads"
-        value={edge.direction}
-        options={[
-          { value: "none", label: "None" },
-          { value: "forward", label: "End" },
-          { value: "reverse", label: "Start" },
-          { value: "both", label: "Both" },
-        ]}
-        onChange={(direction) => onChange({ direction })}
-      />
-      <ColorField value={edge.color} onChange={(color) => onChange({ color })} />
-      <IconField value={edge.icon} onChange={(icon) => onChange({ icon })} />
-      <EmojiField value={edge.emoji} onChange={(emoji) => onChange({ emoji })} />
-    </>
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs text-graphite">Code</span>
+      <CodeCard url={link.url} />
+    </div>
   )
 }
 
@@ -448,12 +536,15 @@ function CodeField({
   codeUrl,
   link,
   editable,
+  showCard = true,
   onChange,
 }: {
   codeUrl: string | null
   // What the object opens: its own link, or the folder it was imported from.
   link: CodeLink | null
   editable: boolean
+  // Off in the Style menu, where the panel beside it shows the card already.
+  showCard?: boolean
   onChange: (codeUrl: string | null) => void
 }) {
   const [draft, setDraft] = useState(codeUrl ?? "")
@@ -491,7 +582,7 @@ function CodeField({
       ) : (
         <span className="text-xs text-graphite">Code</span>
       )}
-      {own && <CodeCard url={own.url} />}
+      {own && showCard && <CodeCard url={own.url} />}
       {editable && (
         <>
           <div className="flex items-center gap-1">

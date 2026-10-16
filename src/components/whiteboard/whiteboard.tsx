@@ -749,12 +749,24 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>("#wb-title, #wb-label")?.select())
   }
 
+  // Keys and pastes are this whiteboard's when they land on the page body,
+  // on the canvas, or in a menu it opened (the panel's Style menu), which is
+  // drawn outside the canvas.
+  const ownTarget = (target: HTMLElement) =>
+    target === document.body || !!root.current?.contains(target) || !!target.closest("[data-whiteboard-menu]")
+  // Where keys mean typing: a field, an editor, or someone else's dialog or
+  // menu. The whiteboard's own menu is a dialog too, but only its fields are.
+  const typing = (target: HTMLElement) => {
+    const at = target.closest(TYPING)
+    return !!at && !at.matches("[data-whiteboard-menu]")
+  }
+
   // On the window, because a click on the empty canvas leaves focus on the
   // page body, where a handler on the canvas would never hear a key.
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target as HTMLElement
-    if (event.defaultPrevented || target.closest(TYPING)) return
-    if (target !== document.body && !root.current?.contains(target)) return
+    if (event.defaultPrevented || typing(target)) return
+    if (!ownTarget(target)) return
 
     const key = event.key.toLowerCase()
     const run = (action: () => void) => {
@@ -815,8 +827,8 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   // copied here.
   const onPaste = useEffectEvent((event: ClipboardEvent) => {
     const target = event.target as HTMLElement
-    if (event.defaultPrevented || target.closest(TYPING)) return
-    if (target !== document.body && !root.current?.contains(target)) return
+    if (event.defaultPrevented || typing(target)) return
+    if (!ownTarget(target)) return
     event.preventDefault()
     const files = [...(event.clipboardData?.files ?? [])]
     const text = event.clipboardData?.getData("text/plain") ?? ""

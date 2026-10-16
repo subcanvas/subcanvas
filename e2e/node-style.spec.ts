@@ -7,9 +7,9 @@ import {
   createWhiteboard,
   expectSaved,
   freshId,
-  inspector,
   signUpWithOrg,
   whiteboardTools,
+  openStyle,
 } from "./support/app"
 import { boxOf, nodeNamed } from "./support/canvas"
 
@@ -25,15 +25,15 @@ test("a node's shape, colour, icon and emoji are chosen in the panel and kept", 
 
   const title = `Styled ${id}`
   await addNode(page, title)
-  const panel = inspector(page)
   const node = nodeNamed(page, title)
+  let style = await openStyle(page)
 
   // Shape. A node still at its shape's own size takes the new shape's size,
   // and a diamond needs more room than a rectangle for the same words.
   const rectangle = await boxOf(node)
-  await panel.getByRole("radiogroup", { name: "Shape" }).getByRole("radio", { name: "Diamond" }).click()
-  await expect(panel.getByRole("radio", { name: "Diamond" })).toBeChecked()
-  await expect(panel.getByText("Shape Diamond")).toBeVisible()
+  await style.getByRole("radiogroup", { name: "Shape" }).getByRole("radio", { name: "Diamond" }).click()
+  await expect(style.getByRole("radio", { name: "Diamond" })).toBeChecked()
+  await expect(style.getByText("Shape Diamond")).toBeVisible()
   await expect(async () => {
     const diamond = await boxOf(node)
     expect(diamond.width).toBeGreaterThan(rectangle.width)
@@ -42,24 +42,24 @@ test("a node's shape, colour, icon and emoji are chosen in the panel and kept", 
 
   // Colour. The colour is drawn, not written: the one place it can be read
   // back on the canvas is the stroke of the node's outline.
-  await panel.getByRole("radiogroup", { name: "Color" }).getByRole("radio", { name: "Blue" }).click()
-  await expect(panel.getByRole("radio", { name: "Blue" })).toBeChecked()
-  await expect(panel.getByText("Color Blue")).toBeVisible()
+  await style.getByRole("radiogroup", { name: "Color" }).getByRole("radio", { name: "Blue" }).click()
+  await expect(style.getByRole("radio", { name: "Blue" })).toBeChecked()
+  await expect(style.getByText("Color Blue")).toBeVisible()
   const outline = node.locator("svg path").first()
   await expect(outline).toHaveAttribute("stroke", "#0b7fe0")
 
   // Icon, from the searchable list. It shows on the node as a small sheet
   // of its own, named for a screen reader.
-  await panel.getByRole("button", { name: "Choose icon" }).click()
-  await panel.getByLabel("Search icons").fill("database")
-  await panel.getByRole("button", { name: "Database", exact: true }).click()
+  await style.getByRole("button", { name: "Choose icon" }).click()
+  await style.getByLabel("Search icons").fill("database")
+  await style.getByRole("button", { name: "Database", exact: true }).click()
   await expect(node.getByRole("img", { name: "Icon: Database" })).toBeVisible()
-  await expect(panel.getByRole("button", { name: "Database", exact: true, pressed: true })).toBeVisible()
+  await expect(style.getByRole("button", { name: "Database", exact: true, pressed: true })).toBeVisible()
 
   // Emoji, the same way.
-  await panel.getByRole("button", { name: "Choose emoji" }).click()
-  await panel.getByLabel("Search emoji").fill("rocket")
-  await panel.getByRole("button", { name: "rocket launch ship deploy" }).click()
+  await style.getByRole("button", { name: "Choose emoji" }).click()
+  await style.getByLabel("Search emoji").fill("rocket")
+  await style.getByRole("button", { name: "rocket launch ship deploy" }).click()
   await expect(node.getByText("🚀")).toBeVisible()
 
   await expectSaved(page)
@@ -75,14 +75,15 @@ test("a node's shape, colour, icon and emoji are chosen in the panel and kept", 
 
   // And the panel agrees with the canvas.
   await clickNode(page, title)
-  await expect(panel.getByRole("radio", { name: "Diamond" })).toBeChecked()
-  await expect(panel.getByRole("radio", { name: "Blue" })).toBeChecked()
+  style = await openStyle(page)
+  await expect(style.getByRole("radio", { name: "Diamond" })).toBeChecked()
+  await expect(style.getByRole("radio", { name: "Blue" })).toBeChecked()
   // The closed pickers name what was chosen.
-  await expect(panel.getByRole("button", { name: "Database", exact: true })).toBeVisible()
-  await expect(panel.getByRole("button", { name: /rocket/ })).toBeVisible()
+  await expect(style.getByRole("button", { name: "Database", exact: true })).toBeVisible()
+  await expect(style.getByRole("button", { name: /rocket/ })).toBeVisible()
 
   // A choice can be taken off again.
-  await panel.getByRole("button", { name: "Remove emoji" }).click()
+  await style.getByRole("button", { name: "Remove emoji" }).click()
   await expect(node.getByText("🚀")).toHaveCount(0)
-  await expect(panel.getByRole("button", { name: "Choose emoji" })).toBeVisible()
+  await expect(style.getByRole("button", { name: "Choose emoji" })).toBeVisible()
 })
