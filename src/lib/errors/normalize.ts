@@ -83,7 +83,7 @@ export function normalizeStack(stack: string | null | undefined) {
 // src/app (a unit test keeps this list in step with them). Anything else in
 // a reported route is a real address and is not kept.
 export const STATIC_SEGMENTS = new Set([
-  ".well-known", "agents", "api", "appearance", "auth", "billing", "callback", "connect", "consent", "cron", "d",
+  ".well-known", "admin", "agents", "api", "appearance", "auth", "billing", "callback", "connect", "consent", "cron", "d",
   "daily-summary", "documents", "embed.svg", "errors", "export", "general", "github", "home", "invite", "login",
   "markdown", "mcp", "media", "members", "mermaid", "oauth", "oauth-protected-resource", "onboarding", "p", "password",
   "playground", "privacy", "profile", "projects", "release", "seed", "settings", "stripe", "svg", "terms", "trash", "try",
