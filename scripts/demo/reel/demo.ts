@@ -754,7 +754,7 @@ await demo.wait(2600)
 // The cursor goes along the header to Share, clear of the mode toggle
 // under it, whose tooltip would say "View".
 mark("Share, Copy embed")
-caption("Put the live diagram in your README. It keeps itself up to date.")
+caption("Put the live diagram in your README. It follows your edits in minutes.")
 demo.zoom.out({ duration: 0 })
 await demo.terminal.place({ x: 700, y: 140, ...terminalSize })
 await demo.browser.place({ x: 80, y: 44, width: 1440, height: 768 })
