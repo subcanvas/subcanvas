@@ -83,5 +83,10 @@ export async function GET(request: NextRequest) {
   }
 
   await recordStep(supabase, "connected_github")
+  // Back to the import they set out from, the dialog open on it.
+  if (saved.repository)
+    return finish(
+      `/${slug}?import=${encodeURIComponent(saved.repository)}&connected=${encodeURIComponent(account.login)}`
+    )
   return settings("connected", account.login)
 }

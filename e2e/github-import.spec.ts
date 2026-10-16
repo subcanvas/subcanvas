@@ -140,6 +140,37 @@ test("a repository that does not exist is refused in the dialog, with nothing cr
   await expect.poll(() => stepsOf(account.email)).toContain("import_refused_not_found")
 })
 
+test("a refused repository offers Connect GitHub, which carries it to GitHub and back to the import", async ({
+  page,
+}) => {
+  const { slug } = await signUpWithOrg(page)
+
+  await page.getByRole("button", { name: "Import from GitHub" }).click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("combobox", { name: "Repository" }).fill("fixture/nowhere")
+  await dialog.getByRole("button", { name: "Import", exact: true }).click()
+  await expect(dialog.getByRole("alert")).toHaveText("There is no fixture named nowhere.")
+
+  // Connecting is offered right there, with the repository in hand, so the
+  // way to a private repository does not go through Settings.
+  const connect = dialog.getByRole("link", { name: "Connect GitHub to import fixture/nowhere" })
+  const href = `/api/github/connect?workspace=${slug}&repository=fixture%2Fnowhere`
+  await expect(connect).toHaveAttribute("href", href)
+  const started = await page.request.get(href, { maxRedirects: 0 })
+  expect(started.status()).toBe(307)
+  expect(new URL(started.headers().location).pathname).toBe(`/apps/${GITHUB_APP_SLUG}/installations/new`)
+
+  // GitHub sends them back (api/github/callback) to the dialog, open on the
+  // repository, ready to import.
+  await page.goto(`/${slug}?import=fixture%2Fshop&connected=octo-e2e`)
+  const resumed = page.getByRole("dialog")
+  await expect(resumed.getByRole("combobox", { name: "Repository" })).toHaveValue("fixture/shop")
+  await expect(resumed.getByRole("status")).toHaveText("Connected to GitHub as octo-e2e. Import the repository now.")
+  await page.keyboard.press("Escape")
+  await expect(resumed).toBeHidden()
+  await expect(page).toHaveURL(new RegExp(`/${slug}$`))
+})
+
 test("an import with notes shows them, even in an org that had no projects", async ({ page }) => {
   await signUpWithOrg(page)
 
