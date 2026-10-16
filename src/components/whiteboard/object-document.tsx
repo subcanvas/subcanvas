@@ -11,14 +11,12 @@ import { useShowRefusal } from "@/components/limit-refusal"
 import { TextDocument } from "@/components/editor/text-document"
 import type { EditorUser } from "@/components/editor/text-editor"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { releasedWords } from "@/lib/documents/held"
 import { useDocumentStore } from "@/lib/documents/store"
 import { useProjectAddresses } from "@/components/project-addresses"
 import { useDocumentMeta } from "@/lib/use-document-meta"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
-import type { DocType, OpenMode } from "@/lib/whiteboard/schema"
+import type { DocType } from "@/lib/whiteboard/schema"
 
 export type DocumentPatch = {
   docId: string | null
@@ -33,26 +31,22 @@ export function ObjectDocument({
   objectTitle,
   docId,
   docType,
-  openMode,
   editable,
   locked,
   context,
   user,
   onChange,
-  onOpenModeChange,
 }: {
   objectId: string
   objectTitle: string
   docId: string | null
   docType: DocType | null
-  openMode: OpenMode
   editable: boolean
   // In view mode by choice. The text is read-only, like everything else.
   locked: boolean
   context: WhiteboardContext
   user: EditorUser
   onChange: (patch: DocumentPatch) => void
-  onOpenModeChange: (mode: OpenMode) => void
 }) {
   const router = useRouter()
   const addresses = useProjectAddresses()
@@ -188,29 +182,6 @@ export function ObjectDocument({
         </button>
       ) : (
         <>
-          {editable && (
-            <div className="flex flex-col gap-2 px-4">
-              <Label className="text-xs text-graphite">Double-click opens this page</Label>
-              <ToggleGroup
-                aria-label="Double-click opens it"
-                variant="outline"
-                size="sm"
-                spacing={0}
-                value={[openMode]}
-                onValueChange={(next) => {
-                  const picked = next.find((item) => item !== openMode) as OpenMode | undefined
-                  if (picked) onOpenModeChange(picked)
-                }}
-              >
-                <ToggleGroupItem value="panel" className="flex-1 data-pressed:border-cobalt data-pressed:bg-accent data-pressed:text-ink">
-                  In this panel
-                </ToggleGroupItem>
-                <ToggleGroupItem value="navigate" className="flex-1 data-pressed:border-cobalt data-pressed:bg-accent data-pressed:text-ink">
-                  As a full page
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          )}
           {/* A narrower gutter than the full page, leaving room for block handles. */}
           <div className="[&_.bn-editor]:px-11! [&_.mx-13]:mx-11! [&_.px-13]:px-11!">
             <TextDocument

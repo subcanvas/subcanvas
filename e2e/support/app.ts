@@ -165,6 +165,16 @@ const canvas = (page: Page) => page.getByRole("application")
 export const inspector = (page: Page) =>
   page.getByRole("complementary", { name: "Object settings" })
 
+// How the selected object looks (code link, shape, color, icon, emoji, and an
+// arrow's line), in a menu from the brush in the panel's heading.
+export const styleMenu = (page: Page) => page.getByRole("dialog", { name: "Style" })
+
+export async function openStyle(page: Page) {
+  await inspector(page).getByRole("button", { name: /^Style the / }).click()
+  await expect(styleMenu(page)).toBeVisible()
+  return styleMenu(page)
+}
+
 export const nodeLabelled = (page: Page, title: string) =>
   canvas(page).getByText(title, { exact: true })
 

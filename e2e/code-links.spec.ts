@@ -10,6 +10,7 @@ import {
   inspector,
   signUpWithOrg,
   whiteboardTools,
+  openStyle,
 } from "./support/app"
 import { edgeBetween } from "./support/canvas"
 import { callTool, connectThroughOAuth, OAUTH_SERVER_OFF, oauthServerEnabled, refusedTool } from "./support/mcp"
@@ -40,12 +41,14 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   const title = `Charge ${id}`
   await addNode(page, title)
   const panel = inspector(page)
-  const field = panel.getByRole("textbox", { name: "Code" })
+  // The link is changed in the Style menu, and read in the panel.
+  const style = await openStyle(page)
+  const field = style.getByRole("textbox", { name: "Code" })
 
   // Only an https address is taken, and the field says why.
   await field.fill("http://github.com/acme/shop")
   await field.press("Enter")
-  await expect(panel.getByRole("alert")).toHaveText("Only https links can be added.")
+  await expect(style.getByRole("alert")).toHaveText("Only https links can be added.")
   await expect(field).toHaveAttribute("aria-invalid", "true")
   await expect(canvas(page).getByRole("link", { name: /^Open code/ })).toHaveCount(0)
 
@@ -55,7 +58,7 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   await expect(canvas(page).getByRole("link", { name: /^Open code/ })).toHaveCount(0)
   await field.press("Enter")
   await expect(field).toHaveValue(FILE)
-  await expect(panel.getByRole("alert")).toHaveCount(0)
+  await expect(style.getByRole("alert")).toHaveCount(0)
   await expect(panel.getByRole("link", { name: FILE_NAME })).toHaveAttribute("href", FILE)
   const mark = canvas(page).getByRole("link", { name: FILE_NAME })
   await expect(mark).toHaveAttribute("href", FILE)
@@ -75,8 +78,8 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   await modeToggle(page).getByRole("button", { name: "View mode" }).click()
   await clickNode(page, title)
   await expect(panel.getByRole("link", { name: FILE_NAME })).toBeVisible()
-  await expect(panel.getByRole("textbox", { name: "Code" })).toHaveCount(0)
-  await expect(panel.getByRole("button", { name: "Remove the code link" })).toHaveCount(0)
+  await expect(panel.getByRole("button", { name: /^Style the / })).toHaveCount(0)
+  await expect(page.getByRole("textbox", { name: "Code" })).toHaveCount(0)
   const [fromPanel] = await Promise.all([page.waitForEvent("popup"), panel.getByRole("link", { name: FILE_NAME }).click()])
   await expect(fromPanel).toHaveURL(FILE)
   await fromPanel.close()
@@ -84,7 +87,8 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   // Back to editing: removing it takes the mark off the node.
   await modeToggle(page).getByRole("button", { name: "Edit mode" }).click()
   await clickNode(page, title)
-  await panel.getByRole("button", { name: "Remove the code link" }).click()
+  await openStyle(page)
+  await style.getByRole("button", { name: "Remove the code link" }).click()
   await expect(field).toHaveValue("")
   await expect(mark).toHaveCount(0)
   await expectSaved(page)
