@@ -12,7 +12,7 @@ import { codeFromSegment } from "@/lib/navigation"
 import { userColor } from "@/lib/user-color"
 import { cn } from "@/lib/utils"
 
-import { PLAYGROUND_PROJECT, usePlayground } from "./playground"
+import { playgroundProject, usePlayground } from "./playground"
 
 // The person in the playground, who has no account.
 const VISITOR = { id: "visitor", name: "You", color: userColor("visitor") }
@@ -21,7 +21,8 @@ const VISITOR = { id: "visitor", name: "You", color: userColor("visitor") }
 // document page finds one ([org]/[project]/[doc]/page.tsx), with the trail
 // the visitor came by.
 export function PlaygroundDocument({ path, via }: { path: string[]; via: string[] }) {
-  const index = usePlayground()
+  const { index, example } = usePlayground()
+  const project = playgroundProject(example)
   const addresses = useProjectAddresses()
   // Read again whenever a document is renamed, given an icon, or made.
   useSyncExternalStore(index.store.subscribe!, index.version, () => 0)
@@ -40,7 +41,7 @@ export function PlaygroundDocument({ path, via }: { path: string[]; via: string[
       <main className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="font-heading text-xl font-semibold">Nothing here</p>
         <p className="text-sm text-graphite">This page was deleted, or never was.</p>
-        <Link href="/try" className="text-sm text-cobalt underline underline-offset-4">
+        <Link href={example.home} className="text-sm text-cobalt underline underline-offset-4">
           Back to the example
         </Link>
       </main>
@@ -62,7 +63,7 @@ export function PlaygroundDocument({ path, via }: { path: string[]; via: string[
 
   const breadcrumb = (
     <DocumentBreadcrumb
-      projectName={PLAYGROUND_PROJECT.project}
+      projectName={example.name}
       projectIcon={null}
       trail={trail}
       current={document.title}
@@ -72,7 +73,7 @@ export function PlaygroundDocument({ path, via }: { path: string[]; via: string[
   const title = (compact: boolean) => (
     <DocumentTitle
       key={document.title}
-      project={PLAYGROUND_PROJECT}
+      project={project}
       documentId={document.id}
       title={document.title}
       icon={document.icon}
@@ -80,7 +81,7 @@ export function PlaygroundDocument({ path, via }: { path: string[]; via: string[
       compact={compact}
     />
   )
-  const context = { orgId: PLAYGROUND_PROJECT.orgId, projectId: PLAYGROUND_PROJECT.projectId, slug: PLAYGROUND_PROJECT.slug, via: trailIds }
+  const context = { orgId: project.orgId, projectId: project.projectId, slug: project.slug, via: trailIds }
 
   if (document.type === "whiteboard")
     return (

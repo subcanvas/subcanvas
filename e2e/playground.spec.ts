@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { addNode, breadcrumb, clickNode, inspector, nodeLabelled, whiteboardTools } from "./support/app"
+import { addNode, breadcrumb, clickNode, closePanel, inspector, nodeLabelled, whiteboardTools } from "./support/app"
 import { openInside } from "./support/canvas"
 
 // The playground (app/try): the real whiteboard and pages with no account,
@@ -68,4 +68,40 @@ test("what a visitor adds is still there after a reload, until they start over",
   await page.waitForURL("/try")
   await expect(nodeLabelled(page, "Payments")).toBeVisible()
   await expect(nodeLabelled(page, "Search")).toHaveCount(0)
+})
+
+// The note-taking example (lib/playground/example-course.ts), a project of
+// its own beside the software one.
+test("a visitor opens the course example: notes in the panel, a box set to pop-up, and a box with a whiteboard inside", async ({ page }) => {
+  const supabase = watchSupabase(page)
+  await page.goto("/try/productivity")
+
+  await expect(nodeLabelled(page, "The brain")).toBeVisible()
+  await expect(nodeLabelled(page, "Exam prep")).toBeVisible()
+
+  // The brain's notes open beside the whiteboard.
+  await clickNode(page, "The brain")
+  await expect(inspector(page)).toContainText("The four lobes")
+
+  // Exam prep is set to open in a pop-up: the panel shows a card for it.
+  // (It sits under the open panel, so the panel is closed first.)
+  await closePanel(page)
+  await clickNode(page, "Exam prep")
+  await inspector(page).getByText("A page. Click to open it in a pop-up.").click()
+  await expect(page.getByRole("dialog", { name: "Exam prep" })).toContainText("Practice test on Sunday")
+  await page.keyboard.press("Escape")
+
+  // Memory is a whiteboard of its own.
+  await openInside(page, "Memory")
+  await expect(nodeLabelled(page, "Forgetting curve")).toBeVisible()
+  await breadcrumb(page).getByRole("link", { name: "Fall semester" }).click()
+  await expect(nodeLabelled(page, "The brain")).toBeVisible()
+
+  // The other example is a link away, and kept apart from this one.
+  await page.getByRole("link", { name: "See an example system design" }).click()
+  await page.waitForURL("/try")
+  await expect(nodeLabelled(page, "Web app")).toBeVisible()
+  await expect(nodeLabelled(page, "The brain")).toHaveCount(0)
+
+  expect(supabase).toEqual([])
 })
