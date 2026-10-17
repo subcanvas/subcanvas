@@ -15,7 +15,7 @@ import {
   useReactFlow,
   useStoreApi,
 } from "@xyflow/react"
-import { Copy, Group, ImagePlus, LayoutGrid, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react"
+import { Copy, LayoutGrid, Trash2 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
@@ -40,6 +40,7 @@ import type { Diagram } from "@/lib/mermaid/diagram"
 import { drawDiagramBeside } from "@/lib/mermaid/draw"
 import { looksLikeMermaid } from "@/lib/mermaid/parse"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
+import { setLocked } from "@/lib/whiteboard/lock"
 import { isFreePlanStorageLimit, MEDIA_ACCEPT, mediaDocumentId } from "@/lib/whiteboard/media"
 import { nearestBox, placeNext, type Direction } from "@/lib/whiteboard/keyboard-drawing"
 import { sidesOf } from "@/lib/whiteboard/sides"
@@ -57,12 +58,13 @@ import { edgeTypes } from "./edge"
 import { HintBar, isModKey, KEYS, type HintState } from "./hint-bar"
 import { Inspector } from "./inspector"
 import { mediaOnClipboard } from "./media-release"
-import { ModeToggle, storedMode, storeMode, type Mode } from "./mode-toggle"
 import { nodeTypes } from "./nodes"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
 import { ShortcutSheet, useShortcutsOpen } from "./shortcuts"
 import { useHeldContent } from "./use-held-content"
+import { useLocked } from "./use-locked"
 import { useMediaUploads } from "./use-media-uploads"
+import { CanvasMenu, WhiteboardTools, type Addition } from "./whiteboard-menus"
 
 // Asked only when Mermaid is pasted, so loaded then.
 const MermaidPasteDialog = dynamic(
@@ -77,14 +79,22 @@ const GRID = 20
 const NUDGE = 5
 const BIG_NUDGE = GRID
 const FIT_VIEW = { maxZoom: 1, padding: 0.2 }
-// Middle and right mouse buttons. The left one draws a selection.
-const PAN_BUTTONS = [1, 2]
+// The middle mouse button. The left one draws a selection, and the right
+// one opens the menu of what can be added (whiteboard-menus.tsx).
+const PAN_BUTTONS = [1]
 
 // Where typing belongs to the text, not to the canvas.
 const TYPING = "input, textarea, select, [contenteditable=true], [role=dialog], [role=menu], [role=listbox]"
 // Controls that use Enter, Space and the arrow keys themselves. A video that
 // has the focus seeks with the arrows.
 const OWN_KEYS = "button, a, video, [role=separator], [role=radio]"
+
+// The hint bar shows for this many selections in a browser.
+const SELECTIONS_KEY = "subcanvas:hinted-selections"
+const HINTED_SELECTIONS = 5
+
+// Said to an editor who tries to add something to a locked whiteboard.
+const LOCKED_MESSAGE = "This whiteboard is locked. To change it, click Locked at the top right."
 
 // Shared by every whiteboard in the tab, so objects can be pasted across them.
 let clipboard: Clip | null = null
@@ -112,10 +122,10 @@ export default function Whiteboard(props: WhiteboardProps) {
 }
 
 function Canvas({ provider, editable, context, user, repository, breadcrumb }: WhiteboardProps) {
-  // View mode is a choice made by someone who may edit, so that a stray
-  // finger changes nothing. Someone who may not edit is always in it.
-  const [mode, setMode] = useState<Mode>(storedMode)
-  const canEdit = editable && mode === "edit"
+  // Someone who may edit is always editing, unless the whiteboard is locked
+  // (lib/whiteboard/lock.ts), which holds for everyone until it is unlocked.
+  const locked = useLocked(provider.doc)
+  const canEdit = editable && !locked
 
   const showRefusal = useShowRefusal()
   const documents = useDocumentStore()
@@ -133,6 +143,9 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   const pasteCount = useRef(0)
   const addCount = useRef(0)
   const filePicker = useRef<HTMLInputElement>(null)
+  // Where the canvas was right-clicked to add a picture, while the file
+  // dialog is open.
+  const mediaAt = useRef<{ x: number; y: number } | null>(null)
   // True while files are being dragged over the canvas.
   const [dropping, setDropping] = useState(false)
   const [dismissed, setDismissed] = useState<string | null>(null)
@@ -158,10 +171,19 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     void flow.fitView(FIT_VIEW)
   }, [nodesInitialized, context.whiteboardId, flow])
 
-  function changeMode(next: Mode) {
-    setMode(next)
-    storeMode(next)
+  function lock(next: boolean) {
+    setLocked(provider.doc, next)
+    toast.message(next ? "Locked. Nothing here changes until someone unlocks it." : "Unlocked.")
   }
+
+  // On a touch screen a finger that starts on a box pans past it, as it does
+  // on the paper, unless the box was tapped first: a box moves only once it
+  // is selected. With a mouse, any box can be dragged.
+  const [coarse] = useState(() => matchMedia("(pointer: coarse)").matches)
+  const nodes = useMemo(
+    () => (coarse ? wb.nodes.map((node) => (node.selected ? node : { ...node, draggable: false })) : wb.nodes),
+    [coarse, wb.nodes]
+  )
 
   // Every arrow by the sides its nodes face each other with, where the nodes
   // are now, a node being dragged included, so an arrow follows a box round
@@ -204,12 +226,26 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   }, [selectedNodes, selectedEdges])
   const selectedId = selection ? ("node" in selection ? selection.node.id : selection.edge.id) : null
 
+  // How many times something was selected here while nothing was, in this
+  // browser, for the hint bar (below).
+  const [selections, setSelections] = useState(() => Number(localStorage.getItem(SELECTIONS_KEY)) || 0)
+  const hadSelection = useRef(false)
+  const hintsWanted = selections <= HINTED_SELECTIONS
+
   // Closing the panel lasts until the selection moves off that object.
   const onSelectionChange = useCallback(
-    ({ nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] }) =>
+    ({ nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
       setDismissed((current) =>
         current && [...nodes, ...edges].some((item) => item.id === current) ? current : null
-      ),
+      )
+      const has = nodes.length + edges.length > 0
+      if (has && !hadSelection.current)
+        setSelections((count) => {
+          localStorage.setItem(SELECTIONS_KEY, String(count + 1))
+          return count + 1
+        })
+      hadSelection.current = has
+    },
     []
   )
 
@@ -290,7 +326,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     [wb]
   )
 
-  // The middle of the canvas as it is on screen, for what the toolbar adds.
+  // The middle of the canvas as it is on screen, for what + adds.
   function nextSpot() {
     const box = wrapper.current!.getBoundingClientRect()
     const center = flow.screenToFlowPosition({
@@ -302,9 +338,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     return { x: center.x + step, y: center.y + step }
   }
 
-  // On the grid, as a dragged box would land.
-  function add(kind: NodeKind) {
-    const spot = nextSpot()
+  // On the grid, as a dragged box would land: where the canvas was
+  // right-clicked, or else the middle of the view.
+  function add(kind: NodeKind, at: { x: number; y: number } | null = null) {
+    const spot = at ? flow.screenToFlowPosition(at) : nextSpot()
     const width = DEFAULT_SIZE[kind].width ?? 0
     // A text node grows with its text; addNode centres it as 40 high.
     const height = DEFAULT_SIZE[kind].height ?? 40
@@ -349,7 +386,13 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   )
   const uploadFiles = useMediaUploads({ wb, home: mediaHome, settle: settleInGroup, onAdded: selectOnly })
 
-  // Files from the toolbar, a drop or a paste. `at` is where on the screen
+  function addition(what: Addition, at: { x: number; y: number } | null = null) {
+    if (what !== "media") return add(what, at)
+    mediaAt.current = at
+    filePicker.current?.click()
+  }
+
+  // Files from the + menu, a drop or a paste. `at` is where on the screen
   // they were dropped; without one they go to the middle of the canvas.
   function addFiles(files: File[], at: { x: number; y: number } | null) {
     if (!files.length) return
@@ -358,7 +401,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
       return
     }
     if (!canEdit) {
-      if (editable) toast.message("Switch to edit mode to add pictures and videos.")
+      if (editable) toast.message(LOCKED_MESSAGE)
       return
     }
     void uploadFiles(files, at ? flow.screenToFlowPosition(at) : nextSpot())
@@ -792,7 +835,6 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     // Only when there is a selection to clear: Escape has other jobs too.
     if (key === "escape" && selectedNodes.length + selectedEdges.length) run(() => select(false))
     else if (key === "escape") return
-    else if (key === "e" && editable) run(() => changeMode(mode === "edit" ? "view" : "edit"))
     else if (key === "?") run(() => setShortcutsOpen(!shortcutsOpen))
     else if (key === "a" && event.shiftKey) run(arrangeSelection)
     else if (key === "backspace" || key === "delete") run(removeSelection)
@@ -836,10 +878,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     if (files.length) addFiles(files, pointer.current)
     else if (link) {
       if (canEdit) void addLink(link, pointer.current)
-      else if (editable) toast.message("Switch to edit mode to add a link.")
+      else if (editable) toast.message(LOCKED_MESSAGE)
     } else if (looksLikeMermaid(text)) {
       if (canEdit) setPastedMermaid(text)
-      else if (editable) toast.message("Switch to edit mode to add a Mermaid diagram.")
+      else if (editable) toast.message(LOCKED_MESSAGE)
     } else void paste()
   })
   useEffect(() => {
@@ -849,7 +891,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
   }, [])
 
   // A trackpad pinch arrives as a wheel event with Ctrl held. The canvas
-  // zooms on it; anywhere else on the whiteboard (the toolbar, the panel) it
+  // zooms on it; anywhere else on the whiteboard (the tools, the panel) it
   // would zoom the whole page, which is never what the pinch was for.
   useEffect(() => {
     const element = root.current
@@ -868,7 +910,11 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
         edges: selectedEdges.length,
         holds: selectedNodes.length === 1 && !!selectedNodes[0].data.wb.docId,
       }
-    : { looking: true, canSwitchToEdit: editable }
+    : { looking: true }
+  // The keys are taught while they are new: on an empty whiteboard, and for
+  // the first few selections made in this browser. After that, ? and the •••
+  // menu have them all.
+  const showHints = (canEdit && wb.nodes.length === 0) || (selectedNodes.length + selectedEdges.length > 0 && hintsWanted)
 
   return (
     <WhiteboardActionsContext value={actions}>
@@ -877,6 +923,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
       className="relative flex size-full"
       style={{ ["--panel-width" as string]: `${panel.width}px` }}
     >
+      <CanvasMenu enabled={canEdit} media={documents.can.media} onAdd={addition}>
       <div
         ref={wrapper}
         className="@container relative min-w-0 flex-1 bg-paper"
@@ -909,10 +956,10 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
         )}
         {/* Navigation is a drawing tool's: two fingers (or the wheel) pan, a
             pinch or the command key with the wheel zooms, and a drag on the
-            empty canvas selects. Holding Space, or the middle or right
-            button, drags the canvas. A finger on a touch screen pans. */}
+            empty canvas selects. Holding Space, or the middle button, drags
+            the canvas. A finger on a touch screen pans. */}
         <ReactFlow
-          nodes={wb.nodes}
+          nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -965,90 +1012,58 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           <Cursors awareness={provider.awareness} user={user} editable={editable} surface={wrapper} />
 
           {breadcrumb && (
-            // Level with the tools, and narrow enough to leave them room: the
-            // tools are centred on this canvas, so half of it less their half
-            // (about 13rem), the panel's 15px inset and a gap is the most the
-            // trail can take. On a narrow canvas (the object panel open beside
-            // it) that is under a hundred pixels, so the trail moves under the
-            // tools instead, like the mode toggle.
+            // Level with the tools in the other corner, and narrow enough to
+            // leave them room: they take about 8rem at their widest (Locked
+            // and •••), and each panel is inset 15px from its edge.
             <Panel
               position="top-left"
-              className="hidden h-[42px] md:flex max-w-[calc(50%-14.5rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm @max-[56rem]:top-14! @max-[56rem]:max-w-[calc(100%-1.5rem)]"
+              className="hidden h-[42px] md:flex max-w-[calc(100%-11rem)] items-center overflow-hidden rounded-xl border border-rule bg-sheet px-3 shadow-sm"
             >
               {breadcrumb}
             </Panel>
           )}
 
           {editable && (
-            // Beside the tools on a wide canvas, under them on a narrow one.
-            <Panel position="top-right" className="@max-lg:top-14!">
-              <div className="rounded-xl border border-rule bg-sheet p-1 shadow-sm">
-                <ModeToggle mode={mode} onChange={changeMode} />
-              </div>
+            <Panel position="top-right">
+              <WhiteboardTools
+                locked={locked}
+                media={documents.can.media}
+                onAdd={(what) => addition(what)}
+                onUndo={wb.undo}
+                onRedo={wb.redo}
+                onLock={lock}
+                onShortcuts={() => setShortcutsOpen(true)}
+              />
             </Panel>
           )}
+          <input
+            ref={filePicker}
+            type="file"
+            multiple
+            accept={MEDIA_ACCEPT}
+            // The + menu is the control; this only opens the dialog.
+            hidden
+            onChange={(event) => {
+              addFiles([...(event.target.files ?? [])], mediaAt.current)
+              mediaAt.current = null
+              // So that choosing the same file again is a change.
+              event.target.value = ""
+            }}
+          />
 
-          {canEdit && (
-            <Panel position="top-center">
-              <div
-                role="toolbar"
-                aria-label="Whiteboard tools"
-                className="flex items-center gap-0.5 rounded-xl border border-rule bg-sheet p-1 shadow-sm"
-              >
-                <Tool label="Box" hint="A box with a title" onClick={() => add("plain")}>
-                  <Square />
-                </Tool>
-                <Tool label="Text" hint="A heading and a paragraph, no box" onClick={() => add("text")}>
-                  <Type />
-                </Tool>
-                <Tool label="Group" hint="A frame that moves what is inside it" onClick={() => add("group")}>
-                  <Group />
-                </Tool>
-                {documents.can.media && (
-                  <Tool
-                    label="Media"
-                    hint="A picture or a video. Files can also be dropped on the canvas, or pasted"
-                    onClick={() => filePicker.current?.click()}
-                  >
-                    <ImagePlus />
-                  </Tool>
-                )}
-                <input
-                  ref={filePicker}
-                  type="file"
-                  multiple
-                  accept={MEDIA_ACCEPT}
-                  // The button above is the control; this only opens the dialog.
-                  hidden
-                  onChange={(event) => {
-                    addFiles([...(event.target.files ?? [])], null)
-                    // So that choosing the same file again is a change.
-                    event.target.value = ""
-                  }}
-                />
-                <Separator orientation="vertical" className="mx-1 h-5" />
-                <Tool label="Undo" hint={`Undo ${KEYS.mod}Z`} iconOnly onClick={wb.undo}>
-                  <Undo2 />
-                </Tool>
-                <Tool label="Redo" hint={`Redo ${KEYS.shift}${KEYS.mod}Z`} iconOnly onClick={wb.redo}>
-                  <Redo2 />
-                </Tool>
-              </div>
-            </Panel>
-          )}
-
-          {wb.nodes.length === 0 ? (
+          {wb.nodes.length === 0 && (
             <Panel position="top-center" className="!top-1/2 !-translate-y-1/2">
               <div className="flex max-w-sm flex-col items-center gap-2 text-center">
                 <p className="font-heading text-xl font-semibold">Nothing here yet</p>
                 <p className="text-sm text-graphite">
                   {canEdit
-                    ? "Press Tab to draw a box and name it, Tab again for the next, or paste a Mermaid diagram. Any box can hold a page of notes, or a whole whiteboard of its own."
+                    ? "Press Tab to draw a box and name it, and Tab again for the next. Right-click to add text, a group or a picture, or paste a Mermaid diagram. Any box can hold a page of notes, or a whole whiteboard of its own."
                     : "Nothing has been added here yet."}
                 </p>
               </div>
             </Panel>
-          ) : (
+          )}
+          {(showHints || (canEdit && selectedNodes.length > 1)) && (
             <Panel position="bottom-center" className="flex flex-col items-center gap-2">
               {canEdit && selectedNodes.length > 1 && (
                 <div
@@ -1073,11 +1088,12 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
                   </Tool>
                 </div>
               )}
-              <HintBar state={hints} />
+              {showHints && <HintBar state={hints} />}
             </Panel>
           )}
         </ReactFlow>
       </div>
+      </CanvasMenu>
 
       {/* Not while a name is typed on the canvas: the box is being named
           where it is, and the panel would only narrow the canvas under it. */}
@@ -1087,7 +1103,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           <Inspector
             selection={selection}
             editable={canEdit}
-            locked={editable && !canEdit}
+            locked={editable && locked}
             context={context}
             user={user}
             repository={repository}

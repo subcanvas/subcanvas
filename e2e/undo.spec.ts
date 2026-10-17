@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import {
+  addFromMenu,
   addNode,
   createProject,
   createWhiteboard,
   expectSaved,
   freshId,
+  fromMoreMenu,
   inspector,
   nodeDocument,
   nodeLabelled,
@@ -32,7 +34,7 @@ const freshNode = (page: Page) =>
 // changes made within half a second of each other into one step, and
 // "Saved" comes at least a second after the add.
 async function addNodeInTwoSteps(page: Page, title: string) {
-  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
+  await addFromMenu(page, "Box")
   await expect(freshNode(page)).toBeVisible()
   await expectSaved(page)
   await inspector(page).getByLabel("Title").fill(title)
@@ -73,7 +75,7 @@ test("⌘Z takes back the title and then the node; ⇧⌘Z brings them back in o
   await expect(nodeLabelled(page, title)).toBeVisible()
 })
 
-test("the toolbar's Undo and Redo do the same", async ({ page }) => {
+test("Undo and Redo in the ••• menu do the same", async ({ page }) => {
   const id = freshId()
   await signUpWithOrg(page)
   await createProject(page, "Proj")
@@ -81,20 +83,20 @@ test("the toolbar's Undo and Redo do the same", async ({ page }) => {
 
   const title = `Alpha ${id}`
   await addNodeInTwoSteps(page, title)
-  const undo = whiteboardTools(page).getByRole("button", { name: "Undo" })
-  const redo = whiteboardTools(page).getByRole("button", { name: "Redo" })
+  const undo = () => fromMoreMenu(page, "Undo")
+  const redo = () => fromMoreMenu(page, "Redo")
 
-  await undo.click()
+  await undo()
   await expect(freshNode(page)).toBeVisible()
   await expect(nodeLabelled(page, title)).toHaveCount(0)
 
-  await undo.click()
+  await undo()
   await expect(page.getByText("Nothing here yet")).toBeVisible()
 
-  await redo.click()
+  await redo()
   await expect(freshNode(page)).toBeVisible()
 
-  await redo.click()
+  await redo()
   await expect(nodeLabelled(page, title)).toBeVisible()
 })
 

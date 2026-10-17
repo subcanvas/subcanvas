@@ -11,6 +11,7 @@ import { toBlocks } from "@/lib/import/write"
 import type { Container } from "@/lib/tree"
 import { uuidV5 } from "@/lib/whiteboard/description-document"
 import { MAX_TITLE } from "@/lib/whiteboard/limits"
+import { isLocked, LOCKED_REFUSAL } from "@/lib/whiteboard/lock"
 import { DEFAULT_SIZE, edgesMap, nodesMap, readNode, toYMap, type WbEdge, type WbNode } from "@/lib/whiteboard/schema"
 
 import type { Diagram } from "./diagram"
@@ -168,6 +169,7 @@ export async function addMermaidToWhiteboard(
 
   const doc = await loadDocument(supabase, whiteboard.id)
   if (!doc) return { error: "This document could not be read." }
+  if (isLocked(doc)) return { error: LOCKED_REFUSAL }
   const taken = [...nodesMap(doc).entries()]
     .map(([id, map]) => readNode(id, map))
     .filter((node) => !node.parentId)

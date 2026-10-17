@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import {
+  addFromMenu,
   addNode,
   createProject,
   createWhiteboard,
@@ -8,7 +9,6 @@ import {
   inspector,
   nodeLabelled,
   signUpWithOrg,
-  whiteboardTools,
 } from "./support/app"
 
 // The trail of sheets used to float over the whole whiteboard area, panel
@@ -29,7 +29,7 @@ test("the tools can be pressed while the object panel is open", async ({ page })
   await expect(inspector(page)).toBeVisible()
 
   // No closing the panel first: this is the press that used to be swallowed.
-  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
+  await addFromMenu(page, "Box")
 
   const second = `Second ${id}`
   await inspector(page).getByLabel("Title").fill(second)

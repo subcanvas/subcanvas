@@ -50,7 +50,7 @@ export function Inspector({
 }: {
   selection: { node: WbNode } | { edge: WbEdge }
   editable: boolean
-  // In view mode by choice: this person may edit, but not right now.
+  // The whiteboard is locked: this person may edit, but not until it is unlocked.
   locked: boolean
   context: WhiteboardContext
   user: EditorUser
@@ -128,8 +128,8 @@ export function Inspector({
         </Button>
       </header>
 
-      {/* What is worth reading about the object, above its page. In view mode
-          the controls that change it are left out, not greyed out. */}
+      {/* What is worth reading about the object, above its page. On a locked
+          whiteboard the controls that change it are left out, not greyed out. */}
       <fieldset disabled={!editable} className="flex flex-col gap-5 p-4 empty:hidden">
         {isNode ? (
           <NodeFields

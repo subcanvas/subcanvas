@@ -7,6 +7,7 @@ import {
   createWhiteboard,
   expectSaved,
   freshId,
+  fromMoreMenu,
   inspector,
   signUpWithOrg,
   whiteboardTools,
@@ -22,7 +23,6 @@ const FILE = "https://github.com/acme/shop/blob/main/services/payments/charge.ts
 const FILE_NAME = "Open code: services/payments/charge.ts:10-20 in acme/shop (opens in a new tab)"
 
 const canvas = (page: Page) => page.getByRole("application")
-const modeToggle = (page: Page) => page.getByRole("group", { name: "Whiteboard mode" })
 
 // GitHub is not asked: a tab that opens there gets a page from here.
 async function answerForGitHub(page: Page) {
@@ -74,8 +74,8 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   await tab.close()
   await expect(panel).toBeHidden()
 
-  // In view mode the link is still there to open, and not to change.
-  await modeToggle(page).getByRole("button", { name: "View mode" }).click()
+  // On a locked whiteboard the link is still there to open, and not to change.
+  await fromMoreMenu(page, "Lock whiteboard")
   await clickNode(page, title)
   await expect(panel.getByRole("link", { name: FILE_NAME })).toBeVisible()
   await expect(panel.getByRole("button", { name: /^Style the / })).toHaveCount(0)
@@ -84,8 +84,8 @@ test("a code link is added in the panel, kept, opened from the node, and removed
   await expect(fromPanel).toHaveURL(FILE)
   await fromPanel.close()
 
-  // Back to editing: removing it takes the mark off the node.
-  await modeToggle(page).getByRole("button", { name: "Edit mode" }).click()
+  // Unlocked again: removing it takes the mark off the node.
+  await whiteboardTools(page).getByRole("button", { name: "Locked: click to unlock", exact: true }).click()
   await clickNode(page, title)
   await openStyle(page)
   await style.getByRole("button", { name: "Remove the code link" }).click()

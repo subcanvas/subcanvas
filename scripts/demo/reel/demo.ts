@@ -82,8 +82,8 @@
  *   7. The end card.
  *
  * The sidebar is collapsed in the prelude, so nothing from the demo account
- * is on screen. The sketch is drawn in edit mode, where the keys work; the
- * canvas shots after it are in view mode, with no editing tools.
+ * is on screen. The whiteboard's own tools are two small buttons in its
+ * corner, + and •••, so they stay in every shot.
  *
  * Two workspaces: the import in scene 1 is real and lands in an empty
  * workspace (the account's first one, the first time), but the page it
@@ -554,19 +554,15 @@ function paced(events: [number, string][], from: number, to: number, ms: number)
 
 // The prelude, cut from the video: reelscript's browser signs in, collapses
 // the sidebar (kept for the rest of the session), then opens the empty
-// sketch, in edit mode, so the video starts on a blank whiteboard.
+// sketch, so the video starts on a blank whiteboard.
 const IMPORT_BUTTON = 'button:has-text("Import from GitHub")'
 const NAME_FIELD = 'textarea[aria-label="Name"]'
 const EMPTY = ':text("Nothing here yet")'
-const MODE_KEY = "subcanvas:whiteboard-mode"
-const setMode = (mode: "edit" | "view") =>
-  demo.call(({ page }) => page?.evaluate(([key, value]) => localStorage.setItem(key, value), [MODE_KEY, mode]))
 await demo.browser.goto(`${base}/login`, { settle: 600 })
 await demo.type("#email", email, { wpm: 1200 })
 await demo.type("#password", password, { wpm: 1200 })
 await demo.press("Enter")
 await move(SIGNED_IN, 300) // resolving a target waits, off camera, until it exists
-await setMode("edit")
 await demo.browser.goto(stage.self.top, { settle: 0 })
 await demo.waitFor(SHEET(into[0]))
 await move({ x: 420, y: 660 }, 100) // an empty corner of the canvas, to focus it
@@ -633,8 +629,6 @@ await demo.press("Escape")
 // has closed: Payments is the middle of its two columns.
 zoom(NODE("Payments"), 1.45, 900)
 await demo.wait(2000)
-// The rest is looked at, not drawn on.
-await setMode("view")
 
 // 1. A repository with no .subcanvas files, imported on camera: its main
 // folders become boxes on their own.

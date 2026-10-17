@@ -89,6 +89,8 @@ The tools use the app's words (the glossary is in [REQUIREMENTS.md](../REQUIREME
 
 Something in the trash, or inside a folder or document that is, is in the trash to the tools as it is in the app. `read_text_document` and `read_whiteboard` still read it and say so; every tool that writes to it refuses, and so does creating or moving anything into it, until it is restored. `detach_document` lets go of what a node or arrow held: it becomes a document of its own under the whiteboard, in the project tree, and deleting the node later leaves it alone.
 
+A whiteboard someone **locked** in the app (its ••• menu) is locked to the tools as it is to people. `read_whiteboard` says `locked: true`, and every tool that would change its nodes, arrows and groups, or what they hold, refuses until a person unlocks it. No tool unlocks it: a lock says a person wants the layout kept as it is. The pages its nodes and arrows hold are documents of their own, and can still be edited.
+
 A project the operator took down after a report (docs/OPERATIONS.md) is public to nobody, whatever its visibility says: `list_projects`, `get_project` and `set_project_visibility` say `taken_down: true` and why, as the app does, and `get_embed_snippet` refuses its whiteboards.
 
 Text is edited by block: `read_text_document` returns each top-level block with a stable id, and the editing tools name the block they mean. Nothing is addressed by position or by matching text, so an edit made against a read that is a second old still lands where it was meant to.

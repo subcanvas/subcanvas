@@ -30,8 +30,9 @@ silent, and a music track can be laid under it (see "Music" below).
    is set.
 7. The end card.
 
-Canvas shots are in view mode with the sidebar collapsed (set in the
-prelude), so no editing tools and nothing of the demo account show. Against
+Canvas shots have the sidebar collapsed (set in the prelude), so nothing
+of the demo account shows; the whiteboard's tools are just + and ••• in its
+corner. Against
 a dev server the address bar is blank; against production it shows the real
 address.
 

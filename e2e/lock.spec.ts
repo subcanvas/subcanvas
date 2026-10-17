@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import {
+  addFromMenu,
   addNode,
   clickNode,
   closePanel,
@@ -8,14 +9,14 @@ import {
   createWhiteboard,
   expectSaved,
   freshId,
+  fromMoreMenu,
   inspector,
+  nodeDocument,
   nodeLabelled,
   signUpWithOrg,
   whiteboardTools,
 } from "./support/app"
 import { boxOf, clickEmptyCanvas, drag, dragNode, expectDroppedNear, expectSamePlace, nodeNamed } from "./support/canvas"
-
-const modeToggle = (page: Page) => page.getByRole("group", { name: "Whiteboard mode" })
 
 // One hint from the bar under the canvas, which says what the keys do right
 // now. The bar is a paragraph, and each hint in it is its key and its words
@@ -28,54 +29,98 @@ const hint = (page: Page, words: string) =>
 const expectClose = (actual: number, expected: number) =>
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1)
 
-// View mode is for looking: someone who may edit switches to it so that a
-// stray drag changes nothing.
-test("in view mode the tools are gone and a drag moves nothing, and E is the way back", async ({ page }) => {
+const lockedBadge = (page: Page) => whiteboardTools(page).getByRole("button", { name: "Locked: click to unlock", exact: true })
+const addButton = (page: Page) => whiteboardTools(page).getByRole("button", { name: "Add", exact: true })
+
+// Someone who may edit is always editing. Locking is for keeping a finished
+// layout: it holds for everyone with the whiteboard open, and the notes in
+// its boxes can still be written.
+test("a locked whiteboard keeps its boxes as they are for everyone, and its notes can still be written", async ({ page }) => {
   const id = freshId()
   await signUpWithOrg(page)
 
   await createProject(page, "Proj")
   await createWhiteboard(page, "Board")
+  const board = page.url()
 
   const alpha = `Alpha ${id}`
   await addNode(page, alpha)
   await expectSaved(page)
-  await expect(inspector(page).getByLabel("Title")).toBeVisible()
+  await inspector(page).getByRole("button", { name: "Write a description…" }).click()
+  const editor = nodeDocument(page).getByRole("textbox")
+  await editor.click()
+  await page.keyboard.type("Before the lock.")
+  await expect(nodeDocument(page).getByText("Saved", { exact: true })).toBeVisible()
 
-  await modeToggle(page).getByRole("button", { name: "View mode" }).click()
-  await expect(modeToggle(page).getByRole("button", { name: "View mode" })).toHaveAttribute("aria-pressed", "true")
-  // The panel left open is for reading now: it names the box, and has
-  // nothing that would change it, not even greyed out.
+  await fromMoreMenu(page, "Lock whiteboard")
+  await expect(lockedBadge(page)).toBeVisible()
+  await expect(addButton(page)).toHaveCount(0)
+  // The panel left open names the box, and has nothing that would change
+  // it, not even greyed out.
   await expect(inspector(page).getByRole("heading", { name: alpha })).toBeVisible()
-  for (const control of ["Title", "Shape", "Color", "Icon", "Emoji"])
-    await expect(inspector(page).getByText(control, { exact: true })).toHaveCount(0)
+  for (const control of ["Title", "Style the box"])
+    await expect(inspector(page).getByLabel(control, { exact: true })).toHaveCount(0)
+  // Its notes are a page of their own, still there to write in.
+  await editor.click()
+  await page.keyboard.press("End")
+  await page.keyboard.type(" And after it.")
+  await expect(editor).toContainText("Before the lock. And after it.")
+  await expect(nodeDocument(page).getByText("Saved", { exact: true })).toBeVisible()
   await closePanel(page)
-  await expect(whiteboardTools(page)).toHaveCount(0)
-  // The hint bar says how to get back.
-  await expect(hint(page, "to edit")).toBeVisible()
 
-  // A real drag on the node, which in edit mode would move it.
-  const before = await boxOf(nodeNamed(page, alpha))
+  // A real drag on the node, which would otherwise move it.
+  const before = await boxOf(nodeNamed(page, alpha, "a document"))
   await dragNode(page, alpha, { x: 150, y: 100 })
-  expectSamePlace(await boxOf(nodeNamed(page, alpha)), before)
-  // Nothing was written: the badge never left "Saved".
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible()
-
-  // E, as the hint says, with the focus on the toggle just pressed.
-  await page.keyboard.press("e")
-  await expect(whiteboardTools(page)).toBeVisible()
-  await expect(modeToggle(page).getByRole("button", { name: "Edit mode" })).toHaveAttribute("aria-pressed", "true")
-
-  // And E again, from the canvas, is the way out.
+  expectSamePlace(await boxOf(nodeNamed(page, alpha, "a document")), before)
+  // Tab draws nothing.
   await clickEmptyCanvas(page)
-  await page.keyboard.press("e")
-  await expect(whiteboardTools(page)).toHaveCount(0)
+  await page.keyboard.press("Tab")
+  await expect(page.getByRole("application").getByRole("group", { name: /^Box: / })).toHaveCount(1)
+
+  // Someone else with the whiteboard open sees it locked, and the note
+  // written after the lock; then they unlock it.
+  const other = await page.context().newPage()
+  await other.goto(board)
+  await expect(lockedBadge(other)).toBeVisible()
+  await clickNode(other, alpha)
+  await expect(nodeDocument(other).getByRole("textbox")).toContainText("Before the lock. And after it.")
+  await lockedBadge(other).click()
+  await expect(addButton(other)).toBeVisible()
+  // Which reaches the first tab at once.
+  await expect(addButton(page)).toBeVisible()
+  await other.close()
 
   // Now a drag does move it.
-  await modeToggle(page).getByRole("button", { name: "Edit mode" }).click()
-  await expect(whiteboardTools(page)).toBeVisible()
   await dragNode(page, alpha, { x: 150, y: 100 })
-  expectDroppedNear(await boxOf(nodeNamed(page, alpha)), { x: before.x + 150, y: before.y + 100 })
+  expectDroppedNear(await boxOf(nodeNamed(page, alpha, "a document")), { x: before.x + 150, y: before.y + 100 })
+})
+
+test("+ adds at the middle of the view, and a right-click on the canvas adds where it was pressed", async ({ page }) => {
+  await signUpWithOrg(page)
+  await createProject(page, "Proj")
+  await createWhiteboard(page, "Board")
+
+  // An empty whiteboard says how to start.
+  await expect(hint(page, "Right-click to add more")).toBeVisible()
+
+  await addFromMenu(page, "Text")
+  await expect(inspector(page)).toBeVisible()
+  await expect(page.getByRole("application").getByRole("group", { name: /^Text: / })).toHaveCount(1)
+  await closePanel(page)
+
+  // Low on the left, away from the text in the middle.
+  const area = await boxOf(page.getByRole("application"))
+  const at = { x: area.x + 160, y: area.y + area.height - 160 }
+  await page.mouse.click(at.x, at.y, { button: "right" })
+  await page.getByRole("menuitem", { name: "Box", exact: true }).click()
+  const added = await boxOf(page.getByRole("application").getByRole("group", { name: "Box: Box", exact: true }))
+  expect(Math.abs(added.x + added.width / 2 - at.x)).toBeLessThan(40)
+  expect(Math.abs(added.y + added.height / 2 - at.y)).toBeLessThan(40)
+
+  // A right-click on a box opens no menu of ours.
+  await closePanel(page)
+  await page.mouse.click(added.x + added.width / 2, added.y + added.height / 2, { button: "right" })
+  await expect(page.getByRole("menuitem", { name: "Box", exact: true })).toHaveCount(0)
 })
 
 test("the shortcuts in the hint bar do what it says", async ({ page }) => {
@@ -190,9 +235,9 @@ test("the wheel pans and zooms the view without moving a node", async ({ page })
   expectClose(reloaded.x, apart.x)
   expectClose(reloaded.y, apart.y)
 
-  // In view mode the wheel still pans, and still moves nothing.
-  await modeToggle(page).getByRole("button", { name: "View mode" }).click()
-  await expect(whiteboardTools(page)).toHaveCount(0)
+  // Locked, the wheel still pans, and still moves nothing.
+  await fromMoreMenu(page, "Lock whiteboard")
+  await expect(lockedBadge(page)).toBeVisible()
   const box = await boxOf(page.getByRole("application"))
   await page.mouse.move(box.x + 40, box.y + 120)
   await page.mouse.wheel(0, -80)

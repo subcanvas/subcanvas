@@ -105,7 +105,7 @@ pnpm exec playwright test --ui      # watch it happen
 pnpm exec playwright show-report    # the last run, in detail
 ```
 
-Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web assertion to a sleep. Do not dispatch synthetic mouse events at whiteboard nodes: React Flow hands them to d3-drag, which reads `event.view.document` and throws. Move and press the real mouse, or use the toolbar.
+Prefer accessible names (`getByRole`, `getByLabel`) to class names, and a web assertion to a sleep. Do not dispatch synthetic mouse events at whiteboard nodes: React Flow hands them to d3-drag, which reads `event.view.document` and throws. Move and press the real mouse, or use the + menu.
 
 ## Public projects and moderation
 
@@ -121,7 +121,7 @@ Its members then see that it was taken down and whom to write to. Reviewing repo
 
 ### Embedding a diagram
 
-Whiteboards take pictures and videos: drop files on the canvas, paste a screenshot, or use **Media** in the toolbar, and point arrows at them like at any other node (PNG, JPEG, WebP, GIF, AVIF up to 10 MB; MP4, WebM, MOV up to 100 MB).
+Whiteboards take pictures and videos: drop files on the canvas, paste a screenshot, or choose **Picture or video** from the **+** menu, and point arrows at them like at any other node (PNG, JPEG, WebP, GIF, AVIF up to 10 MB; MP4, WebM, MOV up to 100 MB).
 
 Paste a link on a whiteboard and it becomes a card: the page's title, a line of its description, its site and its picture, read once when you paste it and kept with the whiteboard, so nobody who looks at the card later loads anything from the page's site. A YouTube link plays on the card once you press play, through YouTube's no-cookie player. Double-click a card, or use its corner mark, to open the page.
 

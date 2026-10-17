@@ -6,14 +6,14 @@ import {
   createProject,
   createWhiteboard,
   expectSaved,
+  firstWorkspaceSlug,
   freshId,
+  fromMoreMenu,
   inspector,
   nodeDocument,
   nodeLabelled,
-  firstWorkspaceSlug,
   signIn,
   signUpWithOrg,
-  whiteboardTools,
 } from "./support/app"
 import { nodeNamed } from "./support/canvas"
 import { clickCanvas, expectSavedByNow } from "./support/collab"
@@ -64,7 +64,7 @@ test("deleting a box sends the whiteboard inside it to the trash, and undo bring
   await expect(page.getByText(`“${inner}” is in the trash`)).toBeVisible()
   await expect(treeRow(page, inner)).toHaveCount(0)
 
-  await whiteboardTools(page).getByRole("button", { name: "Undo" }).click()
+  await fromMoreMenu(page, "Undo")
   await expect(nodeLabelled(page, inner)).toBeVisible()
   await expect(treeRow(page, inner)).toBeVisible()
 
@@ -143,8 +143,6 @@ test.describe("on a phone", () => {
       // Signing in lands in the workspace the account started with; the board is in the other one.
       await touch.waitForURL(`/${firstWorkspaceSlug(account)}`)
       await touch.goto(board)
-      // A finger starts in view mode, where nothing can be deleted.
-      await touch.getByRole("button", { name: "Edit mode" }).tap()
       // The node, not its label: the box's outline lies over the words.
       await nodeNamed(touch, inner, "a whiteboard").tap()
       const panel = inspector(touch)
