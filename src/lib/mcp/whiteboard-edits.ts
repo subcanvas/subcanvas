@@ -14,6 +14,7 @@ import {
   type EdgeShape,
   type EdgeStroke,
   type NodeKind,
+  type OpenMode,
   type WbNode,
 } from "@/lib/whiteboard/schema"
 import { clampSide, reshape } from "@/lib/whiteboard/limits"
@@ -208,7 +209,7 @@ export type NodePatch = {
   y?: number
   width?: number
   height?: number
-  openMode?: "panel" | "navigate"
+  openMode?: OpenMode
 }
 
 export function updateNodes(doc: Y.Doc, patches: NodePatch[]): EditResult<{ ids: string[] }> {
@@ -335,7 +336,7 @@ export function connectNodes(doc: Y.Doc, edges: NewEdge[]): EditResult<{ ids: st
 
 export function updateEdges(
   doc: Y.Doc,
-  patches: (EdgeStyle & { id: string; openMode?: "panel" | "navigate" })[]
+  patches: (EdgeStyle & { id: string; openMode?: OpenMode })[]
 ): EditResult<{ ids: string[] }> {
   const yEdges = edgesMap(doc)
   const unknown = patches.filter((patch) => !yEdges.has(patch.id)).map((patch) => patch.id)

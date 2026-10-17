@@ -16,7 +16,9 @@ import { useDocumentStore } from "@/lib/documents/store"
 import { useProjectAddresses } from "@/components/project-addresses"
 import { useDocumentMeta } from "@/lib/use-document-meta"
 import type { WhiteboardContext } from "@/lib/whiteboard/description-document"
-import type { DocType } from "@/lib/whiteboard/schema"
+import type { DocType, OpenMode } from "@/lib/whiteboard/schema"
+
+import { useWhiteboardActions } from "./actions-context"
 
 export type DocumentPatch = {
   docId: string | null
@@ -31,6 +33,7 @@ export function ObjectDocument({
   objectTitle,
   docId,
   docType,
+  openMode,
   editable,
   locked,
   context,
@@ -41,6 +44,10 @@ export function ObjectDocument({
   objectTitle: string
   docId: string | null
   docType: DocType | null
+  // How the object's page opens (R4.8). Only a page that opens in this panel
+  // is written in here; one that opens in a pop-up or as a full page is a
+  // card that opens it that way.
+  openMode: OpenMode
   editable: boolean
   // The whiteboard is locked: what the object holds stays as it is, but a
   // page it holds can still be written in (lib/whiteboard/lock.ts).
@@ -50,6 +57,7 @@ export function ObjectDocument({
   onChange: (patch: DocumentPatch) => void
 }) {
   const router = useRouter()
+  const { openObject } = useWhiteboardActions()
   const addresses = useProjectAddresses()
   const store = useDocumentStore()
   const meta = useDocumentMeta(docId)
@@ -163,6 +171,22 @@ export function ObjectDocument({
         <p className="px-4 text-sm text-muted-foreground">
           “{meta.title}” is in the trash, or inside something that is. Restore it to see it here.
         </p>
+      ) : meta.type === "text" && openMode !== "panel" ? (
+        <button
+          type="button"
+          onClick={() => openObject(objectId)}
+          className="sheet-stack mx-4 mb-2 flex items-center gap-3 rounded-lg border border-rule bg-sheet p-4 text-left outline-none transition-[translate,border-color] [--stack-edge:var(--blueline)] hover:-translate-y-0.5 hover:border-cobalt focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex size-10 items-center justify-center rounded-md bg-muted">
+            <ItemIconMark icon={meta.icon} className="size-5 text-lg" fallback={<FileText className="size-5 text-muted-foreground" />} />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium">{meta.kind === "description" ? objectTitle || "Description" : meta.title}</span>
+            <span className="text-xs text-graphite">
+              {openMode === "modal" ? "A page. Click to open it in a pop-up." : "A page. Click to open it full screen."}
+            </span>
+          </span>
+        </button>
       ) : meta.type === "whiteboard" ? (
         <button
           type="button"
