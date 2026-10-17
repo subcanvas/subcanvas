@@ -9,18 +9,13 @@ import { uuidV5 } from "@/lib/whiteboard/description-document"
 
 import type { PlaygroundSeed, SeedDocument } from "./seed"
 
-// The playground's documents, kept in this browser and nowhere else
-// (app/try). The index is a Y.Doc of its own in IndexedDB, holding where
-// every document is and what it is called; each document's content is
-// another, opened by LocalProvider. A first visit copies the example in
-// (app/api/playground/seed); "Start over" deletes all of it.
-
-const PREFIX = "subcanvas-playground"
-const INDEX = `${PREFIX}:index`
-// What "Start over" leaves to be deleted on the next load, before anything
-// has the databases open: a database still open cannot be deleted.
-const START_OVER = `${PREFIX}:start-over`
-const contentName = (documentId: string) => `${PREFIX}:${documentId}`
+// One playground example's documents, kept in this browser and nowhere
+// else (app/try, lib/playground/examples.ts). The index is a Y.Doc of its
+// own in IndexedDB, holding where every document is and what it is called;
+// each document's content is another, opened by LocalProvider. A first
+// visit copies the example in (app/api/playground/seed); "Start over"
+// deletes all of it. Each example's databases have a prefix of their own,
+// so the examples are kept apart.
 
 type Entry = SeedDocument & { deleted: boolean; icon: ItemIcon | null }
 
@@ -41,7 +36,16 @@ export type PlaygroundIndex = {
 }
 
 // Opens the index, copying the example in on a first visit.
-export async function openPlayground(loadSeed: () => Promise<PlaygroundSeed>): Promise<PlaygroundIndex> {
+export async function openPlayground(
+  loadSeed: () => Promise<PlaygroundSeed>,
+  prefix: string
+): Promise<PlaygroundIndex> {
+  const INDEX = `${prefix}:index`
+  // What "Start over" leaves to be deleted on the next load, before anything
+  // has the databases open: a database still open cannot be deleted.
+  const START_OVER = `${prefix}:start-over`
+  const contentName = (documentId: string) => `${prefix}:${documentId}`
+
   const leftOver = localStorage.getItem(START_OVER)
   if (leftOver) {
     await Promise.all((JSON.parse(leftOver) as string[]).map((name) => clearDocument(name)))
