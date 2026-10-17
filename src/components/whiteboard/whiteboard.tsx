@@ -59,6 +59,7 @@ import { HintBar, isModKey, KEYS, type HintState } from "./hint-bar"
 import { Inspector } from "./inspector"
 import { mediaOnClipboard } from "./media-release"
 import { nodeTypes } from "./nodes"
+import { PagePeek } from "./page-peek"
 import { PanelResizer, usePanelWidth } from "./panel-resizer"
 import { ShortcutSheet, useShortcutsOpen } from "./shortcuts"
 import { useHeldContent } from "./use-held-content"
@@ -249,8 +250,13 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
     []
   )
 
-  // Whiteboards and "full page" text documents navigate, extending the
-  // breadcrumb trail. A "panel" text document shows in the side panel.
+  // The page open in a pop-up over the whiteboard, if any.
+  const [peek, setPeek] = useState<string | null>(null)
+
+  // How an object's page opens is the object's own setting (R4.8):
+  // whiteboards and "full page" pages navigate, extending the breadcrumb
+  // trail; a "pop-up" page opens over the whiteboard; a "side panel" page
+  // shows in the side panel, with the object selected.
   const openObject = useCallback(
     (objectId: string) => {
       const object =
@@ -262,6 +268,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
         router.push(addresses.href(object.docId, [...context.via, context.whiteboardId]))
         return
       }
+      if (object.openMode === "modal") return setPeek(object.docId)
       setDismissed(null)
       wb.setNodes((nodes) => nodes.map((node) => ({ ...node, selected: node.id === objectId })))
       wb.setEdges((edges) => edges.map((edge) => ({ ...edge, selected: edge.id === objectId })))
@@ -1115,6 +1122,7 @@ function Canvas({ provider, editable, context, user, repository, breadcrumb }: W
           />
         </>
       )}
+      {peek && <PagePeek docId={peek} editable={editable} context={context} user={user} onClose={() => setPeek(null)} />}
       {pastedMermaid !== null && (
         <MermaidPasteDialog text={pastedMermaid} onAdd={addMermaid} onClose={() => setPastedMermaid(null)} />
       )}

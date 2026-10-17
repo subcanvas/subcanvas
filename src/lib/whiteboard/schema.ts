@@ -13,7 +13,10 @@ export type NodeKind = "plain" | "text" | "group" | "media" | "link"
 export type EdgeShape = "spline" | "step"
 export type EdgeStroke = "solid" | "dotted"
 export type EdgeDirection = "none" | "forward" | "reverse" | "both"
-export type OpenMode = "panel" | "navigate"
+// How a page an object holds opens (R4.8): beside the whiteboard in the side
+// panel, in a pop-up over it, or as a page of its own.
+export const OPEN_MODES = ["panel", "modal", "navigate"] as const
+export type OpenMode = (typeof OPEN_MODES)[number]
 export type DocType = "text" | "whiteboard"
 
 export type WbNode = {
@@ -183,7 +186,7 @@ export function readNode(id: string, map: Y.Map<unknown>): WbNode {
     docType: textOrNull(map, "docId")
       ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
       : null,
-    openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
+    openMode: pick(map, "openMode", OPEN_MODES, "panel"),
     path: textOrNull(map, "path"),
     codeUrl: parseCodeUrl(map.get("codeUrl")),
     shape: pick(map, "shape", NODE_SHAPES, "rectangle"),
@@ -246,7 +249,7 @@ export function readEdge(id: string, map: Y.Map<unknown>): WbEdge {
     docType: textOrNull(map, "docId")
       ? pick(map, "docType", ["text", "whiteboard"] as const, "text")
       : null,
-    openMode: pick(map, "openMode", ["panel", "navigate"] as const, "panel"),
+    openMode: pick(map, "openMode", OPEN_MODES, "panel"),
   }
 }
 

@@ -18,6 +18,7 @@ import {
   edgesMap,
   LINK_PLAIN_HEIGHT,
   nodesMap,
+  OPEN_MODES,
   parseLinkUrl,
   readEdge,
   readNode,
@@ -76,8 +77,8 @@ const codeUrl = (what: "node" | "arrow") =>
 const coordinate = (axis: string) =>
   z.number().describe(`The ${axis} of the top-left corner, in canvas units (roughly pixels at 100% zoom). For a node in a group it is relative to the group's top-left corner.`)
 const openMode = z
-  .enum(["panel", "navigate"])
-  .describe("How a click opens a page the node or arrow holds: in the side panel, or by going to it as a full page. A whiteboard it holds is always opened by going to it.")
+  .enum(OPEN_MODES)
+  .describe("How a page the node or arrow holds opens: `panel` beside the whiteboard in the side panel (the default), `modal` in a pop-up over the whiteboard, or `navigate` by going to it as a full page. People choose it per object, in its Style menu. A whiteboard it holds is always opened by going to it.")
 const edgeStyle = {
   label: z.string().max(MAX_LABEL).optional().describe("Text shown on the arrow. An empty string removes it."),
   direction: z.enum(["none", "forward", "reverse", "both"]).optional().describe("Where the arrowheads are. Default forward: from source to target."),

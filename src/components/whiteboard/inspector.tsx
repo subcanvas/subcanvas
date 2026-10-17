@@ -150,6 +150,7 @@ export function Inspector({
           objectTitle={selection.node.title}
           docId={selection.node.docId}
           docType={selection.node.docType}
+          openMode={selection.node.openMode}
           editable={editable}
           locked={locked}
           context={context}
@@ -163,6 +164,7 @@ export function Inspector({
           objectTitle={selection.edge.label}
           docId={selection.edge.docId}
           docType={selection.edge.docType}
+          openMode={selection.edge.openMode}
           editable={editable}
           locked={locked}
           context={context}
@@ -332,16 +334,19 @@ function EdgeStyle({ edge, onChange }: { edge: WbEdge; onChange: (patch: Partial
   )
 }
 
-// Where double-clicking the object opens the page it holds: beside the
-// whiteboard, in this panel, or as a page of its own.
+// How the page the object holds opens, this object's own setting (R4.8):
+// beside the whiteboard in this panel, in a pop-up over it, or as a page of
+// its own. Clicking the object, double-clicking it, Enter and its page mark
+// all follow it.
 function OpenModeChoice({ value, onChange }: { value: OpenMode; onChange: (openMode: OpenMode) => void }) {
   return (
     <Choice
-      label="Double-click opens its page"
+      label="Its page opens in"
       value={value}
       options={[
-        { value: "panel", label: "In this panel" },
-        { value: "navigate", label: "As a full page" },
+        { value: "panel", label: "Side panel" },
+        { value: "modal", label: "Pop-up" },
+        { value: "navigate", label: "Full page" },
       ]}
       onChange={onChange}
     />
