@@ -155,6 +155,19 @@ export const breadcrumb = (page: Page) => page.getByRole("navigation", { name: "
 export const whiteboardTools = (page: Page) =>
   page.getByRole("toolbar", { name: "Whiteboard tools" })
 
+// Something from the + menu in the whiteboard's corner: "Box", "Text",
+// "Group" or "Picture or video". It lands in the middle of the view.
+export async function addFromMenu(page: Page, name: "Box" | "Text" | "Group" | "Picture or video") {
+  await whiteboardTools(page).getByRole("button", { name: "Add", exact: true }).click()
+  await page.getByRole("menuitem", { name, exact: true }).click()
+}
+
+// An item of the ••• menu in the whiteboard's corner.
+export async function fromMoreMenu(page: Page, name: string | RegExp) {
+  await whiteboardTools(page).getByRole("button", { name: "More", exact: true }).click()
+  await page.getByRole("menuitem", { name }).click()
+}
+
 // React Flow gives its root the application role, which is the one handle on
 // the canvas that is not a style class. The side panel sits outside it, so
 // scoping here tells a node's own label apart from the copy of it in the
@@ -199,7 +212,7 @@ export async function closePanel(page: Page) {
 // goes near the canvas, so React Flow's drag handling is never involved.
 export async function addNode(page: Page, title: string) {
   await closePanel(page)
-  await whiteboardTools(page).getByRole("button", { name: "Box", exact: true }).click()
+  await addFromMenu(page, "Box")
   const panel = inspector(page)
   await expect(panel).toBeVisible()
   await panel.getByLabel("Title").fill(title)

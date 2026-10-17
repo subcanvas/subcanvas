@@ -4,17 +4,17 @@ import { expect, type Page, test } from "@playwright/test"
 
 import { adminClient, NO_ADMIN, workspaceId } from "./support/admin"
 import {
-  type Account,
+  addFromMenu,
   createOrg,
   createProject,
   createWhiteboard,
   expectSaved,
+  firstWorkspaceSlug,
   freshAccount,
   freshId,
   inspector,
-  firstWorkspaceSlug,
   signUp,
-  whiteboardTools,
+  type Account,
 } from "./support/app"
 import { FIXTURES } from "./support/import"
 import { createInviteLink, joinThroughInvite, memberRow, setMemberRole } from "./support/members"
@@ -39,7 +39,7 @@ async function openDeleteDialog(page: Page, account: Account) {
 async function addPicture(page: Page) {
   await createWhiteboard(page, "Board")
   const chooser = page.waitForEvent("filechooser")
-  await whiteboardTools(page).getByRole("button", { name: "Media", exact: true }).click()
+  await addFromMenu(page, "Picture or video")
   await (await chooser).setFiles(join(FIXTURES, "cobalt.png"))
   const panel = inspector(page)
   await expect(panel).toBeVisible()

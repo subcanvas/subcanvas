@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 
 import {
+  addFromMenu,
   createProject,
   createWhiteboard,
   expectSaved,
@@ -10,7 +11,6 @@ import {
   inspector,
   sidebar,
   signUpWithOrg,
-  whiteboardTools,
 } from "./support/app"
 import { inviteAndJoin } from "./support/collab"
 import { FIXTURES } from "./support/import"
@@ -51,7 +51,7 @@ test("deleting a project takes its name typed, and then it is gone with its docu
 
   // A picture on its whiteboard, so there is a file for the delete to remove.
   const chooser = page.waitForEvent("filechooser")
-  await whiteboardTools(page).getByRole("button", { name: "Media", exact: true }).click()
+  await addFromMenu(page, "Picture or video")
   await (await chooser).setFiles(join(FIXTURES, "cobalt.png"))
   const panel = inspector(page)
   await expect(panel).toBeVisible()

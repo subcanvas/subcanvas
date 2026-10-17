@@ -26,7 +26,10 @@ test("a visitor tries it from the landing page: goes inside a box and reads what
   await expect(nodeLabelled(page, "Payments")).toBeVisible()
   await expect(nodeLabelled(page, "Ledger")).toBeVisible()
   // Nothing here keeps pictures or videos.
-  await expect(whiteboardTools(page).getByRole("button", { name: "Media" })).toHaveCount(0)
+  await whiteboardTools(page).getByRole("button", { name: "Add", exact: true }).click()
+  await expect(page.getByRole("menuitem", { name: "Box", exact: true })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "Picture or video" })).toHaveCount(0)
+  await page.keyboard.press("Escape")
 
   await openInside(page, "Web app")
   await expect(breadcrumb(page)).toContainText("Web app")

@@ -521,8 +521,8 @@ export function useWhiteboard(doc: Y.Doc, editable: boolean, onObjects?: (change
   )
 
   // The file has arrived: the node joins the document, as one step to undo.
-  // Not through `transact`, which does nothing in view mode: someone who
-  // switched to it while a file was on its way still asked for this node.
+  // Not through `transact`, which does nothing on a locked whiteboard: a
+  // file on its way when the lock came on was still asked for.
   const addMedia = useCallback(
     (wb: WbNode) => {
       dropUpload(wb.id)

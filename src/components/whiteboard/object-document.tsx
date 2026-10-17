@@ -42,7 +42,8 @@ export function ObjectDocument({
   docId: string | null
   docType: DocType | null
   editable: boolean
-  // In view mode by choice. The text is read-only, like everything else.
+  // The whiteboard is locked: what the object holds stays as it is, but a
+  // page it holds can still be written in (lib/whiteboard/lock.ts).
   locked: boolean
   context: WhiteboardContext
   user: EditorUser
@@ -189,7 +190,6 @@ export function ObjectDocument({
               documentId={docId}
               user={user}
               editable={editable || locked}
-              locked={locked}
               context={{
                 orgId: context.orgId,
                 projectId: context.projectId,

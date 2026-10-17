@@ -223,8 +223,9 @@
 .react-flow__edgelabel-renderer {
   z-index: 1001;
 }
-/* In view mode nothing on the canvas offers to be changed. The handles stay
-   in the layout, since arrows are drawn from where they are measured. */
+/* On a locked whiteboard, or for a reader, nothing on the canvas offers to
+   be changed. The handles stay in the layout, since arrows are drawn from
+   where they are measured. */
 .react-flow[data-locked] .react-flow__resize-control {
   display: none;
 }

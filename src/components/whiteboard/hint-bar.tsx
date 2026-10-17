@@ -11,8 +11,8 @@ export const KEYS = isApple
 export const isModKey = (event: KeyboardEvent) => (isApple ? event.metaKey : event.ctrlKey)
 
 export type HintState =
-  // Someone who may not edit, or who has switched editing off.
-  | { looking: true; canSwitchToEdit: boolean }
+  // Someone who may not edit, or anyone on a locked whiteboard.
+  | { looking: true }
   // `holds` is whether the one node selected holds something to open.
   | { looking: false; nodes: number; edges: number; holds?: boolean }
 
@@ -29,10 +29,7 @@ function hintsFor(state: HintState): Hint[] {
   const navigate: Hint[] = [pan, zoom, { text: "Drag to select" }, { keys: ["Space"], text: "drag to pan", wide: true }]
   const all: Hint = { keys: ["?"], text: "all shortcuts", wide: true }
 
-  if (state.looking)
-    return state.canSwitchToEdit
-      ? [{ keys: ["E"], text: "to edit" }, pan, zoom, { text: "Double-click to open", wide: true }, all]
-      : [...navigate, { text: "Double-click to open", wide: true }, all]
+  if (state.looking) return [...navigate, { text: "Double-click to open", wide: true }, all]
 
   if (state.nodes > 1)
     return [
@@ -53,12 +50,11 @@ function hintsFor(state: HintState): Hint[] {
   if (state.nodes === 0 && state.edges === 1)
     return [open, { text: "Label and style it in the panel", wide: true }, remove]
   if (state.nodes + state.edges > 0) return [remove, { keys: ["Esc"], text: "clear the selection" }]
-  // Nothing selected: the first thing to learn is that boxes open.
+  // Nothing selected, which the bar shows only on an empty whiteboard.
   return [
     { keys: ["Tab"], text: "draw a box" },
+    { text: "Right-click to add more", wide: true },
     { text: "Double-click a box to open what's inside" },
-    ...navigate,
-    { keys: ["E"], text: "view mode", wide: true },
     all,
   ]
 }

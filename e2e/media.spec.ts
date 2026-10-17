@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { expect, test } from "@playwright/test"
 
 import {
+  addFromMenu,
   breadcrumb,
   createProject,
   createWhiteboard,
@@ -23,7 +24,7 @@ async function addMedia(
   files: Parameters<import("@playwright/test").FileChooser["setFiles"]>[0]
 ) {
   const chooser = page.waitForEvent("filechooser")
-  await whiteboardTools(page).getByRole("button", { name: "Media", exact: true }).click()
+  await addFromMenu(page, "Picture or video")
   await (await chooser).setFiles(files)
 }
 

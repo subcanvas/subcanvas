@@ -111,7 +111,7 @@ export function DocumentMark({
 }
 
 // The code behind an object, and the way to it: a link that opens the
-// address in a new tab, in view mode and on a public page too.
+// address in a new tab, on a locked whiteboard and on a public page too.
 export function CodeMark({ url, className }: { url: string; className?: string }) {
   const text = codeLinkText(url)
   return (
@@ -488,7 +488,7 @@ const VIDEO_CONTROLS = 64
 
 function Media({ wb }: { wb: WbNode }) {
   const { url, failed, retry } = useMediaUrl(wb.mediaPath)
-  // In edit mode a press on a node moves it. In view mode nothing moves.
+  // A press on a node moves it, unless nothing here can change.
   const movable = useStore((state) => state.nodesDraggable)
   const video = useRef<HTMLVideoElement>(null)
   // Where a video had got to when its address ran out, to carry on from

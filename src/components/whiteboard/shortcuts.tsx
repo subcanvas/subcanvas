@@ -59,7 +59,7 @@ function shortcuts(): { heading: string; items: Shortcut[] }[] {
     {
       heading: "This whiteboard",
       items: [
-        { keys: [["E"]], does: "Switch between editing and viewing" },
+        { keys: [["Right-click"]], does: "Add text, a group or a picture there" },
         { keys: [["?"]], does: "Show or hide these shortcuts" },
       ],
     },

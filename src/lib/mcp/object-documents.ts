@@ -4,6 +4,7 @@ import {
   createChildWhiteboard,
   ensureDescriptionDocument,
 } from "@/lib/whiteboard/description-document"
+import { isLocked, LOCKED_REFUSAL } from "@/lib/whiteboard/lock"
 import { edgesMap, nodesMap } from "@/lib/whiteboard/schema"
 
 import { editDocument } from "./edit-document"
@@ -38,6 +39,8 @@ export async function createInsideObject(
 ): Promise<{ id: string } | { error: string }> {
   const doc = await loadDocument(context.supabase, whiteboard.id)
   if (!doc) return { error: "This document could not be read." }
+  // Checked before the document row is made, so a refusal leaves nothing.
+  if (isLocked(doc)) return { error: LOCKED_REFUSAL }
   const object = nodesMap(doc).get(objectId) ?? edgesMap(doc).get(objectId)
   if (!object)
     return { error: `No node or arrow with id ${objectId} on this whiteboard. Read the whiteboard again for current ids.` }

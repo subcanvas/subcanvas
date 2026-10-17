@@ -9,6 +9,7 @@ import { loadDocument } from "@/lib/sync/server-document"
 import { codeLinkOf, parseCodeUrl } from "@/lib/whiteboard/code-link"
 import { ICON_CHOICES } from "@/lib/whiteboard/icons"
 import { MAX_ALT, MAX_BODY_TEXT, MAX_CODE_URL, MAX_LABEL, MAX_NODE_SIDE, MAX_TITLE, MIN_NODE_SIZE } from "@/lib/whiteboard/limits"
+import { isLocked } from "@/lib/whiteboard/lock"
 import { mediaHref } from "@/lib/whiteboard/media"
 import { mediaObjectsOf, unshownMedia } from "@/lib/whiteboard/media-release"
 import {
@@ -129,7 +130,7 @@ export const whiteboardTools = [
     title: "Read a whiteboard",
     group: "Whiteboards",
     description:
-      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption, `link` is a card for a web page, with its `link` url and site and the page's `description`), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. What you read is at most about a second behind what people see.",
+      "Returns everything on a whiteboard as compact JSON: its nodes (kind `plain` is a box, `text` is a heading with body text and no box, `group` is a frame that contains other nodes, `media` is a picture or a video whose title is its caption, `link` is a card for a web page, with its `link` url and site and the page's `description`), its arrows (`edges`), and for each the document it holds, if any (`doc_id`, `doc_type`: a page is `text`). A text node's `description` is its body text. A box drawn for a repository folder has its `repository_path`, and its `description` is the folder's summary, which the app shows in the box's panel. A node or arrow's `code_url` is its code link, the address of the code it stands for, which people open from it in one click; on a box drawn for a repository folder that has no link of its own it is that folder in the imported repository, marked `code_url_from_folder`, and setting `code_url` replaces it. A node's `group_id` is the group it is in, and its x and y are then relative to that group. A picture or video's `media` says what it is: `type` (image or video), the file's own `width` and `height` in pixels, its `alt` text, and a `url` that the people who can read this whiteboard can open in their browser. You cannot fetch that url yourself, and there is no tool that uploads a file: people add pictures and videos in the app. A whiteboard a node holds can be read with this tool again, and a page with `read_text_document`: that is how whiteboards nest. `locked: true` means someone locked the whiteboard in the app so nothing on it changes by accident: the tools that change it are refused until a person unlocks it, though the pages its nodes and arrows hold can still be edited. What you read is at most about a second behind what people see.",
     input: { whiteboard_id: whiteboardId },
     kind: "read",
     run: async (context, { whiteboard_id }) => {
@@ -207,6 +208,7 @@ export const whiteboardTools = [
         title: whiteboard.title,
         url: await documentUrl(context, whiteboard),
         ...(whiteboard.in_trash ? { in_trash: true, note: READ_FROM_TRASH } : {}),
+        ...(isLocked(doc) ? { locked: true } : {}),
         nodes,
         edges,
       }

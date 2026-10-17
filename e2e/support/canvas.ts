@@ -1,6 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test"
 
-import { addNode, closePanel, inspector, nodeLabelled, whiteboardTools } from "./app"
+import {
+  addFromMenu,
+  addNode,
+  closePanel,
+  inspector,
+  nodeLabelled,
+  whiteboardTools,
+} from "./app"
 
 // The canvas as a place things are moved around on: nodes and arrows found
 // by what a screen reader would call them, and a real mouse for everything
@@ -122,7 +129,7 @@ export async function clickEmptyCanvas(page: Page) {
 // Adds a group from the toolbar and names it, the way addNode adds a node.
 export async function addGroup(page: Page, title: string) {
   await closePanel(page)
-  await whiteboardTools(page).getByRole("button", { name: "Group", exact: true }).click()
+  await addFromMenu(page, "Group")
   const panel = inspector(page)
   await expect(panel).toBeVisible()
   await panel.getByLabel("Title").fill(title)
