@@ -54,8 +54,8 @@ const DEVELOPER_STEPS = [
 const USES = [
   ["Plan a move", "Visa, apartment, budget. Each one opens into its own steps."],
   ["Map a system", "Services on top. Inside each, how it works. On each arrow, the contract between them."],
-  ["Outline a course", "Weeks as boxes. Readings and notes inside each week."],
-  ["Write a story", "Acts, then scenes, then the page itself."],
+  ["Take class notes", "Topics as boxes, each one's notes inside. A big topic opens into a whiteboard of its own."],
+  ["Run a research project", "Questions as boxes, with the sources and findings for each inside."],
 ]
 
 export default async function Home() {
