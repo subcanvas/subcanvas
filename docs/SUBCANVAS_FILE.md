@@ -1,6 +1,6 @@
 # The `.subcanvas` file
 
-"Import from GitHub" draws a repository as a diagram: its main folders become nodes, each with the folder's README inside, and the folders within them become whiteboards inside those nodes. A main folder is one with a README, or a package, app or service in a monorepo (a folder directly inside `packages`, `apps`, `services` and the like), at most two levels down. Docs, tests, examples and build output are left out, and one import draws at most 60 folders. The import is a one-time copy: importing again makes a new project. It works with no setup. A `.subcanvas` file is how a repository says more than its folders can: what a folder is called, what it is for, and what it talks to.
+"Import from GitHub" draws a repository as a diagram: its main folders become nodes, each with the folder's README inside, and the folders within them become whiteboards inside those nodes. A main folder is one that holds code, one with a README, or a package, app or service in a monorepo (a folder directly inside `packages`, `apps`, `services` and the like), at most two levels down. Docs, tests, examples and build output are left out, and one import draws at most 60 folders. The import is a one-time copy: importing again makes a new project. It works with no setup. A `.subcanvas` file is how a repository says more than its folders can: what a folder is called, what it is for, and what it talks to.
 
 Put a file named `.subcanvas` in any folder. It is YAML, and every key is optional.
 
@@ -31,7 +31,7 @@ ignore:
 
 ## What else the file does
 
-- **A folder with a `.subcanvas` file is always on the diagram**, at any depth, along with the folders above it. An empty file is enough. Without one, the import maps folders that have a README, down to two levels, plus the folders directly inside `services`, `apps`, `packages`, `cmd`, `internal`, `libs`, and `modules`. It leaves out `docs`, `examples`, and tests.
+- **A folder with a `.subcanvas` file is always on the diagram**, at any depth, along with the folders above it. An empty file is enough. Without one, the import maps the folders that hold code or have a README, down to two levels, plus the folders directly inside `services`, `apps`, `packages`, `cmd`, `internal`, `libs`, and `modules`. It leaves out `docs`, `examples`, tests, and folders named after them (`docs_src`, `test-integ`).
 - **A file at the repository root describes the repository.** Its `title` names the top whiteboard, and its `description` is the text at the top of it. `ignore` works there too. `connects`, `color` and `shape` do not, because the repository is not a box on the diagram.
 - **Arrows are drawn where they can be.** An arrow joins two nodes on one whiteboard. When `services/payments` connects to `apps/web`, the two meet only at the top, so the arrow is drawn there, between `services` and `apps`. Several connections that land on the same pair of nodes become one arrow.
 - **A `to` deeper than the diagram goes** is drawn to the nearest folder that is on it.
