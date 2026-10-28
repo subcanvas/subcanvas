@@ -6,7 +6,7 @@ const files = (...paths: string[]) => paths.map((path) => ({ path, size: 10 }))
 const paths = (mapping: ReturnType<typeof mapFolders>) => mapping.folders.map((folder) => folder.path)
 
 describe("mapFolders", () => {
-  it("maps folders that describe themselves, two levels deep", () => {
+  it("maps folders that describe themselves, two levels deep, beside the top-level folders that hold code", () => {
     const mapping = mapFolders(
       files(
         "README.md",
@@ -17,7 +17,7 @@ describe("mapFolders", () => {
         "scripts/run.sh"
       )
     )
-    expect(paths(mapping)).toEqual(["api", "api/handlers", "web"])
+    expect(paths(mapping)).toEqual(["api", "api/handlers", "scripts", "web"])
     expect(mapping.rootReadme?.path).toBe("README.md")
     expect(mapping.folders[1]).toMatchObject({ parent: "api", readme: { path: "api/handlers/readme.markdown" } })
     expect(mapping.capped).toBe(false)
@@ -32,7 +32,17 @@ describe("mapFolders", () => {
     const mapping = mapFolders(
       files("packages/ui/index.ts", "packages/core/index.ts", "apps/web/page.tsx", "cmd/server/main.go", "lib/x/y.ts")
     )
-    expect(paths(mapping)).toEqual(["apps", "apps/web", "cmd", "cmd/server", "packages", "packages/core", "packages/ui"])
+    expect(paths(mapping)).toEqual([
+      "apps",
+      "apps/web",
+      "cmd",
+      "cmd/server",
+      "lib",
+      "lib/x",
+      "packages",
+      "packages/core",
+      "packages/ui",
+    ])
     expect(mapping.folders.find((folder) => folder.path === "packages/ui")?.parent).toBe("packages")
   })
 
@@ -76,13 +86,45 @@ describe("mapFolders", () => {
     expect(paths(mapping)).toEqual(["svc", "svc/fixturesque"])
   })
 
-  it("uses src only when nothing else qualifies", () => {
-    expect(paths(mapFolders(files("src/auth/a.ts", "src/billing/b.ts", "src/index.ts")))).toEqual([
+  it("maps the folders that hold code in the top two levels, whether or not a sibling has a README", () => {
+    expect(paths(mapFolders(files("src/auth/a.ts", "src/billing/b.ts", "src/index.ts", "src/assets/logo.png")))).toEqual([
       "src",
       "src/auth",
       "src/billing",
     ])
-    expect(paths(mapFolders(files("src/auth/a.ts", "api/README.md")))).toEqual(["api"])
+    expect(paths(mapFolders(files("app/auth/a.ts", "app/billing/README.md", "app/core/c.ts", "app/assets/a.png")))).toEqual([
+      "app",
+      "app/auth",
+      "app/billing",
+      "app/core",
+    ])
+  })
+
+  // naturalcrit/homebrewery: a README in one folder of fonts, none beside
+  // the code. It used to draw that folder alone.
+  it("does not let one folder with a README leave out the code beside it", () => {
+    const mapping = mapFolders(
+      files(
+        "README.md",
+        "font-awesome-source/README.md",
+        "client/homebrew/brewRenderer.jsx",
+        "client/admin/admin.jsx",
+        "client/template.js",
+        "server/app.js",
+        "server/middleware/auth.js",
+        "shared/helpers.js",
+        "tests/markdown/basic.test.js"
+      )
+    )
+    expect(paths(mapping)).toEqual([
+      "client",
+      "client/admin",
+      "client/homebrew",
+      "font-awesome-source",
+      "server",
+      "server/middleware",
+      "shared",
+    ])
   })
 
   it("maps everything in src once one folder there has a README", () => {
@@ -90,9 +132,11 @@ describe("mapFolders", () => {
     expect(paths(mapping)).toEqual(["deploy", "src", "src/cart", "src/payments"])
   })
 
-  it("falls back to the top-level folders that hold code", () => {
-    const mapping = mapFolders(files("server/main.go", "client/deep/app.tsx", "assets/logo.png", "tests/a.py", "LICENSE"))
-    expect(paths(mapping)).toEqual(["client", "server"])
+  it("maps the top-level folders that hold code, and only those", () => {
+    const mapping = mapFolders(
+      files("server/main.go", "client/deep/app.tsx", "assets/logo.png", "tests/a.py", "docs_src/x/a.py", "LICENSE")
+    )
+    expect(paths(mapping)).toEqual(["client", "client/deep", "server"])
   })
 
   it("maps nothing when there is nothing", () => {

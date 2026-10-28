@@ -44,7 +44,8 @@ const SKIPPED = new Set([
 // automatic pass leaves them out; a `.subcanvas` file brings one back.
 const SUPPORTING = new Set([
   "docs", "doc", "documentation", "examples", "example", "samples", "demo", "demos", "test",
-  "tests", "__tests__", "e2e", "testdata", "fixtures", "__fixtures__", "benchmarks", "bench",
+  "tests", "testing", "__tests__", "e2e", "testdata", "fixtures", "__fixtures__", "benchmarks",
+  "benchmark", "bench",
 ])
 
 const CODE_FILE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|kts|rb|php|cs|fs|swift|scala|c|h|cc|cpp|hpp|m|mm|ex|exs|erl|clj|hs|lua|dart|vue|svelte|zig|sql|sh)$/i
@@ -56,8 +57,11 @@ function isSkipped(path: string) {
   return path.split("/").some((segment) => segment.startsWith(".") || SKIPPED.has(segment.toLowerCase()))
 }
 
+// "docs_src" and "test-integ" are the same folders under longer names.
 function isSupporting(path: string) {
-  return path.split("/").some((segment) => SUPPORTING.has(segment.toLowerCase()))
+  return path
+    .split("/")
+    .some((segment) => SUPPORTING.has(segment.toLowerCase()) || SUPPORTING.has(segment.toLowerCase().split(/[-_]/)[0]))
 }
 
 // The `.subcanvas` files worth reading, keyed by their folder.
@@ -82,8 +86,9 @@ export function mapFolders(files: RepositoryFile[], ignored: string[] = []): Map
     const name = baseName(file.path).toLowerCase()
     if (folder !== ROOT && (isSkipped(folder) || ignored.some((path) => isInside(folder, path)))) continue
 
-    // Once a folder is known, so is everything above it.
-    const isCode = CODE_FILE.test(name)
+    // Once a folder is known, so is everything above it. Tests and examples
+    // are code, but not code that makes a folder a part of the system.
+    const isCode = CODE_FILE.test(name) && !isSupporting(folder)
     for (const path of selfAndAncestors(folder)) {
       if (isCode ? withCode.has(path) : folders.has(path)) break
       folders.add(path)
@@ -97,29 +102,16 @@ export function mapFolders(files: RepositoryFile[], ignored: string[] = []): Map
   }
 
   const describesItself = (path: string) => readmes.has(path) || withSubcanvasFile.has(path)
-  const childrenOf = (root: string) =>
-    [...folders].filter((path) => parentPath(path).toLowerCase() === root && !isSupporting(path))
 
-  // src/ is usually an implementation detail, but when a folder in it has
-  // a README of its own, the folders in it are the parts of the system
-  // (src/cartservice, src/frontend), and half of them is worse than all.
-  const srcHoldsParts = [...folders].some(
-    (path) => parentPath(path).toLowerCase() === "src" && describesItself(path)
-  )
-  const isConventionalRoot = (path: string) =>
-    CONVENTIONAL_ROOTS.has(path.toLowerCase()) || (srcHoldsParts && path.toLowerCase() === "src")
-
-  let qualifying = [...folders].filter((path) => {
+  // A folder is a part of the system when it says so (a README or a
+  // `.subcanvas` file), when it sits in a conventional root, or when it
+  // holds code in the top two levels: one folder with a README must not
+  // leave out the code beside it (src/auth beside src/cart, django/db).
+  const qualifying = [...folders].filter((path) => {
     if (withSubcanvasFile.has(path)) return true
     if (isSupporting(path) || depthOf(path) > MAX_AUTOMATIC_DEPTH) return false
-    return describesItself(path) || isConventionalRoot(parentPath(path))
+    return describesItself(path) || withCode.has(path) || CONVENTIONAL_ROOTS.has(parentPath(path).toLowerCase())
   })
-  // A small project keeps everything under src/, so its parts are the
-  // folders in there. In a larger one src/ is an implementation detail.
-  if (!qualifying.length) qualifying = childrenOf("src")
-  // Last resort: the top-level folders that hold code.
-  if (!qualifying.length)
-    qualifying = childrenOf(ROOT).filter((path) => withCode.has(path))
 
   // When there are too many, keep what someone asked for by name, then what
   // is nearest the top. Within a level the parents take turns (the first
