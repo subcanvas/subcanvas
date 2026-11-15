@@ -139,7 +139,7 @@ export default async function Home() {
             </ul>
             <p className="max-w-2xl leading-relaxed text-graphite">
               Arrows and groups hold things too. Everyone you invite edits together, live, with cursors. People
-              who only need to look are viewers, and viewers are free.
+              who only need to look can join as viewers.
             </p>
             <p className="max-w-2xl leading-relaxed text-graphite">
               Bring your notes from Notion, Obsidian, or a folder of Markdown.
@@ -221,8 +221,8 @@ export default async function Home() {
               <h2 className="text-3xl font-semibold">Pricing</h2>
               <p className="text-graphite">
                 {selling
-                  ? "Free for one person, with up to 100 private whiteboards and pages. When your workspace gets a second editor or needs more private work, Pro is $5 per editor a month. Viewers are always free."
-                  : "Nothing to pay. This server has no paid plan."}
+                  ? "Free for you and your whole team, with as many editors, viewers, whiteboards and pages as you like. Pro is $5 a month per workspace, for when you need more room for pictures and videos."
+                  : "Free. There is no paid plan."}
               </p>
             </div>
             <div className={cn("grid gap-6", selling ? "md:grid-cols-3" : "md:grid-cols-2")}>
@@ -233,10 +233,8 @@ export default async function Home() {
                     name="Free"
                     price="$0"
                     points={[
-                      "Unlimited public projects",
-                      "100 private whiteboards and pages (descriptions of boxes and arrows don't count)",
-                      "One editor: you",
-                      "Unlimited viewers",
+                      "Public and private projects alike",
+                      "As many editors and viewers as you like",
                       "1 GB of pictures and videos",
                     ]}
                   />
@@ -244,13 +242,12 @@ export default async function Home() {
                     start={start}
                     name="Pro"
                     price="$5"
-                    unit="per editor, per month"
+                    unit="per workspace, per month"
                     highlight
                     points={[
-                      "Unlimited private whiteboards and pages",
-                      "As many editors as your team needs",
-                      "Viewers stay free",
+                      "Everything in Free",
                       "100 GB of pictures and videos",
+                      "One price, however big the team",
                     ]}
                   />
                 </>

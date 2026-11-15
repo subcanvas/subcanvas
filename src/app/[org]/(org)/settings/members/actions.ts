@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 
 import { editorLimitMessage, limitMessage } from "@/lib/billing/limit"
-import { syncSeats } from "@/lib/billing/stripe"
 import { emailConfigured, sendEmail, type SendResult } from "@/lib/email"
 import { inviteEmail } from "@/lib/email-messages"
 import { originFromHeaders } from "@/lib/origin"
@@ -46,7 +45,6 @@ export async function changeRole(
   }
   if (!data.length) return NOT_ALLOWED
 
-  await syncSeats(orgId)
   revalidatePath(`/${slug}/settings/members`)
   return { ok: true }
 }
@@ -67,7 +65,6 @@ export async function removeMember(
   if (error) return { error: error.message }
   if (!data.length) return NOT_ALLOWED
 
-  await syncSeats(orgId)
   revalidatePath(`/${slug}/settings/members`)
   return { ok: true }
 }

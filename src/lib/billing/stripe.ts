@@ -34,6 +34,9 @@ export async function recordSubscription(subscription: Stripe.Subscription) {
     item?.current_period_end ??
     (subscription as unknown as { current_period_end?: number }).current_period_end
 
+  // Stripe's customer portal cancels by setting `cancel_at` to the end of
+  // the period, leaving `cancel_at_period_end` false. Either way the
+  // subscription will not renew, which is what the column means.
   const { error } = await supabase
     .from("subscriptions")
     .update({
@@ -41,44 +44,9 @@ export async function recordSubscription(subscription: Stripe.Subscription) {
       status: subscription.status,
       seats: item?.quantity ?? 0,
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end,
+      cancel_at_period_end: subscription.cancel_at_period_end || subscription.cancel_at != null,
       updated_at: new Date().toISOString(),
     })
     .eq("stripe_customer_id", customerId)
   if (error) throw new Error(error.message)
-}
-
-// Matches the Stripe quantity to the org's billed seats (R7.4). Called after
-// any membership change. Failures are logged, not thrown: a Stripe outage
-// must not stop an admin from managing members.
-export async function syncSeats(orgId: string) {
-  if (!billingConfigured()) return
-  try {
-    const supabase = createAdminClient()
-    const { data: row } = await supabase
-      .from("subscriptions")
-      .select("stripe_subscription_id, status, seats")
-      .eq("org_id", orgId)
-      .maybeSingle()
-    if (!row?.stripe_subscription_id || !["active", "trialing", "past_due"].includes(row.status))
-      return
-
-    const { count } = await supabase
-      .from("org_members")
-      .select("user_id", { count: "exact", head: true })
-      .eq("org_id", orgId)
-      .neq("role", "viewer")
-    const seats = Math.max(1, count ?? 1)
-    if (seats === row.seats) return
-
-    const stripe = getStripe()
-    const subscription = await stripe.subscriptions.retrieve(row.stripe_subscription_id)
-    await stripe.subscriptions.update(subscription.id, {
-      items: [{ id: subscription.items.data[0].id, quantity: seats }],
-      proration_behavior: "create_prorations",
-    })
-    // The webhook records the new quantity.
-  } catch (error) {
-    console.error("Seat sync failed for org", orgId, error)
-  }
 }

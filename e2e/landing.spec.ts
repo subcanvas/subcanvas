@@ -51,7 +51,7 @@ test("the pricing and the agents line say what this server offers", async ({ pag
   if (billingConfigured) {
     await expect(pricing.getByText("$5", { exact: true })).toBeVisible()
   } else {
-    await expect(pricing.getByText("Nothing to pay. This server has no paid plan.")).toBeVisible()
+    await expect(pricing.getByText("Free. There is no paid plan.")).toBeVisible()
     await expect(pricing.getByText("$5", { exact: true })).toHaveCount(0)
     await expect(page.getByText(/comes later|while Subcanvas is this new|GB of pictures/)).toHaveCount(0)
   }

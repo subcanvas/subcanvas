@@ -14,10 +14,10 @@ import { tools } from "./tools"
 const NOT_EXPOSED: Record<string, string> = {
   // Members and invites. An agent acts as its user, and an agent that can
   // add people to a workspace, raise their role, or remove them turns one
-  // prompt-injected document into an account takeover. It also changes the
-  // seats a workspace is billed for. Planned, behind a consent-screen choice.
-  "[org]/(org)/settings/members/actions.changeRole": "changes who has access, and billed seats",
-  "[org]/(org)/settings/members/actions.removeMember": "changes who has access, and billed seats",
+  // prompt-injected document into an account takeover. Planned, behind a
+  // consent-screen choice.
+  "[org]/(org)/settings/members/actions.changeRole": "changes who has access",
+  "[org]/(org)/settings/members/actions.removeMember": "changes who has access",
   "[org]/(org)/settings/members/actions.createInvite": "changes who has access; sends email in the workspace's name",
   "[org]/(org)/settings/members/actions.revokeInvite": "kept with the rest of invites",
   "[org]/(org)/settings/members/actions.resendInvite": "kept with the rest of invites; sends email in the workspace's name",

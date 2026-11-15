@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import type { Database } from "./database.types"
 
 // Bypasses row-level security. Only for trusted server code acting for the
-// system rather than a person: the Stripe webhook and seat sync.
+// system rather than a person, such as the Stripe webhook.
 export function createAdminClient() {
   const key = process.env.SUPABASE_SECRET_KEY
   if (!key) throw new Error("SUPABASE_SECRET_KEY is not set.")

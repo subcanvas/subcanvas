@@ -3,6 +3,8 @@ import { join } from "node:path"
 
 import { expect, test } from "@playwright/test"
 
+import { billingConfigured } from "./support/billing"
+
 // The Terms and the Privacy Policy name whoever runs the server, from the
 // environment (src/lib/legal.ts). The server reads .env.local itself; the
 // test process does not, so this looks where the server looked. CI exports
@@ -42,6 +44,25 @@ test("the Terms and the Privacy Policy name the operator", async ({ page }) => {
   const legalNav = page.getByRole("navigation", { name: "Legal" })
   await expect(legalNav.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms")
   await expect(legalNav.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy")
+})
+
+// Billing, refunds and Stripe are in them only where a plan is sold.
+test("the Terms and the Privacy Policy mention payment only where a plan is sold", async ({ page }) => {
+  const terms = await page.goto("/terms")
+  test.skip(terms?.status() === 404 && operatorFromEnv() === null, NO_OPERATOR)
+  const main = page.getByRole("main")
+  if (billingConfigured) {
+    await expect(main.getByRole("heading", { name: "Payment, Refunds, and Plan Changes" })).toBeVisible()
+    await expect(main.getByText(/through Stripe/).first()).toBeVisible()
+  } else {
+    await expect(main.getByRole("heading", { name: "Price", exact: true })).toBeVisible()
+    await expect(main.getByText("The Services are free.", { exact: false })).toBeVisible()
+    await expect(main.getByText(/Stripe|paid plan/)).toHaveCount(0)
+  }
+
+  await page.goto("/privacy")
+  await expect(main.getByRole("heading", { name: "Billing information" })).toHaveCount(billingConfigured ? 1 : 0)
+  if (!billingConfigured) await expect(main.getByText(/Stripe|paid plan/)).toHaveCount(0)
 })
 
 test("the landing page and the sign-in card link to them", async ({ page }) => {

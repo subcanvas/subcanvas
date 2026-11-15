@@ -26,7 +26,7 @@ This repository's own diagram, drawn live by subcanvas.app from its folders and 
 - **GitHub import.** A box for each main folder (up to 60), with its README inside. A [`.subcanvas` file](docs/SUBCANVAS_FILE.md) in a folder says what it is and what it talks to, and those connections become arrows. Private repositories come in read-only once the workspace connects GitHub in Settings, and always as private projects. The import is a one-time copy.
 - **Code links.** A box or an arrow can point at the code behind it, a file, some lines or a folder on GitHub or anywhere else, and one click opens it. Imported boxes link to their folders.
 - **Nesting.** Double-click a box or an arrow to open the whiteboard or page inside it. A trail of tabs shows where you are and leads back out.
-- **Live together.** Invite people to your workspace and everyone edits at once, with cursors. Viewers are free.
+- **Live together.** Invite your whole team and everyone edits at once, with cursors. Editors and viewers are free.
 - **README embeds.** A public whiteboard embeds as a picture that follows your edits within minutes and links to the live version.
 - **Agents.** An MCP server lets Claude Code, Codex, Cursor and other agents read and edit as the person who connected them, and a Claude Code plugin teaches them to draw: [Agents](#agents) below.
 - **Your notes.** Notion, Obsidian, Google Docs and folders of Markdown come in through Import files: [docs/IMPORTING.md](docs/IMPORTING.md).
@@ -133,12 +133,12 @@ Billing is off by default, and a self-hosted server needs none of it: with nothi
 
 A deployment that sells subscriptions turns on two things:
 
-1. **The free plan's limits**, enforced in the database:
+1. **The limits Pro raises**, enforced in the database. subcanvas.app's Pro sells room for pictures and videos, 1 GB per workspace free and 100 GB paid:
    ```sql
-   update private.config set free_private_document_limit = 100, free_editor_limit = 1;
+   update private.config set free_media_storage_limit_bytes = 1073741824, paid_media_storage_limit_bytes = 107374182400;
    ```
-   Free workspaces then get unlimited documents in public projects, 100 documents across private projects (the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), and 1 editor. Viewers are always unlimited and free. A workspace on the paid plan, Pro, has no limit on documents or editors. Storage for pictures and videos has a cap of its own for each plan, off unless set (`free_media_storage_limit_bytes` and `paid_media_storage_limit_bytes`; subcanvas.app gives 1 GB free and 100 GB on Pro).
-2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 per-editor price. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
+   The free plan can also limit documents in private projects and editors (`free_private_document_limit`, `free_editor_limit`; the descriptions of boxes and arrows do not count, nor does anything in the trash or inside something that is), which Pro lifts. subcanvas.app sets neither: editors, viewers and documents are unlimited on every plan.
+2. **Stripe.** Set the Stripe variables in `.env.example`, using a recurring $5 monthly price, sold one per workspace. In production, point a Stripe webhook at `/api/stripe/webhook` with the `customer.subscription.*` and `checkout.session.completed` events. Locally, run `pnpm stripe:listen` instead, and keep it running while you test: it forwards the sandbox's events to your dev server, and the signing secret it prints on first run is your local `STRIPE_WEBHOOK_SECRET`. Use a [sandbox](https://docs.stripe.com/sandboxes) secret key, never a live one, in `.env.local`.
 
 ## Contributing and security
 

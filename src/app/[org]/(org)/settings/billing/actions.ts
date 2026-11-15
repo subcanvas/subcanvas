@@ -76,17 +76,12 @@ export async function startCheckout(orgId: string): Promise<BillingState> {
     if (error) return { error: error.message }
   }
 
-  const { count } = await admin
-    .from("org_members")
-    .select("user_id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .neq("role", "viewer")
-
   const base = `${await origin()}/${owner.org.slug}/settings/billing`
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: Math.max(1, count ?? 1) }],
+    // One price per workspace, whoever is in it (R7.2).
+    line_items: [{ price: process.env.STRIPE_PRICE_ID!, quantity: 1 }],
     subscription_data: { metadata: { org_id: orgId } },
     allow_promotion_codes: true,
     success_url: `${base}?checkout=success`,
