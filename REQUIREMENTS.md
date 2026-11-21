@@ -12,7 +12,7 @@ The words the product uses, in the interface, in the MCP tools' descriptions, an
 
 | Word | What it means | In code and tool names |
 |---|---|---|
-| **Workspace** | Where projects live, with the people in it and its plan. One kind: every account starts with one, and any workspace can have people invited to it; a second editor needs a paid plan. Not "org" or "organization", and not "personal" or "team" workspace. | `orgs`, `org_id`, the `[org]` route; the tools say `workspace_id` |
+| **Workspace** | Where projects live, with the people in it and its plan. One kind: every account starts with one, and any workspace can have people invited to it, as editors or viewers, on any plan. Not "org" or "organization", and not "personal" or "team" workspace. | `orgs`, `org_id`, the `[org]` route; the tools say `workspace_id` |
 | **Document** | Anything in a project's tree: a whiteboard or a page. | `documents` |
 | **Whiteboard** | A document to draw on: nodes and arrows on a canvas (its drawing surface). | `type: whiteboard` |
 | **Page** | A document of rich text. Not "text doc" or "note". | a text document, `type: text` (`read_text_document`) |
@@ -139,16 +139,18 @@ An **object** is a node or an arrow. Groups contain nodes.
 
 ## 7. Plans and billing
 
+Since 2026-11-15 a team is free: editors, viewers and documents are unlimited on every plan. Pro sells higher limits, starting with room for pictures and videos, at one price per workspace.
+
 | ID | Requirement |
 |---|---|
-| R7.1 | **Free plan:** unlimited documents in **public** projects, up to **100 documents across private projects**, and **1 editor**, so everything a person does on their own is free. Viewers are unlimited. Inviting a second editor is what needs Pro: paying is what makes a workspace a team. |
+| R7.1 | **Free plan:** unlimited editors, viewers and documents, in public and private projects, and **1 GB of pictures and videos** per workspace. A deployment may also cap documents across private projects and editors on the free plan; subcanvas.app caps neither. |
 | R7.1a | Descriptions (R4.2) and what is in the trash, including everything inside a trashed document or folder, do not count toward the private document limit. Restoring counts everything that comes back. |
-| R7.2 | **Paid plan, Pro:** $5 per editor per month through Stripe, billed per workspace. Unlimited private documents and editors. |
-| R7.2a | Editors are Owners, Admins, and Editors. Viewers are always free and never billed. |
+| R7.2 | **Paid plan, Pro:** **$5 a month per workspace** through Stripe, whatever its size, for higher limits: **100 GB of pictures and videos**, and no cap on private documents or editors where the free plan has one. |
+| R7.2a | Nobody is billed per person. Editors (Owners, Admins, and Editors) and Viewers are free on every plan. |
 | R7.3 | Stripe Checkout to subscribe, Stripe Customer Portal to manage, and webhooks that sync subscription state to Supabase. |
-| R7.4 | The billed quantity follows the number of editors as members are added, removed, or change to or from Viewer. |
+| R7.4 | The price does not change with membership: a subscription is one workspace, however many people join or leave it. |
 | R7.5 | At a limit, the blocked action (a new private document, a restore, an import, a second editor, making a project private) says the same thing wherever it happens: what the limit is, then, where the server sells a plan, the upgrade for an owner, or a line telling anyone else to ask an owner. Everything that exists stays editable. An admin can always make a project public; making it private is checked against the limit. |
-| R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. A workspace left with more editors than the free plan includes has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
+| R7.6 | When a subscription lapses nothing is deleted and **nothing is ever made public**. A workspace keeping more pictures and videos than the free plan includes keeps them, and new ones are refused until it is under the cap or subscribes again. Where the free plan limits editors, a workspace left with more has a 14-day grace period, then becomes read-only for everyone except owners until it resubscribes or moves editors to viewers. |
 | R7.7 | Limits are a deployment setting and are **off by default**, so a self-hosted server has no limits and needs no billing setup. With Stripe unconfigured, billing navigation and upgrade prompts are hidden. |
 
 ## 8. Platform

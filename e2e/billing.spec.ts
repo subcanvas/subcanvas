@@ -41,7 +41,7 @@ test("an owner upgrades at checkout and comes back on the Pro plan, limits lifte
 
   await page.goto(billing(slug))
   await expect(page.getByText("Free plan", { exact: true })).toBeVisible()
-  // The price is per editor, and a fresh org has one: its owner.
+  // One price for the workspace, whoever is in it.
   await page.getByRole("button", { name: "Upgrade for $5 a month", exact: true }).click()
 
   await payAtCheckout(page)
@@ -49,16 +49,15 @@ test("an owner upgrades at checkout and comes back on the Pro plan, limits lifte
   await expectTeamPlan(page)
 
   // A paid org has a period end and a way to manage it, and no ceiling on
-  // what the free plan counts: locally the page read "0 of 100" and
-  // "1 of 3" before, and CI's fresh stack sets no limits at all, so what is
-  // asserted is what holds either way.
-  await expect(page.getByText("Unlimited private documents and editors.")).toBeVisible()
-  await expect(page.getByText(/\b\d+ of \d+\b/)).toHaveCount(0)
+  // documents or editors, whatever limits the free plan has on this stack.
+  await expect(page.getByText(/^\$5 a month for this workspace/)).toBeVisible()
+  await expect(page.getByText("Private documents", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("Editors", { exact: true })).toHaveCount(0)
   await expect(page.getByText("Renews", { exact: true })).toBeVisible()
   await expect(page.getByRole("button", { name: "Manage billing" })).toBeVisible()
   await expect(page.getByRole("button", { name: /^Upgrade/ })).toHaveCount(0)
 
-  // Stripe agrees, and was sold one seat: the owner.
+  // Stripe agrees, and sold one workspace.
   await expect
     .poll(() => stripeSubscriptionFor(account.email), { timeout: 30_000 })
     .toEqual({ status: "active", seats: 1 })
@@ -88,7 +87,7 @@ test("an editor sees the plan but is told only an owner can change it", async ({
   await expect(page.getByRole("button", { name: /^Upgrade for \$\d+ a month$/ })).toBeVisible()
 })
 
-test("the seats follow the editors: one more joins, Stripe bills for two", async ({
+test("the price does not follow the team: another editor joins, Stripe still bills one", async ({
   page,
   browser,
   baseURL,
@@ -103,15 +102,13 @@ test("the seats follow the editors: one more joins, Stripe bills for two", async
     .poll(() => stripeSubscriptionFor(account.email), { timeout: 30_000 })
     .toEqual({ status: "active", seats: 1 })
 
-  // An editor is a seat; accepting the invite is what tells Stripe.
+  // Editors are free: one more changes nothing at Stripe.
   const guest = freshAccount()
   const link = await createInviteLink(page, slug, guest.email, "Editor")
   const member = await joinThroughInvite(browser, baseURL!, link, guest, slug)
   await member.context.close()
 
   await page.goto(billing(slug))
-  await expect(page.getByText("2 (owners, admins, and editors; viewers are free)")).toBeVisible()
-  await expect
-    .poll(() => stripeSubscriptionFor(account.email), { timeout: 30_000 })
-    .toEqual({ status: "active", seats: 2 })
+  await expect(page.getByText(/^\$5 a month for this workspace/)).toBeVisible()
+  expect(await stripeSubscriptionFor(account.email)).toEqual({ status: "active", seats: 1 })
 })

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { connection } from "next/server"
 
 import { LegalAttribution, LegalPage } from "@/components/legal-page"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { legalDetails } from "@/lib/legal"
 
 export const metadata = { title: "Terms of Service" }
@@ -18,6 +19,9 @@ export default async function TermsPage() {
   const legal = legalDetails()
   if (!legal) notFound()
   const mail = <a href={`mailto:${legal.contact}`}>{legal.contact}</a>
+  // A server that sells no plan says so, and leaves out what only a paid
+  // plan needs: billing, refunds, cancelling.
+  const selling = billingConfigured()
 
   return (
     <LegalPage title="Terms of Service">
@@ -104,42 +108,59 @@ export default async function TermsPage() {
         cannot take back what someone has already seen or copied.
       </p>
 
-      <h2>Payment, Refunds, and Plan Changes</h2>
-      <ul>
-        <li>
-          If you are using a free version of the Services, it is really free: we do not ask you for your credit
-          card and, just like for customers who pay for our Services, we do not sell your data.
-        </li>
-        <li>
-          Paid plans are billed per editor, per month, in advance, through Stripe. If you are upgrading from a
-          free plan to a paid plan, we will charge your card immediately and your billing cycle starts on the day
-          of upgrade. When you add or remove editors during a cycle, the change in price is prorated.
-        </li>
-        <li>
-          All fees are exclusive of all taxes, levies, or duties imposed by taxing authorities. Where required, we
-          will collect those taxes on behalf of the taxing authority and remit them. Otherwise, you are responsible
-          for payment of all taxes, levies, or duties.
-        </li>
-        <li>
-          We want our customers to be treated fairly. If you were charged in error, or were charged after you
-          meant to cancel, write to {mail} and we will work it out with you, including a full or partial refund
-          where that is the fair result.
-        </li>
-      </ul>
+      {selling ? (
+        <>
+          <h2>Payment, Refunds, and Plan Changes</h2>
+          <ul>
+            <li>
+              If you are using a free version of the Services, it is really free: we do not ask you for your credit
+              card and, just like for customers who pay for our Services, we do not sell your data.
+            </li>
+            <li>
+              Paid plans are billed per workspace, per month, in advance, through Stripe. If you are upgrading
+              from a free plan to a paid plan, we will charge your card immediately and your billing cycle starts on
+              the day of upgrade.
+            </li>
+            <li>
+              All fees are exclusive of all taxes, levies, or duties imposed by taxing authorities. Where required, we
+              will collect those taxes on behalf of the taxing authority and remit them. Otherwise, you are responsible
+              for payment of all taxes, levies, or duties.
+            </li>
+            <li>
+              We want our customers to be treated fairly. If you were charged in error, or were charged after you
+              meant to cancel, write to {mail} and we will work it out with you, including a full or partial refund
+              where that is the fair result.
+            </li>
+          </ul>
+        </>
+      ) : (
+        <>
+          <h2>Price</h2>
+          <p>
+            The Services are free. We do not ask you for your credit card, and we do not sell your data. To keep them
+            free for everyone, the Services have limits, such as how much each workspace can keep in pictures and
+            videos, and we may change them to stop abuse.
+          </p>
+        </>
+      )}
 
-      <h2>Cancellation and Termination</h2>
+      <h2>{selling ? "Cancellation and Termination" : "Termination"}</h2>
       <ul>
-        <li>
-          You are solely responsible for properly canceling your paid plan. You can do it at any time from
-          Billing in the Services. An email request to cancel is not automatically considered cancellation. If you
-          need help canceling, you can always contact us at {mail}.
-        </li>
-        <li>
-          If you cancel a paid plan before the end of your current paid up month, you will not be charged again.
-          We do not automatically prorate unused time in the last billing cycle. When a paid plan ends and a
-          workspace has more editors than the free plan includes, the workspace becomes read-only after the grace period shown in
-          the Services, until it fits the free plan or subscribes again. No content is deleted because of this.
-        </li>
+        {selling && (
+          <>
+            <li>
+              You are solely responsible for properly canceling your paid plan. You can do it at any time from
+              Billing in the Services. An email request to cancel is not automatically considered cancellation. If you
+              need help canceling, you can always contact us at {mail}.
+            </li>
+            <li>
+              If you cancel a paid plan before the end of your current paid up month, you will not be charged again.
+              We do not automatically prorate unused time in the last billing cycle. When a paid plan ends, no
+              content is deleted. A workspace that keeps more than the free plan includes, such as more pictures and
+              videos, cannot add more of it until it fits the free plan or subscribes again.
+            </li>
+          </>
+        )}
         <li>
           An owner can delete a workspace from its settings. To delete your account, use Profile in the Services,
           or write to {mail} from the email address on the account. Deleting your account deletes every
@@ -173,12 +194,19 @@ export default async function TermsPage() {
           because we think it could be better. We reserve the right at any time to modify or discontinue,
           temporarily or permanently, any part of our Services with or without notice.
         </li>
-        <li>
-          Sometimes we change the pricing structure for our products. When we do that, we tend to exempt existing
-          customers from those changes. However, we may choose to change the prices for existing customers. If we
-          do so, we will give at least 30 days notice and will notify you via the email address on record. We may
-          also post a notice about changes on our website or the affected Services themselves.
-        </li>
+        {selling ? (
+          <li>
+            Sometimes we change the pricing structure for our products. When we do that, we tend to exempt existing
+            customers from those changes. However, we may choose to change the prices for existing customers. If we
+            do so, we will give at least 30 days notice and will notify you via the email address on record. We may
+            also post a notice about changes on our website or the affected Services themselves.
+          </li>
+        ) : (
+          <li>
+            If we ever start charging for any part of the Services, we will give at least 30 days notice by email to
+            the address on record before anything you use costs money.
+          </li>
+        )}
       </ul>
 
       <h2>Uptime, Security, and Privacy</h2>
@@ -275,7 +303,7 @@ export default async function TermsPage() {
 
       <h2>Sign-in and Other Third-Party Services</h2>
       <p>
-        You can sign in with Google or GitHub, and paid plans are charged through Stripe. Those are services we do
+        You can sign in with Google or GitHub{selling && ", and paid plans are charged through Stripe"}. Those are services we do
         not run, and their own terms apply to your use of them. We are not liable or accountable for any
         third-party service, or for anything a link in a document leads to.
       </p>

@@ -36,7 +36,7 @@ A box opens into its own whiteboard. When a box has parts worth drawing, `attach
 
 When a box or an arrow needs explaining but has no parts to draw, give it a page instead: `attach_document` with `type: "text"` and the `markdown`. Write what it is, what it is responsible for, and anything a reader would ask. A box or an arrow holds one document; `detach_document` first to replace it.
 
-On the free plan a nested whiteboard counts toward the workspace's private documents and a description does not. If a nested whiteboard is refused for a plan limit, say so to the person and use a description for that detail instead.
+On a server with a limit on private documents, a nested whiteboard counts toward it and a description does not. If a nested whiteboard is refused for a plan limit, say so to the person and use a description for that detail instead.
 
 ## Arrows
 

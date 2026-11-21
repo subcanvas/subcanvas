@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/table"
 import { PageHeader } from "@/components/page-header"
 import { PersonAvatar } from "@/components/person-avatar"
-import { billingConfigured } from "@/lib/billing/stripe"
 import { emailConfigured } from "@/lib/email"
 import { getOrgContext } from "@/lib/orgs"
 import { hasRole, ROLE_LABELS, type Role } from "@/lib/roles"
@@ -54,11 +53,7 @@ export default async function MembersPage({
       <PageHeader
         eyebrow={org.name}
         title="Members"
-        description={
-          billingConfigured()
-            ? "Owners, admins, and editors can change things, and are the seats Pro is billed for. Viewers can only look, and are always free."
-            : "Owners, admins, and editors can change things. Viewers can only look."
-        }
+        description="Owners, admins, and editors can change things. Viewers can only look."
       />
 
       <div className="overflow-hidden rounded-xl border border-rule bg-sheet">

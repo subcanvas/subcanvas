@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation"
 
 import { ASK_AN_OWNER, limitMessage } from "@/lib/billing/limit"
-import { billingConfigured, syncSeats } from "@/lib/billing/stripe"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { createClient } from "@/lib/supabase/server"
 
 export type AcceptState = { error: string } | null
@@ -21,6 +21,5 @@ export async function acceptInvite(token: string): Promise<AcceptState> {
     return { error: billingConfigured() ? `${limit} ${ASK_AN_OWNER}` : limit }
   }
 
-  await syncSeats(org.id)
   redirect(`/${org.slug}`)
 }

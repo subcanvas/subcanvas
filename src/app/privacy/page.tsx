@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { connection } from "next/server"
 
 import { LegalAttribution, LegalPage } from "@/components/legal-page"
+import { billingConfigured } from "@/lib/billing/stripe"
 import { legalDetails } from "@/lib/legal"
 
 export const metadata = { title: "Privacy Policy" }
@@ -19,6 +20,8 @@ export default async function PrivacyPage() {
   const legal = legalDetails()
   if (!legal) notFound()
   const mail = <a href={`mailto:${legal.contact}`}>{legal.contact}</a>
+  // Billing information and Stripe are named only where a plan is sold.
+  const selling = billingConfigured()
 
   return (
     <LegalPage title="Privacy Policy">
@@ -75,13 +78,17 @@ export default async function PrivacyPage() {
         uninstalling the app on GitHub stops us reading it at all.
       </p>
 
-      <h3>Billing information</h3>
-      <p>
-        If you sign up for a paid plan, you will be asked to provide your payment information and billing address.
-        Credit card information is submitted directly to our payment processor, Stripe, and doesn&apos;t hit our
-        servers. We store the Stripe customer and subscription identifiers and the state of your plan, for
-        purposes of account history, invoicing, and billing support.
-      </p>
+      {selling && (
+        <>
+          <h3>Billing information</h3>
+          <p>
+            If you sign up for a paid plan, you will be asked to provide your payment information and billing
+            address. Credit card information is submitted directly to our payment processor, Stripe, and doesn&apos;t
+            hit our servers. We store the Stripe customer and subscription identifiers and the state of your plan, for
+            purposes of account history, invoicing, and billing support.
+          </p>
+        </>
+      )}
 
       <h3>Product interactions</h3>
       <p>
@@ -143,7 +150,7 @@ export default async function PrivacyPage() {
         <li><strong>Supabase</strong>: database, authentication, and real-time sync, hosted in the United States.</li>
         <li><strong>Vercel</strong>: hosting of the web application.</li>
         <li><strong>Resend</strong>: sending email.</li>
-        <li><strong>Stripe</strong>: payments, for paid plans.</li>
+        {selling && <li><strong>Stripe</strong>: payments, for paid plans.</li>}
         <li><strong>Cloudflare</strong>: domain name service.</li>
         <li><strong>Google and GitHub</strong>: sign-in, only if you choose them. They learn that you signed in to this service. GitHub also serves the repositories a workspace connects.</li>
       </ul>
@@ -183,10 +190,12 @@ export default async function PrivacyPage() {
           us to disclose data, we must comply. It is our policy to notify affected users before we disclose data
           unless we are legally prohibited from doing so, and except in some emergency cases.
         </li>
-        <li>
-          If we are audited by a tax authority, we may be required to disclose billing-related information. If that
-          happens, we will disclose only the minimum needed.
-        </li>
+        {selling && (
+          <li>
+            If we are audited by a tax authority, we may be required to disclose billing-related information. If that
+            happens, we will disclose only the minimum needed.
+          </li>
+        )}
       </ul>
       <p>
         Finally, if the service is acquired by or merges with another company, we&apos;ll notify you well before
